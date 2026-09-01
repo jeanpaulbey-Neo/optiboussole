@@ -94,6 +94,28 @@ function evppi(idx, options, bins, valeurSansInfo) {
   return Math.max(0, acc - valeurSansInfo);
 }
 
+// Un tirage qui ne prend que deux valeurs (bernoulli, indicatrice) n'a pas de
+// « seuil » : on ne balaie pas une plage entre pile et face.
+function estBinaire(tri) {
+  const a = tri[0], b = tri[tri.length - 1];
+  if (a === b) return false;
+  for (let i = 0; i < tri.length; i++) {
+    if (tri[i] !== a && tri[i] !== b) return false;
+  }
+  return true;
+}
+
+// Part des tirages situés au-delà (ou en deçà) d'une valeur, par recherche
+// dichotomique dans l'échantillon déjà trié.
+function partAuDela(tri, x, au_dessus) {
+  let lo = 0, hi = tri.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (tri[m] < x) lo = m + 1; else hi = m;
+  }
+  return au_dessus ? 1 - lo / tri.length : lo / tri.length;
+}
+
 function statistiques(v) {
   const tri = trier(v);
   const m = moyenne(v);
@@ -201,17 +223,22 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     return { vide: true, ast };
   }
   const r = evaluerModele(ast, { N });
+  // Un « seuil: » écrit dans le modèle prime sur celui passé par l'appelant.
+  if (r.seuil !== null && r.seuil !== undefined) seuil = r.seuil;
 
   // On ne garde que les sources qui varient réellement.
   const sources = r.sources
     .filter((s) => s.valeurs instanceof Float64Array)
-    .map((s) => ({ ...s, stats: statistiques(s.valeurs) }))
+    .map((s) => {
+      const stats = statistiques(s.valeurs);
+      return { ...s, stats, binaire: estBinaire(stats.tri) };
+    })
     .filter((s) => s.stats.p95 - s.stats.p05 > 0 || s.stats.ecartType > 0);
 
   const modeDecision = r.options.length >= 2;
   const resultat = {
     ast, N, modeDecision, sources: [],
-    options: null, sortie: null, seuil,
+    options: null, sortie: null, seuil, unite: ast.unite || '',
     nomSortie: ast.sortie && ast.sortie.expr.k === 'var' ? ast.sortie.expr.nom : null,
   };
 
@@ -265,11 +292,16 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
 
     for (const s of sources) {
       const idx = ordres.get(s.id);
+      const bascules = s.binaire ? [] : seuilsDecision(ast, sources, s, nomsOptions);
+      for (const b of bascules) {
+        b.proba = partAuDela(s.stats.tri, b.valeur, b.sens === 'hausse');
+      }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
+        binaire: s.binaire,
         part: effetPrincipal(idx, rangEcarts, variance(rangEcarts), moyenne(rangEcarts), bins),
         valeurInfo: evppi(idx, opts, bins, valeurSansInfo),
-        bascules: seuilsDecision(ast, sources, s, nomsOptions),
+        bascules,
       });
     }
     resultat.sources.sort((a, b) => (b.valeurInfo - a.valeurInfo) || (b.part - a.part));
@@ -279,15 +311,23 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     const rangSortie = rangs(r.sortie);
     const varR = variance(rangSortie, moyenne(rangSortie));
     const largeurTotale = st.p95 - st.p05;
+    if (seuil !== null) {
+      resultat.pAuDessus = partAuDela(st.tri, seuil, true);
+    }
     for (const s of sources) {
       const idx = ordres.get(s.id);
       const resid = largeurResiduelle(idx, r.sortie, bins);
+      const bascules = (seuil === null || s.binaire) ? [] : seuilCible(ast, sources, s, seuil);
+      for (const b of bascules) {
+        b.proba = partAuDela(s.stats.tri, b.valeur, b.sens === 'au-dessus');
+      }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
+        binaire: s.binaire,
         part: effetPrincipal(idx, rangSortie, varR, moyenne(rangSortie), bins),
         largeurResiduelle: resid,
         gainLargeur: largeurTotale > 0 ? 1 - resid / largeurTotale : 0,
-        bascules: seuil === null ? [] : seuilCible(ast, sources, s, seuil),
+        bascules,
       });
     }
     resultat.largeurTotale = largeurTotale;

@@ -20,6 +20,24 @@ const MOTS_CLES = new Set([
   'if', 'then', 'else', 'and', 'or', 'not', 'true', 'false',
 ]);
 
+// Réglages d'analyse, écrits « nom: valeur ».
+const SEUIL = new Set(['seuil', 'objectif', 'cible']);
+
+// L'unité est un libellé libre (« € », « kg CO₂e », « h/semaine ») : elle est
+// extraite avant l'analyse lexicale, qui n'a pas à connaître ces symboles.
+const LIGNE_UNITE = /^[ \t]*(?:unité|unite|unit)[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+
+function extraireUnite(source) {
+  let unite = '';
+  const lignes = source.split('\n').map((l) => {
+    const m = l.match(LIGNE_UNITE);
+    if (!m) return l;
+    unite = m[1].replace(/^["«“](.*)["»”]$/, '$1').trim();
+    return ''; // ligne neutralisée : les numéros de ligne restent justes
+  });
+  return { source: lignes.join('\n'), unite };
+}
+
 // `à` sert d'opérateur d'intervalle ; les variantes ASCII sont acceptées.
 const INTERVALLE = new Set(['à', 'a', '~', '..', 'to']);
 
@@ -146,7 +164,7 @@ export function lexer(source) {
     if (c === '=') { pousser('assign'); i++; continue; }
     if (c === '>' || c === '<') { pousser('op', c); i++; continue; }
     if ('(),'.includes(c)) { pousser(c); i++; continue; }
-    if (c === ':') { i++; continue; }
+    if (c === ':') { pousser(':'); i++; continue; }
 
     throw new ErreurModele(`caractère inattendu « ${c} »`, ligne);
   }
@@ -321,16 +339,33 @@ class Parseur {
   }
 }
 
-export function analyser(source) {
+export function analyser(sourceBrute) {
+  const { source, unite: uniteDeclaree } = extraireUnite(sourceBrute);
   const p = new Parseur(lexer(source));
   const declarations = [];
   const options = [];
   let sortie = null;
+  const unite = uniteDeclaree;
+  let seuil = null;
 
   for (;;) {
     p.sauterNL();
     if (p.estType('fin')) break;
     const ligne = p.ligne();
+
+    // Directives « unité: € » et « seuil: 0 ».
+    if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === ':') {
+      const mot = p.cur().valeur.toLowerCase();
+      if (SEUIL.has(mot)) {
+        p.avance(); p.avance();
+        seuil = { expr: p.expr(), ligne };
+        if (!p.estType('nl') && !p.estType('fin')) {
+          throw new ErreurModele('fin de ligne attendue après le seuil', p.ligne());
+        }
+        continue;
+      }
+      throw new ErreurModele(`réglage « ${p.cur().valeur} » inconnu (attendus : unité, seuil)`, ligne);
+    }
 
     if (p.estMC('option') || p.estMC('choix')) {
       p.avance();
@@ -338,7 +373,8 @@ export function analyser(source) {
       if (p.estType('texte')) nom = p.avance().valeur;
       else if (p.estType('ident')) nom = p.avance().valeur;
       else throw new ErreurModele('nom d\'option attendu après « option »', ligne);
-      p.attendre('assign', '« = » après le nom de l\'option');
+      if (p.estType(':')) p.avance();
+      else p.attendre('assign', '« = » après le nom de l\'option');
       const e = p.expr();
       options.push({ nom, expr: e, ligne });
     } else if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === 'assign') {
@@ -365,5 +401,5 @@ export function analyser(source) {
     sortie = { expr: { k: 'var', nom: derniere.nom, ligne: derniere.ligne }, ligne: derniere.ligne, implicite: true };
   }
 
-  return { declarations, options, sortie };
+  return { declarations, options, sortie, unite, seuil };
 }

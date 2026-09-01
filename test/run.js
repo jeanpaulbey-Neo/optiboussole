@@ -243,5 +243,64 @@ option "Y" = d * e - c
   verifie(`5 hypothèses × 20 000 tirages en ${ms} ms`, ms < 3000, `→ ${ms} ms`);
 }
 
+// --- Directives -------------------------------------------------------------
+groupe('Directives unité / seuil');
+{
+  const r = analyserModele('unité: €\nx = 100 à 200', { N: 5000 });
+  verifie('unité lue', r.unite === '€', `→ « ${r.unite} »`);
+}
+{
+  const r = analyserModele('seuil: 30\nx = 0 à 100\ny = x', { N: 20000 });
+  verifie('seuil lu depuis le modèle', r.seuil === 30, `→ ${r.seuil}`);
+  verifie('le seuil déclenche le calcul de bascule', r.sources[0].bascules.length === 1);
+}
+{
+  const r = analyserModele('seuil: prix\nprix = 250k\nx = 100k à 400k\ny = x', { N: 20000 });
+  verifie('seuil peut référencer une variable', r.seuil === 250000, `→ ${r.seuil}`);
+}
+erreur('réglage inconnu', 'bidule: 3\nx = 1', 'inconnu');
+{
+  const r = analyserModele('unité: %\noption A: 1\noption B: 2', { N: 1000 });
+  verifie('« option X: » accepté comme « option X = »', r.modeDecision && r.options.liste.length === 2);
+}
+
+// --- Sources binaires -------------------------------------------------------
+groupe('Tirages binaires');
+{
+  const r = analyserModele(`
+risque = bernoulli(20%)
+option "Risquer" = si risque alors -5000 sinon 3000
+option "Éviter"  = 0
+`, { N: 40000 });
+  const s = r.sources.find((x) => x.nom === 'risque');
+  verifie('un bernoulli est reconnu comme binaire', s.binaire === true);
+  verifie('pas de seuil balayé sur un binaire', s.bascules.length === 0);
+  verifie('sa valeur d\'information reste calculée', s.valeurInfo > 0, `→ ${s.valeurInfo}`);
+}
+{
+  const r = analyserModele('x = 1 à 10\ny = x', { N: 20000 });
+  verifie('un intervalle n\'est pas binaire', r.sources[0].binaire === false);
+}
+
+// --- Bibliothèque de modèles ------------------------------------------------
+groupe('Bibliothèque');
+{
+  const { MODELES } = await import('../public/js/modeles.js');
+  for (const m of MODELES) {
+    let r = null, err = null;
+    try { r = analyserModele(m.source); } catch (e) { err = e; }
+    verifie(`« ${m.titre} » s'analyse sans erreur`, err === null,
+      err ? `→ ligne ${err.ligne} : ${err.message}` : '');
+    if (!r) continue;
+    const st = r.modeDecision ? r.options.liste[0].stats : r.sortie;
+    verifie(`« ${m.titre} » produit des nombres finis`,
+      Number.isFinite(st.p05) && Number.isFinite(st.p50) && Number.isFinite(st.p95));
+    verifie(`« ${m.titre} » a au moins une hypothèse incertaine`, r.sources.length > 0);
+    const large = st.p95 !== 0 && Math.abs(st.p95 / (st.p50 || 1)) > 500;
+    verifie(`« ${m.titre} » n'explose pas (p95 raisonnable)`, !large,
+      `→ p50 ${st.p50.toPrecision(3)} p95 ${st.p95.toPrecision(3)}`);
+  }
+}
+
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);
 process.exit(ko === 0 ? 0 : 1);

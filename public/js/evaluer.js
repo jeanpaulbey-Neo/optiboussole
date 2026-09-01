@@ -78,8 +78,24 @@ const DETERMINISTES = {
   signe: (N, x) => unaireF(x, N, Math.sign),
   mod: (N, x, y) => binaire(x, y, N, (a, b) => a % b),
   // Somme d'une série géométrique : capitalisation / actualisation.
+  //   cumul(t, a) = 1 + (1+t) + … + (1+t)^(a-1)
   cumul: (N, taux, annees) => binaire(taux, annees, N, (t, a) =>
     Math.abs(t) < 1e-12 ? a : (Math.pow(1 + t, a) - 1) / t),
+  // Valeur acquise d'un versement annuel qui croît de `g` et se place à `r` :
+  //   serie(r, g, a) = Σ_{k=1..a} (1+g)^(k-1) (1+r)^(a-k)
+  // C'est ce qu'il faut pour comparer un loyer qui monte à un capital qui rapporte.
+  serie: (N, r, g, a) => {
+    const f = (r_, g_, a_) => (Math.abs(r_ - g_) < 1e-9
+      ? a_ * Math.pow(1 + r_, a_ - 1)
+      : (Math.pow(1 + r_, a_) - Math.pow(1 + g_, a_)) / (r_ - g_));
+    if (!estVec(r) && !estVec(g) && !estVec(a)) return f(r, g, a);
+    const R = estVec(r) ? (i) => r[i] : () => r;
+    const G = estVec(g) ? (i) => g[i] : () => g;
+    const A = estVec(a) ? (i) => a[i] : () => a;
+    const out = new Float64Array(N);
+    for (let i = 0; i < N; i++) out[i] = f(R(i), G(i), A(i));
+    return out;
+  },
 };
 
 const ALEATOIRES = new Set([
@@ -326,8 +342,15 @@ export function evaluerModele(ast, { N = 20000, graine = 20260901, remplacements
     sortie = vecteur(ctx.evaluer(ast.sortie.expr), N);
   }
 
+  let seuil = null;
+  if (ast.seuil) {
+    ctx.nomCourant = null;
+    const v = ctx.evaluer(ast.seuil.expr);
+    seuil = v instanceof Float64Array ? quantile(trier(v), 0.5) : v;
+  }
+
   const variables = new Map();
   for (const d of ast.declarations) variables.set(d.nom, ctx.cache.get(d.nom));
 
-  return { N, sources: ctx.sources, variables, options, sortie };
+  return { N, sources: ctx.sources, variables, options, sortie, seuil };
 }
