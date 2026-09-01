@@ -23,19 +23,24 @@ let cleCourante = MODELE_PAR_DEFAUT;
 const nf = (options) => new Intl.NumberFormat('fr-FR', options);
 
 // Mise en forme maison plutôt qu'Intl notation:'compact' : il faut contrôler
-// la soudure entre le suffixe d'échelle et l'unité — « 72 k€ », pas « 72 k € ».
-function valeur(x, unite) {
+// la soudure entre le suffixe d'échelle et l'unité — « 72 k€ », pas « 72 k € » —
+// et pouvoir imposer une même échelle aux deux bornes d'une plage.
+function echelle(x) {
+  const a = Math.abs(x);
+  if (a >= 1e9) return [1e9, '\u202fMd'];
+  if (a >= 1e6) return [1e6, '\u202fM'];
+  if (a >= 1e4) return [1e3, '\u202fk'];
+  return [1, ''];
+}
+
+function valeur(x, unite, ech = null) {
   if (!Number.isFinite(x)) return '—';
   if (unite === '%') {
     return nf({ maximumFractionDigits: Math.abs(x) < 0.01 ? 2 : 1 }).format(x * 100) + '\u202f%';
   }
-  const a = Math.abs(x);
-  let v = x, suffixe = '';
-  if (a >= 1e9) { v = x / 1e9; suffixe = '\u202fMd'; }
-  else if (a >= 1e6) { v = x / 1e6; suffixe = '\u202fM'; }
-  else if (a >= 1e4) { v = x / 1e3; suffixe = '\u202fk'; }
-
-  const av = Math.abs(v);
+  const [diviseur, suffixe] = ech || echelle(x);
+  const v = x / diviseur;
+  const a = Math.abs(x), av = Math.abs(v);
   const decimales = suffixe
     ? (av >= 100 ? 0 : av >= 10 ? 1 : 2)
     : (a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : a === 0 ? 0 : 3);
@@ -46,6 +51,13 @@ function valeur(x, unite) {
   // sans lui : « 72 k€ », « 3 011 € », « 0,49 €/km », « 13 mois ».
   const symbole = /^[^\p{L}\s]/u.test(unite);
   return suffixe && symbole ? texte + unite : texte + '\u202f' + unite;
+}
+
+// Les deux bornes d'un intervalle partagent une échelle : « 8 k → 16,1 k »
+// se lit, « 7 977 → 16,1 k » demande un effort inutile.
+function plage(a, b, unite) {
+  const ech = echelle(Math.abs(a) > Math.abs(b) ? a : b);
+  return valeur(a, unite, ech) + ' → ' + valeur(b, unite, ech);
 }
 
 const pourcent = (p) => nf({ maximumFractionDigits: p > 0 && p < 0.01 ? 1 : 0 }).format(p * 100) + ' %';
@@ -150,6 +162,15 @@ function courbe(stats, unite, seuil = null) {
 
 // --- Rendu d'une hypothèse --------------------------------------------------
 
+// Une hypothèse est « notable » si la connaître changerait quelque chose.
+// Un gain de 4 € sur un choix qui en vaut 12 800 n'en change aucun : l'afficher
+// au même rang que le reste noierait ce qui compte.
+function notable(s, r) {
+  return r.modeDecision
+    ? s.valeurInfo >= Math.max(r.options.evpi * 0.01, 1e-9)
+    : s.part >= 0.02;
+}
+
 function ligneHypothese(s, r, indice) {
   const unite = r.unite;
   const nomBouton = el('button', {
@@ -160,9 +181,9 @@ function ligneHypothese(s, r, indice) {
 
   const chiffre = r.modeDecision
     ? el('span', { class: 'hypothese-chiffre' },
-        s.valeurInfo > 0
+        notable(s, r)
           ? [el('b', { text: valeur(s.valeurInfo, unite) }), ' à gagner à le savoir']
-          : ['sans effet sur le choix'])
+          : ['ne change pas le choix'])
     : el('span', { class: 'hypothese-chiffre' },
         [el('b', { text: pourcent(s.part) }), ' de l’incertitude']);
 
@@ -181,11 +202,11 @@ function ligneHypothese(s, r, indice) {
       : `passe ${b.sens === 'au-dessus' ? 'au-dessus' : 'en dessous'} du seuil`;
     bloc.appendChild(el('p', { class: 'bascule' },
       [`Le résultat ${cible} si `, el('span', { class: 'plage', text: s.nom }),
-       ` ${sens} `, el('b', { text: valeur(b.valeur, uniteDe(s, r)) }),
+       ` ${sens} `, el('b', { text: valeur(b.valeur, uniteDe(s)) }),
        ` — ${foisSur10(b.proba)} d’après votre fourchette.`]));
   } else if (s.bascules.length > 1) {
     bloc.appendChild(el('p', { class: 'bascule' },
-      `Plusieurs seuils : ${s.bascules.map((b) => valeur(b.valeur, uniteDe(s, r))).join(', ')}.`));
+      `Plusieurs seuils : ${s.bascules.map((b) => valeur(b.valeur, uniteDe(s))).join(', ')}.`));
   } else if (s.binaire) {
     bloc.appendChild(el('p', {},
       `Événement tout ou rien : il se produit ${foisSur10(s.stats.moyenne)}.`));
@@ -194,7 +215,7 @@ function ligneHypothese(s, r, indice) {
       `Le connaître exactement resserrerait la fourchette de ${pourcent(s.gainLargeur)}, à environ ${valeur(s.largeurResiduelle, unite)} de large.`));
   }
 
-  const detail = `aujourd’hui : ${valeur(s.stats.p05, uniteDe(s, r))} → ${valeur(s.stats.p95, uniteDe(s, r))}`;
+  const detail = 'aujourd’hui : ' + plage(s.stats.p05, s.stats.p95, uniteDe(s));
   bloc.appendChild(el('p', { class: 'plage' },
     r.modeDecision ? `${detail} · porte ${pourcent(s.part)} de l’écart entre les branches` : detail));
 
@@ -203,13 +224,13 @@ function ligneHypothese(s, r, indice) {
 
 // L'unité du modèle décrit le résultat, pas forcément chaque hypothèse : un
 // taux reste un pourcentage même dans un modèle en euros.
-function uniteDe(s, r) {
-  // Écrit en pourcentage dans le modèle, affiché en pourcentage ici.
-  if (s.pourcent) return '%';
-  // Un taux nu au milieu d'un modèle en euros n'est pas une somme d'argent.
-  const petit = Math.abs(s.stats.p95) < 1 && Math.abs(s.stats.p05) < 1 && s.stats.p05 >= -1;
-  if (petit && r.unite !== '%') return '';
-  return r.unite;
+// « unité: € » décrit le résultat du modèle, pas ses hypothèses : dans un
+// modèle en €/km, `km_an` est un nombre de kilomètres et `reparations` des
+// euros par an. Afficher « 7 977 €/km » serait faux. La seule unité qu'on
+// connaisse avec certitude pour une hypothèse est le pourcentage, parce que
+// l'auteur l'a écrit tel quel.
+function uniteDe(s) {
+  return s.pourcent ? '%' : '';
 }
 
 // --- Verdict ----------------------------------------------------------------
@@ -219,7 +240,7 @@ function blocDecision(r) {
   const o = r.options.liste;
   const rec = o[r.options.recommande];
   const p = rec.pGagne;
-  const decisif = r.sources.filter((s) => s.valeurInfo > 0);
+  const decisif = r.sources.filter((s) => notable(s, r));
   const tete = decisif[0];
 
   const serre = p < 0.62;
@@ -250,7 +271,7 @@ function blocDecision(r) {
         : 'L’hypothèse qui pèse le plus sur ce choix est ',
       ['code', tete.nom], '. ',
       b
-        ? `Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb ${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} ${valeur(b.valeur, uniteDe(tete, r))}, ce qui arrive ${foisSur10(b.proba)}. `
+        ? `Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb ${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} ${valeur(b.valeur, uniteDe(tete))}, ce qui arrive ${foisSur10(b.proba)}. `
         : '',
       `Lever le doute dessus vaut environ ${valeur(tete.valeurInfo, unite)} — c’est là qu’il faut passer votre temps, pas ailleurs.`));
   } else {
@@ -272,7 +293,7 @@ function blocDecision(r) {
       el('div', { class: 'option-jauge' },
         el('i', { style: { width: (opt.pGagne * 100).toFixed(1) + '%' } })),
       el('div', { class: 'option-detail' },
-        `l’emporte ${pourcent(opt.pGagne)} du temps · 9 fois sur 10 entre ${valeur(opt.stats.p05, unite)} et ${valeur(opt.stats.p95, unite)}`),
+        `l’emporte ${pourcent(opt.pGagne)} du temps · 9 fois sur 10 : ${plage(opt.stats.p05, opt.stats.p95, unite)}`),
     ]));
   }
   options.appendChild(liste);
@@ -337,12 +358,24 @@ function rendre(r) {
     section.appendChild(el('p', { class: 'rien' },
       'Votre modèle ne contient aucune incertitude : tous les chiffres sont fermes. Remplacez-en un par une fourchette, par exemple \u00ab\u202f900 à 1150\u202f\u00bb, pour que le site ait quelque chose à dire.'));
   } else {
+    // On garde les hypothèses qui pèsent, et au moins les trois premières pour
+    // qu'un modèle où rien ne pèse ne renvoie pas une liste vide.
+    let montrees = r.sources.filter((s) => notable(s, r));
+    if (montrees.length < 3) montrees = r.sources.slice(0, 3);
+    montrees = montrees.slice(0, 10);
+    const reste = r.sources.filter((s) => !montrees.includes(s));
+
     const liste = el('ul', { class: 'hypotheses' });
-    r.sources.slice(0, 12).forEach((s, i) => liste.appendChild(ligneHypothese(s, r, i)));
+    montrees.forEach((s, i) => liste.appendChild(ligneHypothese(s, r, i)));
     section.appendChild(liste);
-    if (r.sources.length > 12) {
+
+    if (reste.length) {
+      const n = reste.length, pl = n > 1;
+      const noms = reste.slice(0, 6).map((s) => s.nom).join(', ') + (n > 6 ? '…' : '');
       section.appendChild(el('p', { class: 'rien note-basse' },
-        `${r.sources.length - 12} autres hypothèses, toutes moins influentes.`));
+        r.modeDecision
+          ? `${n} autre${pl ? 's' : ''} hypothèse${pl ? 's' : ''} ne change${pl ? 'nt' : ''} pas le choix, même ${pl ? 'à leurs valeurs extrêmes' : 'à ses valeurs extrêmes'} : ${noms}.`
+          : `${n} autre${pl ? 's' : ''} hypothèse${pl ? 's' : ''} pèse${pl ? 'nt' : ''} moins de 2 %${pl ? ' chacune' : ''} : ${noms}.`));
     }
   }
   zoneResultats.appendChild(section);

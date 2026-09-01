@@ -209,15 +209,15 @@ imprevus = 0 à 400             # par mois, en moyenne
 sorties = loyer + courses + transport + abonnements + imprevus
 
 # --- Entrées ----------------------------------------------------------
-revenu_regulier = 900 à 1600   # allocation, missions, temps partiel
+revenu_regulier = 800 à 1450   # allocation, missions, temps partiel
 aides = 0 à 300
 
 entrees = revenu_regulier + aides
 
 deficit = sorties - entrees
 
-# Plafonné à 120 mois : au-delà, la question ne se pose plus.
-mois_tenables = si deficit <= 0 alors 120 sinon min(120, reserve / deficit)`,
+# Plafonné à 60 mois : au-delà, la question ne se pose plus.
+mois_tenables = si deficit <= 0 alors 60 sinon min(60, reserve / deficit)`,
   },
 
   {

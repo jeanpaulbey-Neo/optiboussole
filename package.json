@@ -1,1 +1,12 @@
-{"name":"boussole","version":"0.1.0","type":"module","private":true,"scripts":{"test":"node test/run.js"},"dependencies":{"puppeteer":"^25.9.0"}}
+{
+  "name": "boussole",
+  "version": "1.0.0",
+  "description": "Un moteur d'estimation sous incertitude dont la sortie n'est pas un résultat mais une direction d'enquête.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/run.js",
+    "test:navigateur": "node test/navigateur.js",
+    "test:tout": "node test/run.js && node test/navigateur.js"
+  }
+}
