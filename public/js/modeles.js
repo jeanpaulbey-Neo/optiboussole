@@ -9,6 +9,9 @@
 export const MODELES = [
   {
     cle: 'logement',
+    slug: 'louer-ou-acheter',
+    question:
+      "Faut-il acheter sa résidence principale ou continuer à louer ? La réponse dépend surtout d'un chiffre que personne ne connaît : le prix auquel le bien se revendra. Ce modèle compare le patrimoine net dans les deux cas et vous dit à partir de quelle revalorisation annuelle la décision change de camp.",
     titre: 'Louer ou acheter',
     resume: 'Sur 10 ans, patrimoine net dans chaque cas.',
     source: `unité: €
@@ -63,6 +66,9 @@ option "Louer"   = apport_place - cout_loyer
 
   {
     cle: 'combles',
+    slug: 'isoler-ses-combles',
+    question:
+      "Une isolation de combles se rembourse-t-elle vraiment ? Ce modèle compare le devis, les aides et l'économie de chauffage sur quinze ans, et vous dit si la question mérite encore d'être creusée ou si elle est déjà tranchée.",
     titre: 'Isoler ses combles',
     resume: 'Un investissement qui se rembourse, ou pas.',
     source: `unité: €
@@ -91,6 +97,9 @@ option "Ne rien faire" = 0`,
 
   {
     cle: 'freelance',
+    slug: 'freelance-ou-salarie',
+    question:
+      "Passer freelance rapporte-t-il plus que rester salarié ? Le calcul évident (taux journalier × jours) ignore ce qui décide vraiment : les intercontrats et le risque d'une année creuse. Ce modèle les met dedans.",
     titre: 'Freelance ou salarié',
     resume: 'Revenu net sur trois ans, intercontrats compris.',
     source: `unité: €
@@ -122,6 +131,9 @@ option "Passer freelance" = freelance_reel * horizon`,
 
   {
     cle: 'voiture',
+    slug: 'garder-ou-changer-de-voiture',
+    question:
+      "Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Ce modèle montre un cas typique où une hypothèse fait beaucoup bouger le résultat sans jamais renverser la décision — donc où il est inutile de chercher plus loin.",
     titre: 'Garder ou changer de voiture',
     resume: 'La vieille voiture coûte cher. La neuve aussi.',
     source: `unité: €
@@ -160,6 +172,9 @@ option "Changer" = changer`,
 
   {
     cle: 'kilometre',
+    slug: 'prix-du-kilometre',
+    question:
+      "Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.",
     titre: 'Le vrai prix du kilomètre',
     resume: 'Ce que votre voiture coûte réellement, tout compris.',
     source: `unité: €/km
@@ -190,6 +205,9 @@ cout_km = (fixe + carburant) / km_an`,
 
   {
     cle: 'tresorerie',
+    slug: 'tresorerie-combien-de-mois',
+    question:
+      "Avec une réserve et des revenus irréguliers, combien de mois pouvez-vous tenir ? Ce modèle calcule la probabilité de franchir un seuil que vous fixez, et le niveau de revenu à partir duquel vous passez du mauvais côté.",
     titre: 'La trésorerie tiendra-t-elle ?',
     resume: 'Combien de mois avant de toucher le fond.',
     source: `unité: mois
@@ -222,6 +240,9 @@ mois_tenables = si deficit <= 0 alors 60 sinon min(60, reserve / deficit)`,
 
   {
     cle: 'vierge',
+    slug: 'nouveau-modele',
+    question:
+      "Une page blanche et trois lignes de syntaxe pour décrire votre propre décision : les chiffres que vous connaissez, les fourchettes que vous ne connaissez pas, et ce que vous comparez.",
     titre: 'Partir de zéro',
     resume: 'Une page blanche et trois lignes de syntaxe.',
     source: `unité: €

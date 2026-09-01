@@ -95,24 +95,47 @@ header { padding: 40px 0 26px; }
   list-style: none;
 }
 
-.exemples button {
-  font: inherit;
+.exemples .puce {
+  display: inline-block;
   font-size: 13px;
   padding: 5px 12px;
   border-radius: 999px;
   border: 1px solid var(--trait-fort);
-  background: transparent;
   color: var(--attenue);
-  cursor: pointer;
+  text-decoration: none;
   transition: background .12s, color .12s, border-color .12s;
 }
 
-.exemples button:hover { color: var(--encre); border-color: var(--encre); }
+.exemples .puce:hover { color: var(--encre); border-color: var(--encre); }
 
-.exemples button[aria-pressed="true"] {
+.exemples .puce[aria-current] {
   background: var(--encre);
   border-color: var(--encre);
   color: var(--papier);
+}
+
+nav { margin: 0 0 14px; }
+nav .exemples { margin-bottom: 0; }
+
+/* Sur une page de modèle, le nom du site s'efface : c'est un fil d'Ariane,
+   pas le titre de la page. Le titre, c'est la question posée. */
+.marque .retour {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--attenue);
+  text-decoration: none;
+}
+.marque .retour:hover { color: var(--accent); }
+.marque:has(.retour) .rose { width: 19px; height: 19px; opacity: .7; }
+
+.titre-modele {
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 14px 0 0;
+  letter-spacing: -.01em;
 }
 
 /* ---------- Disposition ---------- */

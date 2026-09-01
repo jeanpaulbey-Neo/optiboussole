@@ -17,8 +17,12 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 
 ```
 /srv/optiboussole/
-├── public/                 ← racine servie par Caddy
-│   ├── index.html          page unique + panneau d'aide (syntaxe complète)
+├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
+│   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
+│   ├── <slug>.html         ⚙ générés — une page par modèle (6 fichiers)
+│   ├── sitemap.xml         ⚙ généré
+│   ├── robots.txt          ⚙ généré
+│   ├── 404.html            écrit à la main
 │   ├── app.css             thème clair/sombre par variables CSS
 │   ├── boussole.svg        favicon
 │   └── js/
@@ -28,9 +32,12 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info
 │       ├── modeles.js      bibliothèque des six modèles de départ
 │       └── ui.js           rendu, phrases en français, partage par URL
+├── outils/
+│   ├── gabarit.js          le HTML de la page, en un seul endroit
+│   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
 │   ├── run.js              108 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       24 vérifications dans un vrai Chrome + captures
+│   └── navigateur.js       67 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -75,15 +82,42 @@ des phrases en français
 - **Déterminisme.** La graine du générateur est fixe : deux calculs du même
   modèle donnent le même résultat, sinon l'affichage frémirait à chaque frappe.
 
+## Une adresse par modèle
+
+`/`, `/isoler-ses-combles`, `/prix-du-kilometre`… Chaque page sert le même
+JavaScript mais avec son propre `<title>`, sa description, son `<h1>`, son
+canonique, et **le modèle déjà écrit dans le `<textarea>`** — donc lisible même
+sans JavaScript. C'est ce qui rend le site trouvable : sans ça, tout vivait à la
+racine et aucun sujet n'était indexable.
+
+⚠️ **Ne modifiez jamais `public/index.html` ou `public/<slug>.html` à la main :
+ils sont écrasés.** Le HTML vit dans `outils/gabarit.js`, les textes de
+présentation dans le champ `question` de chaque modèle. Après toute
+modification de l'un ou de l'autre :
+
+```bash
+npm run pages
+```
+
+Le modèle par défaut (`logement`) vit à la racine et n'a **pas** de seconde
+adresse : ce serait la même page à deux endroits.
+
+Côté client, `ui.js` lit `document.body.dataset.modele` pour savoir quel modèle
+afficher. Les pastilles sont de vrais `<a href>` interceptés pour naviguer sans
+rechargement (`pushState` + `popstate`) ; elles fonctionnent sans JavaScript.
+Priorité au démarrage : fragment d'URL partagé > modèle de la page >
+`localStorage` (sur l'accueil seulement) > défaut.
+
 ## Déploiement
 
 Il n'y en a pas. Écrire dans `public/` **est** le déploiement — Caddy sert les
 fichiers du disque. Vérification :
 
 ```bash
+npm run pages             # si le gabarit ou les modèles ont changé
 curl -I https://optiboussole.fr
-npm test              # moteur, ~2 s
-npm run test:navigateur   # vrai Chrome contre la production, ~30 s + captures
+npm test                  # moteur, ~2 s
+npm run test:navigateur   # vrai Chrome contre la production, ~60 s + captures
 ```
 
 Les captures d'écran atterrissent dans `/tmp/boussole-captures/`.
@@ -93,6 +127,11 @@ Les captures d'écran atterrissent dans `/tmp/boussole-captures/`.
 Configuration : `/etc/caddy/Caddyfile` (sauvegarde de l'originale en `.bak`).
 Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 `nosniff`, `no-referrer`, et un `Cache-Control` court sur les fichiers statiques.
+
+`try_files {path} {path}.html` donne les adresses sans extension. Il n'y a
+**volontairement pas** de repli sur `/index.html` : une adresse inconnue doit
+répondre 404 (via `handle_errors` → `404.html`), sinon tout le site répond 200
+et l'indexation part en morceaux.
 
 ```bash
 sudo caddy validate --config /etc/caddy/Caddyfile

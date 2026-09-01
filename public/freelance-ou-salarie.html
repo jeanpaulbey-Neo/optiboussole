@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Boussole — ce qu'il faut aller vérifier avant de décider</title>
-<meta name="description" content="Décrivez une décision chiffrée avec ses incertitudes. Boussole ne donne pas un résultat : elle dit quelle hypothèse décide, à partir de quelle valeur votre choix bascule, et quel chiffre vaut la peine d'être vérifié. Tout se calcule dans votre navigateur.">
-<link rel="canonical" href="https://optiboussole.fr/">
+<title>Freelance ou salarié — Boussole</title>
+<meta name="description" content="Passer freelance rapporte-t-il plus que rester salarié ? Le calcul évident (taux journalier × jours) ignore ce qui décide vraiment : les intercontrats et le risque d'une année creuse. Ce modèle les met dedans.">
+<link rel="canonical" href="https://optiboussole.fr/freelance-ou-salarie">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Boussole">
-<meta property="og:description" content="Elle ne dit pas quoi décider. Elle dit ce qu'il faut aller vérifier.">
+<meta property="og:title" content="Freelance ou salarié — Boussole">
+<meta property="og:description" content="Passer freelance rapporte-t-il plus que rester salarié ? Le calcul évident (taux journalier × jours) ignore ce qui décide vraiment : les intercontrats et le risque d'une année creuse. Ce modèle les met dedans.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://optiboussole.fr/">
+<meta property="og:url" content="https://optiboussole.fr/freelance-ou-salarie">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body data-modele="logement" data-accueil="1">
+<body data-modele="freelance">
 <div class="enveloppe">
 
 <header>
@@ -25,21 +25,17 @@
       <path d="M16 3 L19.2 14.4 L16 16 Z" fill="currentColor"/>
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
-    <h1>Boussole</h1>
+    <a class="retour" href="/">Boussole</a>
   </div>
-  <p class="baseline">Elle ne vous dit pas quoi décider. Elle vous dit <em>ce qu'il faut aller vérifier</em>.</p>
-  <p class="sous-baseline">
-    Décrivez une décision avec les chiffres que vous avez et les fourchettes que vous n'avez pas.
-    Vous obtenez l'hypothèse qui décide vraiment, le seuil où votre choix bascule, et ce que vaut
-    le fait d'aller chercher ce chiffre-là plutôt qu'un autre.
-  </p>
+  <h1 class="baseline titre-modele">Freelance ou salarié</h1>
+  <p class="sous-baseline">Passer freelance rapporte-t-il plus que rester salarié ? Le calcul évident (taux journalier × jours) ignore ce qui décide vraiment : les intercontrats et le risque d'une année creuse. Ce modèle les met dedans.</p>
 </header>
 
 <nav aria-label="Modèles">
 <ul class="exemples" id="exemples">
-  <li><a class="puce" href="/" data-cle="logement" title="Sur 10 ans, patrimoine net dans chaque cas." aria-current="page">Louer ou acheter</a></li>
+  <li><a class="puce" href="/" data-cle="logement" title="Sur 10 ans, patrimoine net dans chaque cas.">Louer ou acheter</a></li>
   <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
-  <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
+  <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris." aria-current="page">Freelance ou salarié</a></li>
   <li><a class="puce" href="/garder-ou-changer-de-voiture" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
   <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
   <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
@@ -59,53 +55,30 @@
     </div>
     <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
       aria-label="Description du modèle">unité: €
-# Louer ou acheter — patrimoine net au bout de l'horizon.
-# Remplacez les chiffres par les vôtres. Ce qui est écrit « a à b »
-# est une fourchette : vous pensez qu'il y a 9 chances sur 10
-# que la vraie valeur soit dedans.
+# Passer freelance ? Comparaison du net perçu sur 3 ans.
 
-prix = 250k
-apport = 50k
-horizon = 10          # années avant de revendre
+horizon = 3
 
-# --- Le crédit -------------------------------------------------------
-taux_credit = 3,2%
-duree_credit = 25
-i = taux_credit / 12
-n_total = duree_credit * 12
-n_ecoule = horizon * 12
-emprunt = prix - apport
-mensualite = emprunt * i / (1 - (1 + i)^(-n_total))
-capital_du = emprunt * ((1+i)^n_total - (1+i)^n_ecoule) / ((1+i)^n_total - 1)
+# --- Salarié ----------------------------------------------------------
+salaire_net_mensuel = 3200
+prime = 0 à 3000                # par an
+salarie_an = salaire_net_mensuel * 12 + prime
 
-# --- Ce qu'on ne sait pas ---------------------------------------------
-revalorisation = -1% à 4%      # du prix du bien, par an
-charges_copro = 100 à 220      # par mois
-taxe_fonciere = 900 à 1600     # par an
-travaux = 0,3% à 1,5%          # du prix, par an
-loyer = 900 à 1150             # ce que vous paieriez à la place
-hausse_loyer = 1% à 3%
-placement = 1,5% à 5%          # rendement si l'apport reste placé
+# --- Freelance --------------------------------------------------------
+tjm = 450 à 700                 # taux journalier moyen facturé
+jours_facturables = 150 à 210   # par an, intercontrats déduits
+charges = 40% à 50%             # cotisations + impôt, part du CA
+frais_fixes = 2000 à 5000       # compta, assurance, matériel, local
 
-# --- Achat ------------------------------------------------------------
-frais_notaire = 7,5% * prix
-prix_revente = prix * (1 + revalorisation)^horizon
-frais_agence = 4% * prix_revente
-depense_an = mensualite*12 + charges_copro*12 + taxe_fonciere + travaux*prix
+ca = tjm * jours_facturables
+freelance_an = ca * (1 - charges) - frais_fixes
 
-bien_net = prix_revente - frais_agence - capital_du
-cout_achat = frais_notaire * (1+placement)^horizon + depense_an * cumul(placement, horizon)
+# Le risque n'est pas que la moyenne : une année sans mission arrive.
+annee_creuse = bernoulli(12%)
+freelance_reel = si annee_creuse alors freelance_an * 0,4 sinon freelance_an
 
-# --- Location ---------------------------------------------------------
-cout_loyer = loyer * 12 * serie(placement, hausse_loyer, horizon)
-apport_place = apport * (1 + placement)^horizon
-
-option "Acheter" = bien_net - cout_achat
-option "Louer"   = apport_place - cout_loyer
-
-# Le modèle ignore : mobilité, fiscalité, travaux imprévus, et le fait
-# qu'acheter n'est pas qu'un calcul. Il ne remplace pas votre jugement,
-# il vous dit quel chiffre va le déterminer.</textarea>
+option "Rester salarié" = salarie_an * horizon
+option "Passer freelance" = freelance_reel * horizon</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
   </section>
 

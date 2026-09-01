@@ -16,7 +16,7 @@ const zoneResultats = $('#resultats');
 const listeExemples = $('#exemples');
 
 const CLE_STOCKAGE = 'boussole.modele';
-let cleCourante = MODELE_PAR_DEFAUT;
+let cleCourante = document.body.dataset.modele || MODELE_PAR_DEFAUT;
 
 // --- Mise en forme des nombres ----------------------------------------------
 
@@ -420,7 +420,10 @@ function calculer() {
   } catch (e) {
     montrerErreur(e);
   }
-  try { localStorage.setItem(CLE_STOCKAGE, source); } catch { /* navigation privée */ }
+  // Le travail en cours reste dans le navigateur du visiteur, nulle part ailleurs.
+  try {
+    localStorage.setItem(CLE_STOCKAGE, JSON.stringify({ cle: cleCourante, source }));
+  } catch { /* navigation privée, quota plein : sans importance */ }
 }
 
 function programmer() {
@@ -444,48 +447,78 @@ function decoder(b64) {
 }
 
 // --- Bibliothèque -------------------------------------------------------------
+//
+// Chaque modèle a sa propre adresse (/prix-du-kilometre…) : les pastilles sont
+// de vrais liens, présents dans le HTML servi. On les intercepte pour changer
+// de modèle sans recharger, mais elles fonctionnent sans JavaScript.
 
-function chargerModele(cle, forcer = true) {
+const adresse = (m) => (m.cle === MODELE_PAR_DEFAUT ? '/' : '/' + m.slug);
+
+function marquerPastille(cle) {
+  for (const a of listeExemples.querySelectorAll('a')) {
+    if (a.dataset.cle === cle) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  }
+}
+
+function chargerModele(cle, { remplacerTexte = true } = {}) {
   const m = MODELES.find((x) => x.cle === cle);
-  if (!m) return;
-  cleCourante = cle;
-  if (forcer) {
-    zoneModele.value = m.source;
-    calculer();
-  }
-  for (const b of listeExemples.querySelectorAll('button')) {
-    b.setAttribute('aria-pressed', String(b.dataset.cle === cle));
-  }
+  cleCourante = m ? cle : '';
+  if (m && remplacerTexte) zoneModele.value = m.source;
+  marquerPastille(cleCourante);
+  calculer();
 }
 
-for (const m of MODELES) {
-  const b = el('button', { type: 'button', 'aria-pressed': 'false', title: m.resume }, m.titre);
-  b.dataset.cle = m.cle;
-  b.addEventListener('click', () => {
-    chargerModele(m.cle);
-    history.replaceState(null, '', location.pathname);
-  });
-  listeExemples.appendChild(el('li', {}, b));
-}
+listeExemples.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-cle]');
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  history.pushState({ cle: a.dataset.cle }, '', a.getAttribute('href'));
+  chargerModele(a.dataset.cle);
+  zoneResultats.scrollIntoView({ block: 'nearest' });
+});
+
+window.addEventListener('popstate', () => {
+  const chemin = location.pathname.replace(/\/$/, '');
+  const m = MODELES.find((x) => adresse(x).replace(/\/$/, '') === chemin);
+  if (m) chargerModele(m.cle);
+});
 
 // --- Démarrage ----------------------------------------------------------------
+//
+// Priorité : un lien partagé (le modèle est dans le fragment) l'emporte sur
+// tout ; sinon, une page de modèle affiche son modèle ; sinon, la page d'accueil
+// rend au visiteur ce qu'il était en train d'écrire.
 
 (function demarrer() {
-  let depart = null;
   if (location.hash.length > 2) {
-    try { depart = decoder(location.hash.slice(1)); } catch { depart = null; }
+    try {
+      const partage = decoder(location.hash.slice(1));
+      if (partage && partage.trim()) {
+        zoneModele.value = partage;
+        const connu = MODELES.find((m) => m.source === partage);
+        cleCourante = connu ? connu.cle : '';
+        marquerPastille(cleCourante);
+        calculer();
+        return;
+      }
+    } catch { /* fragment illisible : on retombe sur le comportement normal */ }
   }
-  if (depart === null) {
-    try { depart = localStorage.getItem(CLE_STOCKAGE); } catch { depart = null; }
+
+  if (document.body.dataset.accueil) {
+    let garde = null;
+    try { garde = JSON.parse(localStorage.getItem(CLE_STOCKAGE) || 'null'); } catch { garde = null; }
+    if (garde && typeof garde.source === 'string' && garde.source.trim()) {
+      zoneModele.value = garde.source;
+      cleCourante = MODELES.some((m) => m.cle === garde.cle) ? garde.cle : '';
+      marquerPastille(cleCourante);
+      calculer();
+      return;
+    }
   }
-  if (depart && depart.trim()) {
-    zoneModele.value = depart;
-    const connu = MODELES.find((m) => m.source === depart);
-    chargerModele(connu ? connu.cle : '', false);
-    calculer();
-  } else {
-    chargerModele(MODELE_PAR_DEFAUT);
-  }
+
+  // Le HTML servi contient déjà la source du modèle : on ne la réécrit pas.
+  chargerModele(document.body.dataset.modele || MODELE_PAR_DEFAUT, { remplacerTexte: false });
 })();
 
 zoneModele.addEventListener('input', programmer);
@@ -500,7 +533,7 @@ zoneModele.addEventListener('keydown', (e) => {
 });
 
 $('#reinit').addEventListener('click', () => {
-  chargerModele(cleCourante || MODELE_PAR_DEFAUT);
+  chargerModele(cleCourante || document.body.dataset.modele || MODELE_PAR_DEFAUT);
   history.replaceState(null, '', location.pathname);
 });
 

@@ -57,7 +57,7 @@ verifie('aucun débordement horizontal', debordement <= 1, `→ ${debordement}px
 
 // --- Chaque modèle de la bibliothèque ---------------------------------------
 console.log('\n\x1b[1mBibliothèque\x1b[0m');
-const boutons = await page.$$('#exemples button');
+const boutons = await page.$$('#exemples a[data-cle]');
 verifie('un bouton par modèle', boutons.length === MODELES.length, `→ ${boutons.length}/${MODELES.length}`);
 
 for (let i = 0; i < boutons.length; i++) {
@@ -143,6 +143,89 @@ verifie('rouvrir le lien restaure le modèle', rechargé.includes('marge = 10 à
 verifie('le lien partagé ne provoque aucune erreur', incidents2.length === 0, '→ ' + incidents2.join(' | '));
 await page2.close();
 
+// --- Une adresse par modèle ----------------------------------------------------
+console.log('\n\x1b[1mAdresses\x1b[0m');
+{
+  const page3 = await navigateur.newPage();
+  const incidents3 = [];
+  page3.on('pageerror', (e) => incidents3.push(e.message));
+  page3.on('console', (m) => { if (m.type() === 'error') incidents3.push(m.text()); });
+
+  // L'accueil restitue volontairement le dernier modèle édité : pour tester
+  // ce que voit un visiteur qui arrive, on repart d'un stockage vide.
+  await page3.goto(URL + '/', { waitUntil: 'domcontentloaded' });
+  await page3.evaluate(() => localStorage.clear());
+
+  for (const m of MODELES) {
+    const chemin = m.cle === 'logement' ? '/' : '/' + m.slug;
+    const r = await page3.goto(URL + chemin, { waitUntil: 'networkidle0' });
+    await page3.evaluate(() => localStorage.clear());
+    verifie(`${chemin} répond 200`, r.status() === 200, `→ ${r.status()}`);
+    await page3.waitForSelector('.verdict-titre', { timeout: 10000 });
+
+    const infos = await page3.evaluate(() => ({
+      titre: document.title,
+      canonique: document.querySelector('link[rel=canonical]')?.href,
+      modele: document.body.dataset.modele,
+      source: document.querySelector('#modele').value,
+      courant: document.querySelector('#exemples a[aria-current]')?.dataset.cle,
+      h1: document.querySelector('h1')?.textContent.trim(),
+    }));
+    verifie(`${chemin} : le bon modèle est chargé`, infos.modele === m.cle && infos.source.trim() === m.source.trim(),
+      `→ data-modele « ${infos.modele} »`);
+    verifie(`${chemin} : la pastille active est la bonne`, infos.courant === m.cle, `→ « ${infos.courant} »`);
+    verifie(`${chemin} : titre et canonique propres`,
+      infos.titre.includes('Boussole') && infos.canonique === URL + (chemin === '/' ? '/' : chemin),
+      `→ « ${infos.titre} » / ${infos.canonique}`);
+    verifie(`${chemin} : un h1 unique et parlant`, !!infos.h1 && infos.h1.length > 2, `→ « ${infos.h1} »`);
+  }
+
+  // Le HTML servi contient le modèle : il reste lisible sans JavaScript.
+  await page3.setJavaScriptEnabled(false);
+  await page3.goto(URL + '/prix-du-kilometre', { waitUntil: 'domcontentloaded' });
+  const sansJs = await page3.$eval('#modele', (n) => n.textContent);
+  verifie('le modèle est dans le HTML servi (lisible sans JS)', sansJs.includes('cout_km'),
+    `→ « ${sansJs.slice(0, 30)}… »`);
+  await page3.setJavaScriptEnabled(true);
+
+  // Navigation client sans rechargement, puis retour arrière.
+  await page3.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await page3.evaluate(() => localStorage.clear());
+  await page3.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await page3.waitForSelector('.verdict-titre');
+  await page3.click('#exemples a[data-cle="kilometre"]');
+  await new Promise((r) => setTimeout(r, 900));
+  verifie('cliquer une pastille change l’adresse sans recharger',
+    (await page3.url()) === URL + '/prix-du-kilometre',
+    `→ ${await page3.url()}`);
+  verifie('… et charge le bon modèle',
+    (await page3.$eval('#modele', (n) => n.value)).includes('cout_km'));
+  await page3.goBack();
+  await new Promise((r) => setTimeout(r, 900));
+  verifie('le retour arrière revient au modèle précédent',
+    (await page3.$eval('#modele', (n) => n.value)).includes('prix = 250k'),
+    `→ ${await page3.url()}`);
+
+  verifie('aucune erreur sur les pages de modèle', incidents3.length === 0, '→ ' + incidents3.join(' | '));
+  await page3.close();
+}
+
+// --- Plan du site et 404 --------------------------------------------------------
+console.log('\n\x1b[1mIndexation\x1b[0m');
+{
+  const p4 = await navigateur.newPage();
+  const r404 = await p4.goto(URL + '/adresse-qui-n-existe-pas', { waitUntil: 'domcontentloaded' });
+  verifie('une adresse inconnue répond bien 404', r404.status() === 404, `→ ${r404.status()}`);
+  verifie('… avec une page utile', (await p4.title()).includes('introuvable'), `→ « ${await p4.title()} »`);
+
+  const plan = await p4.goto(URL + '/sitemap.xml', { waitUntil: 'domcontentloaded' });
+  const xml = await plan.text();
+  verifie('le plan du site liste toutes les pages',
+    MODELES.every((m) => xml.includes(m.cle === 'logement' ? '<loc>' + URL + '/</loc>' : '/' + m.slug)),
+    `→ ${(xml.match(/<loc>/g) || []).length} adresses`);
+  await p4.close();
+}
+
 // --- Captures ------------------------------------------------------------------
 console.log('\n\x1b[1mCaptures\x1b[0m');
 async function capture(nom, { largeur, hauteur, sombre, modele }) {
@@ -156,7 +239,7 @@ async function capture(nom, { largeur, hauteur, sombre, modele }) {
   await p.goto(URL, { waitUntil: 'networkidle0' });
   await p.waitForSelector('.verdict-titre', { timeout: 10000 });
   if (modele !== undefined) {
-    const b = await p.$$('#exemples button');
+    const b = await p.$$('#exemples a[data-cle]');
     await b[modele].click();
     await new Promise((r) => setTimeout(r, 700));
   }

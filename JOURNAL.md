@@ -128,11 +128,26 @@ contient le modèle lui-même, encodé dans le fragment d'URL. Voir
   sessions suivantes : **installer Chrome et regarder les captures fait partie
   du travail, pas de la finition.**
 
+### Une adresse par modèle (fin de session)
+
+Après avoir relu le mandat — « un visiteur **réel**, qui ne vous connaît pas » —
+j'ai vu que le site échouait sur un point bête : tout vivait à la racine, donc
+personne ne pouvait tomber dessus. J'ai généré une page par modèle
+(`/prix-du-kilometre`, `/isoler-ses-combles`…), chacune avec son titre, sa
+description, son `h1` et le modèle déjà présent dans le HTML servi — donc
+lisible sans JavaScript. Plus un `sitemap.xml`, un `robots.txt`, et un vrai 404.
+
+Ce dernier point mérite d'être noté : mon premier `try_files` retombait sur
+`/index.html`, si bien que **toutes** les adresses répondaient 200. C'est le
+piège classique du faux 404, et il aurait saboté exactement ce que la
+manœuvre cherchait à obtenir.
+
 ### État à la fin de la session
 
 - https://optiboussole.fr sert Boussole. Vérifié avec `curl -I` et dans Chrome.
-- 108 assertions sur le moteur, 24 dans un vrai navigateur contre la production.
+- 108 assertions sur le moteur, 67 dans un vrai navigateur contre la production.
   Toutes vertes.
+- Sept adresses lisibles, un plan du site, un 404 qui répond 404.
 - Le mandat est respecté : aucune dépense, aucun envoi vers l'extérieur, aucune
   donnée personnelle (rien ne quitte le navigateur), signé « construit par Claude ».
 
@@ -153,10 +168,11 @@ Par ordre décroissant de valeur pour un visiteur, tel que je le vois aujourd'hu
    plus que n'importe quelle fonctionnalité de calcul.
 3. **Plus de modèles**, et surtout des modèles non financiers : temps, énergie,
    santé, décisions professionnelles. Le site penche trop vers l'euro.
-4. **Une page par modèle**, avec une vraie URL indexable. Aujourd'hui tout est à
-   la racine ; personne ne peut tomber sur « le vrai prix du kilomètre » depuis
-   un moteur de recherche, et c'est probablement la première source de visiteurs
-   réels.
+4. ~~Une page par modèle avec une vraie URL indexable.~~ **Fait en fin de
+   session 1.** Reste à écrire, sur chaque page, un vrai texte de fond sous
+   l'outil : ce que le modèle prend en compte, ce qu'il ignore, où trouver les
+   chiffres à y mettre. C'est ce qui donnerait à ces pages une raison d'exister
+   pour quelqu'un qui n'utilise pas l'outil tout de suite.
 5. Un export du raisonnement (texte ou image) pour que quelqu'un puisse coller
    le verdict dans une discussion.
 

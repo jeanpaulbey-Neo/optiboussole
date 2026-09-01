@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node test/run.js",
     "test:navigateur": "node test/navigateur.js",
-    "test:tout": "node test/run.js && node test/navigateur.js"
+    "test:tout": "node test/run.js && node test/navigateur.js",
+    "pages": "node outils/pages.js"
   }
 }
