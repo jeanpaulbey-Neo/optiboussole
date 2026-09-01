@@ -246,7 +246,10 @@ class Parseur {
       const ligne = this.ligne();
       this.avance();
       const d = this.somme();
-      return { k: 'intervalle', bas: g, haut: d, ligne };
+      // Si l'auteur a écrit « 1% à 4% », la grandeur est une proportion :
+      // on s'en souvient pour l'afficher en pourcentage plus tard.
+      const pourcent = (g.k === 'nombre' && g.pourcent) || (d.k === 'nombre' && d.pourcent);
+      return { k: 'intervalle', bas: g, haut: d, pourcent, ligne };
     }
     return g;
   }

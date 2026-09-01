@@ -298,7 +298,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
-        binaire: s.binaire,
+        binaire: s.binaire, pourcent: !!s.pourcent,
         part: effetPrincipal(idx, rangEcarts, variance(rangEcarts), moyenne(rangEcarts), bins),
         valeurInfo: evppi(idx, opts, bins, valeurSansInfo),
         bascules,
@@ -323,7 +323,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
-        binaire: s.binaire,
+        binaire: s.binaire, pourcent: !!s.pourcent,
         part: effetPrincipal(idx, rangSortie, varR, moyenne(rangSortie), bins),
         largeurResiduelle: resid,
         gainLargeur: largeurTotale > 0 ? 1 - resid / largeurTotale : 0,

@@ -124,7 +124,7 @@ class Contexte {
 
   // Chaque tirage aléatoire est une « source d'incertitude » adressable :
   // c'est l'unité sur laquelle porte toute l'analyse en aval.
-  source(nom, ligne, produire) {
+  source(nom, ligne, produire, meta = {}) {
     const id = 's' + this.compteurSource++;
     let valeurs;
     if (this.remplacements && Object.prototype.hasOwnProperty.call(this.remplacements, id)) {
@@ -136,7 +136,7 @@ class Contexte {
     let etiquette = base;
     let k = 2;
     while (this.sources.some((s) => s.nom === etiquette)) etiquette = `${base} (${k++})`;
-    this.sources.push({ id, nom: etiquette, ligne, valeurs });
+    this.sources.push({ id, nom: etiquette, ligne, valeurs, ...meta });
     return valeurs;
   }
 
@@ -202,7 +202,8 @@ class Contexte {
       case 'intervalle': {
         const bas = this.evaluer(n.bas);
         const haut = this.evaluer(n.haut);
-        return this.source('incertitude', n.ligne, () => this.tirerIntervalle(bas, haut, n));
+        return this.source('incertitude', n.ligne,
+          () => this.tirerIntervalle(bas, haut, n), { pourcent: !!n.pourcent });
       }
 
       case 'appel': return this.appel(n);
