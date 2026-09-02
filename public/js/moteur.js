@@ -13,6 +13,25 @@ import { evaluerModele, quantile, trier, moyenne, variance } from './evaluer.js'
 
 const K_BINS = 32;
 
+// Au-delà d'une vingtaine d'hypothèses, l'analyse par hypothèse — un tri de
+// 20 000 éléments chacune — devient plus longue que la simulation elle-même.
+// On la mène alors sur un sous-échantillon régulier : les tirages sont
+// indépendants, en prendre un sur trois reste un échantillon valide.
+const SOURCES_AVANT_ALLEGEMENT = 20;
+const CIBLE_ANALYSE = 6000;
+
+function pasAnalyse(N, nbSources) {
+  if (nbSources <= SOURCES_AVANT_ALLEGEMENT) return 1;
+  return Math.max(1, Math.floor(N / CIBLE_ANALYSE));
+}
+
+function sousEchantillon(v, pas) {
+  if (pas === 1) return v;
+  const out = new Float64Array(Math.ceil(v.length / pas));
+  for (let i = 0, j = 0; j < out.length; i += pas, j++) out[j] = v[i];
+  return out;
+}
+
 // Indices triés par valeur croissante de x.
 function ordre(x) {
   const idx = new Int32Array(x.length);
@@ -247,8 +266,10 @@ export function analyserRobustesse(r) {
   const paliers = [];
   let kBascule = null, kBrouillage = null;
 
+  const nRob = r.sources.length > SOURCES_AVANT_ALLEGEMENT
+    ? Math.round(N_ROBUSTESSE / 2) : N_ROBUSTESSE;
   for (const k of ECHELLE_ELARGISSEMENT) {
-    const r = evaluerModele(ast, { N: N_ROBUSTESSE, elargissement: k });
+    const r = evaluerModele(ast, { N: nRob, elargissement: k });
     const palier = { k };
 
     if (modeDecision) {
@@ -258,13 +279,13 @@ export function analyserRobustesse(r) {
       for (let i = 1; i < moyennes.length; i++) if (moyennes[i] > moyennes[meilleur]) meilleur = i;
 
       let gagne = 0;
-      for (let i = 0; i < N_ROBUSTESSE; i++) {
+      for (let i = 0; i < nRob; i++) {
         let arg = 0, v = opts[0].valeurs[i];
         for (let j = 1; j < opts.length; j++) if (opts[j].valeurs[i] > v) { v = opts[j].valeurs[i]; arg = j; }
         if (arg === iRecommande) gagne++;
       }
       palier.recommande = nomsOptions[meilleur];
-      palier.pGagne = gagne / N_ROBUSTESSE;
+      palier.pGagne = gagne / nRob;
       if (kBascule === null && meilleur !== iRecommande) kBascule = k;
       if (kBrouillage === null && palier.pGagne < SEUIL_SERRE) kBrouillage = k;
     } else if (r.sortie) {
@@ -377,12 +398,16 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   if (r.seuil !== null && r.seuil !== undefined) seuil = r.seuil;
   const seuilSens = r.seuilSens || 'min';
 
-  // On ne garde que les sources qui varient réellement.
+  // On ne garde que les sources qui varient réellement. Les statistiques d'une
+  // hypothèse sont calculées sur le même sous-échantillon que son analyse : une
+  // fourchette affichée n'a pas besoin de vingt mille tirages pour être juste.
+  const pas = pasAnalyse(N, r.sources.length);
   const sources = r.sources
     .filter((s) => s.valeurs instanceof Float64Array)
     .map((s) => {
-      const stats = statistiques(s.valeurs);
-      return { ...s, stats, binaire: estBinaire(stats.tri) };
+      const ech = sousEchantillon(s.valeurs, pas);
+      const stats = statistiques(ech);
+      return { ...s, ech, stats, binaire: estBinaire(stats.tri) };
     })
     .filter((s) => s.stats.p95 - s.stats.p05 > 0 || s.stats.ecartType > 0);
 
@@ -408,9 +433,10 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     nomSortie: ast.sortie && ast.sortie.expr.k === 'var' ? ast.sortie.expr.nom : null,
   };
 
-  const bins = bornesBins(N, K_BINS);
+  const Na = Math.ceil(N / pas);
+  const bins = bornesBins(Na, K_BINS);
   const ordres = new Map();
-  for (const s of sources) ordres.set(s.id, ordre(s.valeurs));
+  for (const s of sources) ordres.set(s.id, ordre(s.ech));
 
   if (modeDecision) {
     const opts = r.options.map((o) => ({ nom: o.nom, valeurs: o.valeurs, stats: statistiques(o.valeurs) }));
@@ -446,7 +472,10 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       ecarts[i] = opts[iRecommande].valeurs[i] - rival;
     }
 
-    const rangEcarts = rangs(ecarts);
+    const ecartsA = sousEchantillon(ecarts, pas);
+    const optsA = pas === 1 ? opts
+      : opts.map((o) => ({ nom: o.nom, valeurs: sousEchantillon(o.valeurs, pas) }));
+    const rangEcarts = rangs(ecartsA);
 
     // L'écart entre la meilleure et la pire branche : c'est l'enjeu du choix.
     // Une valeur d'information ne veut rien dire seule — 13 kg comptent si le
@@ -476,7 +505,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
         binaire: s.binaire, pourcent: !!s.pourcent, elargissable: !!s.elargissable,
         part: effetPrincipal(idx, rangEcarts, variance(rangEcarts), moyenne(rangEcarts), bins),
-        valeurInfo: evppi(idx, opts, bins, valeurSansInfo),
+        valeurInfo: evppi(idx, optsA, bins, valeurSansInfo),
         bascules,
       });
     }
@@ -484,7 +513,8 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   } else if (r.sortie) {
     const st = statistiques(r.sortie);
     resultat.sortie = st;
-    const rangSortie = rangs(r.sortie);
+    const sortieA = sousEchantillon(r.sortie, pas);
+    const rangSortie = rangs(sortieA);
     const varR = variance(rangSortie, moyenne(rangSortie));
     const largeurTotale = st.p95 - st.p05;
     if (seuil !== null) {
@@ -493,7 +523,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     }
     for (const s of sources) {
       const idx = ordres.get(s.id);
-      const resid = largeurResiduelle(idx, r.sortie, bins);
+      const resid = largeurResiduelle(idx, sortieA, bins);
       const bascules = (seuil === null || s.binaire) ? [] : seuilCible(ast, sources, s, seuil);
       for (const b of bascules) {
         b.proba = partAuDela(s.stats.tri, b.valeur, b.sens === 'au-dessus');

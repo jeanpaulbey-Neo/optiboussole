@@ -317,6 +317,59 @@ groupe('Bibliothèque');
   }
 }
 
+// --- Ce que les gens tapent vraiment -----------------------------------------
+groupe('Saisies approximatives');
+{
+  const NB = '\u00a0', FIN = '\u202f';
+  proche(`l'espace insécable est une espace`,
+    analyserModele(`x${NB}=${NB}900${NB}à${NB}1150`, { N: 5000 }).sortie.p50, 1018, 20);
+  proche('l’espace fine insécable aussi',
+    analyserModele(`x${FIN}=${FIN}1${FIN}à${FIN}3`, { N: 5000 }).sortie.p50, 1.73, 0.1);
+  proche('« 1 000 » avec insécable reste un nombre',
+    analyserModele(`x = 1${NB}000`, { N: 200 }).sortie.p50, 1000, 0);
+  proche('le point-virgule sépare deux instructions',
+    val('a = 1; b = a + 1'), 2, 0);
+  proche('… et en fin de ligne il est ignoré',
+    val('a = 1;\nb = a + 1;'), 2, 0);
+  proche('« 3,2 % » avec une espace', val('x = 3,2 %'), 0.032, 1e-12);
+
+  erreur('les accolades renvoient aux parenthèses', 'x = {1 à 3}', 'parenthèses');
+  erreur('les crochets aussi', 'x = [1, 3]', 'parenthèses');
+  erreur('un symbole monétaire renvoie à « unité: »', 'prix = 100 €', 'unité');
+  erreur('une phrase est reconnue comme telle', 'je veux savoir si je dois acheter', 'ressemble à une phrase');
+  erreur('« nom: valeur » renvoie à « nom = valeur »', 'loyer: 900 à 1150', 'loyer = ');
+  {
+    // Un caractère hors du plan de base ne doit pas s'afficher en moitié.
+    try { analyserModele('prix 🏠 = 100'); verifie('un emoji est affiché entier', false); }
+    catch (e) { verifie('un emoji est affiché entier', e.message.includes('🏠'), `→ ${e.message}`); }
+  }
+}
+
+groupe('Modèles volumineux');
+{
+  const gros = (k) => Array.from({ length: k }, (_, i) => `v${i} = 1 à 3`).join('\n')
+    + '\ntotal = ' + Array.from({ length: k }, (_, i) => `v${i}`).join(' + ');
+  const t0 = Date.now();
+  const r = analyserModele(gros(60));
+  const ms = Date.now() - t0;
+  verifie(`60 hypothèses analysées en ${ms} ms`, ms < 1500, `→ ${ms} ms`);
+  verifie('… avec les 60 hypothèses classées', r.sources.length === 60, `→ ${r.sources.length}`);
+  // La médiane d'une somme de 60 lognormales tend vers sa moyenne, pas vers la
+  // somme des médianes : 60 × 1,83 (moyenne) et non 60 × 1,73 (médiane).
+  proche('… et un résultat juste (60 × moyenne 1,83)', r.sortie.p50, 109.8, 1.5);
+  const t1 = Date.now();
+  analyserRobustesse(r);
+  const ms2 = Date.now() - t1;
+  verifie(`robustesse d'un gros modèle en ${ms2} ms`, ms2 < 1500, `→ ${ms2} ms`);
+  // L'allègement ne doit pas fausser le classement.
+  const inegal = Array.from({ length: 40 }, (_, i) => `v${i} = 1 à 1,05`).join('\n')
+    + '\ngros = 1 à 100\ntotal = gros + ' + Array.from({ length: 40 }, (_, i) => `v${i}`).join(' + ');
+  const ri = analyserModele(inegal);
+  verifie('le sous-échantillonnage garde le bon classement',
+    ri.sources[0].nom === 'gros' && ri.sources[0].part > 0.9,
+    `→ ${ri.sources[0].nom} ${ri.sources[0].part.toFixed(2)}`);
+}
+
 // --- Les chiffres cités par /la-methode -------------------------------------
 // La page explique la méthode avec des exemples chiffrés. Si le moteur change,
 // la page doit changer avec lui : ces assertions sont là pour l'imposer.

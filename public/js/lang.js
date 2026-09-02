@@ -65,7 +65,14 @@ export function lexer(source) {
     // Une parenthèse ouverte suspend la fin de ligne : une formule peut
     // s'écrire sur plusieurs lignes sans être tronquée en silence.
     if (c === '\n') { if (profondeur === 0) pousser('nl'); ligne++; i++; continue; }
-    if (c === ' ' || c === '\t' || c === '\r') { i++; continue; }
+    // Les espaces insécables et fines viennent des copier-coller et des claviers
+    // français. Les refuser cassait le modèle sur une faute invisible à l'œil.
+    if (c === ' ' || c === '\t' || c === '\r'
+        || c === '\u00a0' || c === '\u202f' || c === '\u2009' || c === '\u2007') {
+      i++; continue;
+    }
+    // Un point-virgule sépare deux instructions, comme une fin de ligne.
+    if (c === ';') { pousser('nl'); i++; continue; }
     if (c === '#' || (c === '/' && source[i + 1] === '/')) {
       while (i < n && source[i] !== '\n') i++;
       continue;
@@ -177,12 +184,18 @@ export function lexer(source) {
     }
     if (c === ':') { pousser(':'); i++; continue; }
 
+    if ('{}[]'.includes(c)) {
+      throw new ErreurModele(
+        `« ${c} » n’est pas reconnu — le langage n’utilise que des parenthèses`, ligne);
+    }
     if ('€$£¥₽¢°'.includes(c)) {
       throw new ErreurModele(
         `« ${c} » n'a pas sa place dans un calcul — l'unité se déclare en tête `
         + `du modèle, avec une ligne « unité: ${c} »`, ligne);
     }
-    throw new ErreurModele(`caractère inattendu « ${c} »`, ligne);
+    // Afficher le caractère entier, pas la moitié d'une paire de substitution.
+    const entier = String.fromCodePoint(source.codePointAt(i));
+    throw new ErreurModele(`caractère inattendu « ${entier} »`, ligne);
   }
   pousser('fin');
   return jetons;
@@ -401,7 +414,9 @@ export function analyser(sourceBrute) {
         }
         continue;
       }
-      throw new ErreurModele(`réglage « ${p.cur().valeur} » inconnu (attendus : unité, seuil)`, ligne);
+      throw new ErreurModele(
+        `réglage « ${p.cur().valeur} » inconnu — les seuls sont « unité: » et « seuil: ». `
+        + `Pour définir une valeur, écrivez « ${p.cur().valeur} = … »`, ligne);
     }
 
     if (p.estMC('option') || p.estMC('choix')) {
@@ -428,6 +443,14 @@ export function analyser(sourceBrute) {
     }
 
     if (!p.estType('nl') && !p.estType('fin')) {
+      // Une suite de mots sans « = », c'est presque toujours une phrase écrite
+      // dans l'éditeur. Autant le dire.
+      if (p.estType('ident') || p.estType('mc')) {
+        throw new ErreurModele(
+          `« ${p.cur().valeur} » inattendu : cette ligne ressemble à une phrase. `
+          + 'Un commentaire commence par « # », et une hypothèse s’écrit « nom = valeur ».',
+          p.ligne());
+      }
       throw new ErreurModele(`« ${p.cur().valeur ?? p.cur().type} » inattendu en fin de ligne`, p.ligne());
     }
   }
