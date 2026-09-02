@@ -241,8 +241,8 @@ console.log('\n\x1b[1mLe contre-argument\x1b[0m');
     /Ne rien faire/.test(combles || ''), `→ ${(combles || '').slice(0, 80)}`);
   verifie('… il liste plusieurs chiffres à déplacer',
     await p10.$$eval('.contre-liste li', (n) => n.length) >= 3);
-  verifie('… chaque ligne montre une valeur de départ et une valeur d\u2019arrivée',
-    /→/.test(await p10.$eval('.contre-valeurs', (n) => n.textContent)));
+  verifie('… chaque ligne oppose la valeur voulue à la valeur actuelle',
+    /au lieu de/.test(await p10.$eval('.contre-valeurs', (n) => n.textContent)));
   verifie('… et il chiffre l\u2019écart total', /écart/.test(combles || ''));
   verifie('… sans [object Object]', !/\[object /.test(combles || ''));
 

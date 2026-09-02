@@ -2,6 +2,145 @@
 
 ---
 
+## 2 septembre 2026 — Session 5 : poser la question à l'envers
+
+Trois chantiers : une fonctionnalité que je cherchais depuis trois sessions
+sans la trouver, la demi-heure de fautes de frappe qui rapporte toujours, et
+une relecture des modèles qui a payé.
+
+### Le contre-argument
+
+Ce que j'avais noté comme « décomposer un total » depuis la session 2, et que
+je n'arrivais pas à formuler, était mal posé. La bonne question n'était pas
+« quel poste pèse le plus » — c'est une addition, elle n'apprend rien — mais
+celle-ci : **quel est le jeu d'hypothèses le plus proche du vôtre qui donnerait
+la conclusion contraire ?**
+
+Tout le reste du site va des hypothèses vers la conclusion. Cette passe va dans
+l'autre sens. Elle sert à quelque chose de précis, que j'ai vérifié avant
+d'écrire une ligne : **trois modèles de la bibliothèque sur neuf n'ont aucun
+seuil de bascule.** Sur « isoler ses combles », « freelance ou salarié » et
+« réduire son empreinte », la section « ce qu'il faut aller vérifier » dit
+« aucune de vos hypothèses ne renverse ce choix » et s'arrête là. C'est vrai
+hypothèse par hypothèse, et faux ensemble : cinq chiffres déplacés chacun d'un
+demi-écart renversent « isoler ses combles » sans peine. Le site ne le disait
+pas parce qu'il ne balayait qu'une variable à la fois.
+
+La méthode est celle du point de conception en fiabilité des structures
+(FORM, indice de Hasofer-Lind), là où l'on cherche la combinaison de charges
+la plus vraisemblable qui fasse céder un pont. Chaque hypothèse est ramenée à
+son unité d'écart — zéro à la médiane, ±1,645 au bord de la fourchette à 90 % —
+et on cherche le point de la frontière de décision le plus proche de l'origine.
+Descente amortie, filet d'un balayage à une hypothèse, retour sur la frontière
+le long du rayon. Une à quatre millisecondes, parce que chaque point candidat
+est un « tirage » et que le moteur est déjà vectorisé : une itération entière
+tient dans un seul appel.
+
+**J'ai vérifié tôt ce que ça n'apporte pas**, et je l'ai écrit sur la page de
+méthode. La distance β est très proche de Φ⁻¹ de la probabilité déjà affichée :
+un choix gagné 97 % du temps est à environ deux écarts de la frontière, et ce
+n'est pas une surprise. Le contre-argument n'ajoute donc **aucun degré de
+confiance**. Ce qu'il ajoute, c'est une **adresse** : des valeurs précises,
+dans les unités du modèle, qu'un visiteur peut lire et reconnaître ou rejeter.
+Une probabilité ne se reconnaît pas ; « il faudrait que le devis soit à
+60,6 €/m² et l'économie à 17,9 % » se reconnaît.
+
+C'est pour ça que la section ne s'affiche que là où elle apprend quelque chose :
+quand aucun seuil simple ne répond déjà, ou pour dire l'un des deux cas que
+rien d'autre ne sait dire. « Vos valeurs médianes donnent déjà la réponse
+contraire » — le verdict ne tient alors pas au centre des fourchettes mais à
+leur forme. Et « vous êtes exactement sur la ligne » : sur le modèle de
+planning, chaque tâche à sa durée médiane donne 89,9 jours contre 90 promis.
+Il n'y a rien à corriger pour manquer la date.
+
+Le meilleur résultat reste celui où la recherche échoue. Quand il faudrait se
+tromper de plus de cinq écarts, le site dit la seule chose utile qui reste : si
+vous hésitez encore, ce n'est aucun des chiffres du modèle qui vous fait
+hésiter, c'est quelque chose qui n'y est pas — ajoutez-le.
+
+**Le test qui a payé.** J'ai écrit une assertion qui réévalue le modèle au point
+rapporté et vérifie que la conclusion s'inverse vraiment. Elle a cassé sur cinq
+modèles sur neuf, et pour une bonne raison : je n'affiche pas six déplacements
+de trois millièmes, donc la liste montrée est plus courte que la solution
+trouvée — et une solution de norme minimale tronquée ne franchit plus la
+frontière. Le site aurait affiché un scénario qui ne renverse rien. La
+recherche est maintenant refaite dans le seul sous-espace montré. **Sans cette
+assertion, je n'aurais rien vu :** l'affichage était plausible de bout en bout.
+
+### Écrire de travers, troisième fois
+
+Une trentaine d'entrées, sur les catégories que je m'étais notées. Quinze
+corrections. La plus grave : `prix <= budget` se calculait sans broncher et
+affichait « Résultat : 0 ». Quelqu'un qui exprime une contrainte plutôt qu'un
+calcul — c'est-à-dire une façon parfaitement raisonnable de poser sa question —
+obtenait un zéro sans explication. Une comparaison en ligne de résultat est
+maintenant lue comme un objectif, ce qui est exactement la question posée, et
+le site dit comment il l'a lue.
+
+Le reste tient en une phrase : **accepter ce qu'on écrit vraiment.** Les
+symboles collés aux nombres (`900 €`, `3 %/an`), la condition comme opérande
+(`travail + si pepin alors 10 sinon 0`), `1000 ± 100`, `entre 900 et 1150`,
+le point-virgule des tableurs français dans `max(1;2)`, l'espace fine
+insécable des milliers. Et des messages qui rendent au visiteur sa propre
+ligne réécrite : `prix du kilo = …` propose `prix_du_kilo`, une ligne collée
+depuis un tableau propose `loyer = 900 à 1150`, `loyer` propose `Loyer`.
+
+Un piège que je me suis tendu à moi-même en chemin, et que je note parce qu'il
+est instructif : la ligne que je proposais pour un collage de tableur contenait
+une espace fine insécable, produite par `toLocaleString('fr-FR')`, que mon
+propre lexer refusait comme séparateur de milliers. **Recopier le conseil du
+site aurait donné une erreur.** Les deux côtés sont corrigés.
+
+### Relire ses propres modèles
+
+Point 4 de ma liste, et il a payé. Deux fautes, aucune signalée par un
+avertissement, aucune déclarée dans « ce que ce modèle ignore ».
+
+« Garder ou changer de voiture » **comparait un patrimoine à zéro** : la
+branche « Changer » créditait la valeur résiduelle de la voiture rachetée après
+six ans, la branche « Garder » ne créditait rien, comme si l'ancienne
+disparaissait. « Garder » passe de 60 à 68 %, et le seuil des réparations de
+1 010 à 1 110 € par an. L'omission penchait vers le remplacement — précisément
+le biais que ce modèle prétend corriger.
+
+« Freelance ou salarié » tirait l'année creuse **une seule fois pour trois
+ans** : 12 % de chances que les trois soient creuses, 88 % qu'aucune ne le
+soit. La moyenne était juste, l'écart trois fois trop grand. Conséquence
+intéressante une fois corrigé : le nombre d'années creuses devient l'hypothèse
+décisive, devant le taux journalier. C'est le risque qui décide, pas le tarif.
+
+Les chiffres épinglés de `/la-methode` ont cassé sur ces deux changements.
+C'est exactement ce pour quoi ils sont là : la page a été corrigée, pas les
+tests assouplis. Le dispositif se paie tout seul.
+
+### État à la fin de la session
+
+- 294 assertions sur le moteur, 166 dans un vrai navigateur. Toutes vertes.
+- Onze pages. Sept chapitres sur `/la-methode`.
+
+### Ce que je ferais ensuite
+
+1. **Écrire de travers, encore.** Trois sessions, trois récoltes. Catégories
+   pas encore essayées : un modèle très long écrit d'une traite, quelqu'un qui
+   veut comparer trois branches ou plus, quelqu'un qui écrit son modèle en
+   anglais, quelqu'un qui essaie de réutiliser un résultat comme une hypothèse.
+2. **La corrélation dans les modèles de la bibliothèque.** Le planning suppose
+   ses six tâches indépendantes, ce qui rend la somme trop étroite — c'est la
+   raison classique pour laquelle les plannings sont trop optimistes, et le
+   modèle est censé traiter ce sujet. Un facteur d'optimisme commun serait plus
+   juste et démontrerait dans la bibliothèque la technique que `/la-methode`
+   recommande. À peser : ça déplacerait le joli « 89,9 jours contre 90 ».
+3. **Un export du verdict.** Quatre sessions sur ma liste sans bouger. Soit je
+   le fais, soit je l'enlève et je note pourquoi.
+4. **Décomposer un total**, la vraie version, si elle existe. Le contre-argument
+   a réglé la moitié de ce que je cherchais là ; l'autre moitié — « quel poste
+   pèse le plus » — reste sans réponse, et je continue de penser que c'est une
+   question moins intéressante qu'elle n'en a l'air.
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 4 : expliquer la méthode, et retourner écrire de travers
 
 Deux chantiers, l'un prévu, l'autre repris parce qu'il avait trop bien payé la

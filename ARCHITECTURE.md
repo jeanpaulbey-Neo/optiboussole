@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 1ᵉʳ septembre 2026.
+État au 2 septembre 2026 (fin de session 5).
 
 ## En une phrase
 
@@ -31,6 +31,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── lang.js         lexer + parseur du langage de modèle
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
 │       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info
+│       ├── contre.js       le contre-argument : point de la frontière le plus proche
 │       ├── modeles.js      bibliothèque des dix modèles de départ
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
@@ -39,8 +40,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              225 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       148 vérifications dans un vrai Chrome + captures
+│   ├── run.js              294 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       166 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -55,7 +56,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 texte du modèle
    │  lang.js : extraireUnite → lexer → Parseur
    ▼
-AST { declarations, options, sortie, unite, seuil }
+AST { declarations, options, sortie, unite, seuil, objectifDeduit }
    │  evaluer.js : évaluation vectorisée, N = 20 000 tirages
    ▼
 { sources[], variables, options[], sortie }        « source » = un tirage aléatoire
@@ -70,6 +71,12 @@ des phrases en français
            │  réévalue 7 fois avec « elargissement » croissant  │
            │  → à partir de quel facteur la conclusion tombe    │
            └───────────────────────────────────────────────────┘
+
+           ┌─ contre.js : analyserContreArgument(r), passe séparée ──────┐
+           │  cherche le point de la frontière de décision le plus       │
+           │  proche des médianes, dans l'espace des écarts normalisés   │
+           │  → quel jeu d'hypothèses donnerait la conclusion contraire  │
+           └────────────────────────────────────────────────────────────┘
 ```
 
 ### Points de conception à ne pas casser
@@ -114,6 +121,36 @@ des phrases en français
   régulier (~6 000 tirages) et la robustesse sur 4 000. Un tri de 20 000
   éléments par hypothèse coûtait plus cher que toute la simulation. Le seuil
   garantit que les modèles de la bibliothèque gardent le calcul complet.
+- **Le contre-argument cherche sur *toutes* les hypothèses.** `contre.js`
+  ramène chaque hypothèse à son unité d'écart (0 à la médiane, ±1,645 au bord
+  de la fourchette) et cherche le point de la frontière le plus proche de
+  l'origine — descente HL-RF amortie, filet d'un balayage à une hypothèse,
+  puis retour sur la frontière le long du rayon. **N'épinglez pas une partie
+  des hypothèses pour aller plus vite** : le site conclurait « rien ne renverse
+  ce verdict » alors que c'est la recherche qu'on aurait bridée. Le coût est de
+  1 à 4 ms parce qu'un point candidat est un « tirage » : une itération entière
+  tient dans un seul `evaluerModele` de N = nombre d'hypothèses + 1.
+- **Le scénario affiché est refait dans son propre sous-espace.** On ne montre
+  pas six déplacements de trois millièmes ; or une solution de norme minimale
+  tronquée ne franchit plus la frontière. La recherche est donc relancée en
+  n'autorisant que les hypothèses qu'on va montrer. Le test qui réévalue le
+  modèle au point rapporté et vérifie que la conclusion s'inverse vraiment est
+  celui qui a trouvé ce défaut : **gardez-le**, l'affichage était plausible de
+  bout en bout.
+- **La section ne s'affiche que si aucune hypothèse ne bascule seule** (ou pour
+  les deux cas particuliers : médianes déjà contraires, médianes pile sur la
+  frontière). Quand un seuil de bascule répond déjà, redire la même chose avec
+  cinq décimales de plus n'aiderait personne. β est d'ailleurs très proche de
+  Φ⁻¹(probabilité de gagner) : il n'apporte pas de confiance, il apporte une
+  adresse. C'est écrit sur `/la-methode`, ne le vendez pas autrement.
+- **Le langage accepte ce qu'on écrit vraiment.** Symbole d'unité collé à un
+  nombre (`900 €`, `3 %/an`), `±` et `+/-`, `entre … et …`, `si` comme
+  opérande, `;` comme séparateur d'arguments *à l'intérieur des parenthèses*,
+  espaces fine et insécable des milliers. Et une comparaison en ligne de
+  résultat (`prix <= budget`) est lue comme un objectif — sans ça elle
+  affichait « Résultat : 0 ». Chacune de ces tolérances a un test dans le
+  groupe « Ce que le visiteur écrit vraiment » : elles viennent toutes d'une
+  demi-heure passée à taper de travers, pas d'une relecture.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
@@ -166,7 +203,9 @@ Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
-y renvoie.
+y renvoie. Sept chapitres. **Ses chiffres sont épinglés par des tests** : quand
+ils cassent, c'est la page qu'on corrige, pas le test qu'on assouplit. Ils ont
+déjà servi deux fois.
 
 Chaque page de modèle porte, sous l'outil, un texte de fond en trois volets — ce que le
 modèle compte, ce qu'il ignore, où trouver les chiffres — rédigé dans

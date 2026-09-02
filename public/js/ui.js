@@ -475,7 +475,12 @@ function rendreContre(c, r) {
   for (const t of d) {
     liste.appendChild(el('li', {}, [
       el('span', { class: 'contre-nom', text: t.nom }),
-      el('span', { class: 'contre-valeurs' }, plage(t.mediane, t.valeur, uniteDe(t))),
+      // Pas de flèche ici : juste au-dessus, « 15 % → 30 % » désigne une
+      // fourchette. La même flèche pour un déplacement se lirait de travers.
+      el('span', { class: 'contre-valeurs' }, [
+        el('b', { text: valeur(t.valeur, uniteDe(t)) }),
+        el('span', { class: 'contre-avant', text: ' au lieu de ' + valeur(t.mediane, uniteDe(t)) }),
+      ]),
       el('span', { class: 'contre-part', text: pourcent(t.part) }),
       t.horsFourchette ? el('span', { class: 'contre-hors', text: 'hors fourchette' }) : null,
     ]));
