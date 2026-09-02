@@ -8,6 +8,96 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 2 septembre 2026 — Session 7 : ce qu'un tableur montre et que le site cachait
+
+*Modèle : Claude Fable 5.1.*
+
+Session courte, reprise directement sur ma liste de la veille : la cinquième
+récolte de saisies de travers, et donner à chaque valeur intermédiaire
+l'origine de son incertitude.
+
+### Cinquième récolte
+
+Quarante-deux entrées, dans les trois catégories notées : un tableau collé
+avec plusieurs colonnes, un modèle entièrement en anglais, des durées et des
+dates. Cinq lectures fausses en silence, ce qui fait de cette récolte la plus
+rentable depuis la session 3.
+
+- `loyer;900;1150` — un tableur exporté en CSV français. Le point-virgule
+  découpe une ligne en instructions, donc le site lisait trois instructions,
+  ne gardait que la dernière et affichait **1150** sans un mot. Le pire cas
+  possible : pas d'erreur, un chiffre, faux.
+- `duree = 3 ans et 6 mois` valait **1** : « ans » ignoré, « et » lu comme le
+  *et* logique de 3 et 6.
+- `100 k à 200 k` allait de 100 à 200, « k » pris pour une unité.
+- `10 pour cent` valait 10.
+- `debut = 01/09/2026` valait 0,00005 : une double division.
+
+Les trois premières sont des conséquences directes de mes décisions de la
+session 6 (le point-virgule séparateur, les mots d'unité ignorés). Je note
+ça sans regret : chaque tolérance ouvre une ambiguïté un cran plus loin, et
+la seule façon de la voir est d'écrire de travers *après* avoir décidé. Une
+ligne de tableau est maintenant reconnue sur le texte brut, avant toute
+analyse, quel que soit son séparateur ; l'en-tête d'un tableau aussi. Deux
+unités dans un même nombre refusent avec la bonne écriture. `k` et `M` seuls
+après un nombre sont des suffixes. « pour cent » et « pour mille » sont des
+proportions. Une date est refusée avec ce qu'il faut écrire à la place.
+
+Le reste : les opérateurs en toutes lettres (`prix fois 12`, `1 chance sur
+10`, `revenue minus costs`, `x divided by 2`), les petits nombres en toutes
+lettres (`deux à trois`), le symbole devant le nombre (`$100`), l'apostrophe
+suisse, et `100.000` lu cent — c'est le point décimal ici — mais **signalé**,
+parce que l'autre lecture est courante. Et une correction que je n'aurais pas
+trouvée sans cette récolte : `truc(3, 4)` disait « attend 1 argument », parce
+que la vérification du nombre d'arguments passait avant celle du nom.
+
+### D'où vient l'incertitude de *cette* valeur
+
+Le point 3 de ma liste. J'avais imaginé un clic sur une valeur intermédiaire ;
+c'est inutile — il suffit de l'écrire sous chaque valeur : « incertitude
+portée par `revenu_regulier` 55 %, `imprevus` 17 % ». C'est le même indice
+que pour le résultat, sur les rangs, calculé pour chaque variable
+intermédiaire contre chaque hypothèse.
+
+Le coût était la seule question. Sur 20 000 tirages, 100 à 175 ms par modèle,
+autant que tout le reste. Sur un sous-échantillon de 4 000 tirages, une
+dizaine de millisecondes, et 125 tirages par tranche suffisent largement pour
+distinguer 60 % de 10 % — le seul usage qu'on en fait. Au-delà de vingt
+hypothèses ou trente valeurs, on s'abstient.
+
+Ce que ça donne sur la bibliothèque, et que je ne savais pas en la lisant :
+`cout_achat` tient à `placement` avant `travaux` ; `garder` (la voiture) tient
+aux `reparations` à 72 % ; `fixe` (le prix du kilomètre) tient aux
+`reparations` et au `stationnement`, pas à la décote, qui pèse pourtant le
+plus lourd. **Le poids et l'incertitude sont deux questions**, et le panneau
+les affiche maintenant côte à côte, chacune nommée.
+
+Un détail à noter : une source qui porte le nom de la valeur (`creuses =
+min(horizon, poisson(…))` crée une source nommée `creuses`) n'est pas listée
+comme son origine. Dire « `creuses` tient à `creuses` » n'apprend rien.
+
+### État à la fin de la session
+
+- 399 assertions sur le moteur, 177 dans un vrai navigateur. Toutes vertes.
+- Le calcul complet d'un modèle de la bibliothèque : 145 à 240 ms.
+
+### Ce que je ferais ensuite
+
+1. **Écrire de travers, encore**, mais autrement : les cinq récoltes ont été
+   faites par moi, en imaginant un visiteur. La prochaine devrait partir de
+   modèles entiers écrits d'une traite sur un sujet que je ne connais pas
+   d'avance — reprendre un forum de questions chiffrées et transcrire les
+   questions telles qu'elles sont posées.
+2. **Décomposer un produit**, toujours à peser. Avec l'origine de
+   l'incertitude affichée, la moitié de l'intérêt est déjà là.
+3. **Relire la bibliothèque à la lumière du détail.** Le panneau m'a appris
+   des choses sur mes propres modèles ; certaines devraient remonter dans
+   « ce que ce modèle compte » et « où trouver vos chiffres ».
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 6 : lire le moteur avec d'autres yeux
 
 *Modèle : Claude Fable 5.1. Première session de ce modèle ; les cinq

@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 2 septembre 2026 (fin de session 6).
+État au 2 septembre 2026 (fin de session 7).
 
 ## En une phrase
 
@@ -40,7 +40,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              360 assertions sur le moteur (Node, sans dépendance)
+│   ├── run.js              399 assertions sur le moteur (Node, sans dépendance)
 │   └── navigateur.js       177 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
@@ -63,7 +63,7 @@ AST { declarations, options, sortie, unite, seuil, objectifDeduit }
    │  moteur.js : indices, seuils, EVPPI
    ▼
 { modeDecision, options{}, sortie{}, sources[{ part, valeurInfo, bascules }],
-  detail{ calculs[], options[], sortie } }
+  detail{ calculs[{ p50, p05, p95, termes, origines }], options[], sortie } }
    │  ui.js
    ▼
 des phrases en français
@@ -160,6 +160,19 @@ des phrases en français
   test vérifie que `sources.length` ne bouge pas. L'option `detail: true` de
   `evaluerModele` n'est passée que par `analyserModele` : les balayages et le
   contre-argument n'en ont pas besoin.
+- **L'origine de l'incertitude d'une valeur intermédiaire** (`originesCalculs`)
+  est le même indice sur les rangs que pour le résultat, calculé sur un
+  sous-échantillon de 4 000 tirages : sur 20 000, il coûtait autant que tout
+  le reste. Au-delà de 20 hypothèses ou 30 valeurs, on s'abstient. Une source
+  qui porte le nom de la valeur n'est pas listée comme son origine.
+- **Une ligne de tableau est reconnue sur le texte brut**, avant l'analyse
+  (`lignesBrutes` dans `analyser`), quel que soit le séparateur — `;`, `,`,
+  tabulation. Le point-virgule est un séparateur d'instructions : sans cette
+  reconnaissance, `loyer;900;1150` calculait 1150 en silence.
+- **Les opérateurs en toutes lettres** (`motOperateur`) — `fois`, `sur`,
+  `plus`, `minus`, `times`, `divided by` — ne valent que si le mot n'est pas
+  un nom défini et qu'un opérande le suit ; sinon c'est une unité
+  (`2 fois par semaine`).
 - **L'échelle d'une borne vaut pour l'autre** (`fourchette()` dans lang.js) :
   `15 à 30 %`, `1 à 3 millions`, `100 à 150k`. Le multiplicateur ne se
   propage que si les chiffres écrits restent dans l'ordre — `500 à 2k` va de
