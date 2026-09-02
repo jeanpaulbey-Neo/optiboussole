@@ -570,6 +570,15 @@ function rendreDetail(r) {
   }
   for (const c of d.calculs) {
     liste.appendChild(ligneDetail(c.nom, c, '', { ligne: c.ligne, classe: c.termes ? 'tete' : '' }));
+    if (c.origines) {
+      // D'où vient l'incertitude de cette valeur-là : les hypothèses qui la
+      // portent, ou le constat qu'aucune ne domine.
+      liste.appendChild(el('li', { class: 'origines' },
+        c.origines.length
+          ? ['incertitude portée par ', ...c.origines.flatMap((o, k) => [
+              k ? ', ' : '', el('code', { text: o.nom }), ' ' + pourcent(o.part)])]
+          : 'incertitude répartie entre plusieurs hypothèses, aucune ne domine'));
+    }
     if (c.termes) for (const li of lignesTermes(c.termes, '')) liste.appendChild(li);
     n++;
   }
@@ -581,9 +590,9 @@ function rendreDetail(r) {
       el('span', { class: 'detail-compte', text: `${n} valeur${n > 1 ? 's' : ''}` }),
     ]),
     el('p', { class: 'rien' },
-      'Chaque valeur calculée, médiane et fourchette à 90 %, dans l’ordre du modèle. '
-      + 'Les sommes sont décomposées : c’est le poids de chaque poste à sa valeur médiane — '
-      + 'ce qui pèse le plus, pas ce qui est le plus incertain.'),
+      'Chaque valeur calculée, médiane et fourchette à 90 %, dans l’ordre du modèle, avec les '
+      + 'hypothèses qui portent son incertitude. Les sommes sont décomposées : c’est le poids de '
+      + 'chaque poste à sa valeur médiane — ce qui pèse le plus, pas ce qui est le plus incertain.'),
     liste,
   ]);
   bloc.addEventListener('toggle', () => { detailOuvert = bloc.open; });

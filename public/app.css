@@ -524,6 +524,14 @@ button.detail-nom:hover { color: var(--accent); border-bottom-color: var(--accen
   text-align: right;
 }
 .terme .barre { margin: 0; height: 4px; align-self: center; }
+.detail-liste li.origines {
+  display: block;
+  border-top: 0;
+  padding: 0 0 4px 16px;
+  font-size: 12.5px;
+  color: var(--attenue);
+}
+.detail-liste li.origines code { font-family: var(--mono); font-size: 12px; color: var(--encre); }
 @media (max-width: 560px) {
   .detail-liste li { grid-template-columns: minmax(0, 1fr) auto; }
   .detail-plage { grid-column: 1 / -1; text-align: left; }

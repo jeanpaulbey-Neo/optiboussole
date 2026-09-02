@@ -572,6 +572,63 @@ groupe('Ce que le visiteur écrit vraiment (suite)');
   }
 }
 
+// --- Cinquième récolte : tableaux collés, mots-opérateurs, durées, dates.
+groupe('Ce que le visiteur écrit vraiment (cinquième récolte)');
+{
+  // « loyer;900;1150 » se découpait en trois instructions et calculait 1150.
+  erreur('« loyer;900;1150 » est une ligne de tableau', 'loyer;900;1150', 'loyer = 900 à 1150');
+  erreur('« loyer,900,1150 » aussi', 'loyer,900,1150', 'loyer = 900 à 1150');
+  erreur('« loyer\t900\t1150\t1300 » propose la basse et la haute', 'loyer\t900\t1150\t1300', 'loyer = 900 à 1300');
+  erreur('« loyer = 900\t1150 » : deux nombres à la suite', 'loyer = 900\t1150', 'loyer = 900 à 1150');
+  erreur('« x = 5 % 10 % » garde les pourcentages', 'x = 5 % 10 %', 'x = 5 % à 10 %');
+  erreur('l’en-tête d’un tableau est reconnu', 'poste\tbas\thaut', 'en-tête');
+  proche('un tableau collé avec ses « = » et ses tabulations se calcule',
+    analyserModele('loyer\t=\t900 à 1150\ncourses\t=\t400 à 650\ntotal\t=\tloyer + courses', { N: 20000 }).sortie.p50, 1532, 20);
+
+  // Les opérateurs en toutes lettres.
+  proche('« revenue minus costs »', val('revenue = 50\ncosts = 20\nprofit = revenue minus costs'), 30, 0);
+  proche('« x times 2 »', val('x = 7\ny = x times 2'), 14, 0);
+  proche('« x divided by 2 »', val('x = 7\ny = x divided by 2'), 3.5, 0);
+  proche('« 1 sur 10 » est une division', val('x = 1 sur 10'), 0.1, 1e-12);
+  proche('« 1 chance sur 10 » aussi', val('x = 1 chance sur 10'), 0.1, 1e-12);
+  proche('« prix fois 12 »', val('prix = 900\nx = prix fois 12'), 10800, 0);
+  verifie('… mais « 2 fois par semaine » est une unité',
+    analyserModele('x = 2 fois par semaine').avertissements.some((a) => /« fois par semaine »/.test(a.texte)));
+  proche('un nom défini « sur » reste une variable', val('sur = 4\ny = sur * 2'), 8, 0);
+  proche('« deux à trois » : les nombres en toutes lettres',
+    analyserModele('x = deux à trois', { N: 40000 }).sortie.p50, Math.sqrt(6), 0.05);
+  proche('« 10 pour cent » vaut 0,1', val('x = 10 pour cent'), 0.1, 1e-12);
+  verifie('… et s’affiche en pourcentage', analyserModele('x = 10 pour cent à 20 pour cent').sources[0].pourcent === true);
+  proche('« 3 pour mille »', val('x = 3 pour mille'), 0.003, 1e-12);
+
+  // Fonctions en anglais, et une fonction inconnue reste « inconnue ».
+  proche('average, mean, median, stdev', val('x = 4\ny = average(x) + mean(x) + median(x) + stdev(x)'), 12, 0);
+  proche('« uniform(1, 5) »', analyserModele('x = uniform(1, 5)', { N: 40000 }).sortie.p50, 3, 0.05);
+  erreur('une fonction inconnue est dite inconnue, pas mal appelée', 'x = truc(3, 4)', 'inconnue');
+
+  // Symboles devant le nombre, séparateurs venus d'ailleurs.
+  proche('« $100 to $200 »', analyserModele('x = $100 to $200', { N: 40000 }).sortie.p50, Math.sqrt(2e4), 4);
+  proche('« €100 à €200 »', analyserModele('x = €100 à €200', { N: 40000 }).sortie.p50, Math.sqrt(2e4), 4);
+  proche('« 100\'000 » (apostrophe suisse)', val("x = 100'000"), 100000, 0);
+  proche('« 100 k à 200 k » : le suffixe séparé par une espace',
+    analyserModele('x = 100 k à 200 k', { N: 40000 }).sortie.p05, 1e5, 4e3);
+  {
+    const r = analyserModele('x = 100.000');
+    proche('« 100.000 » est lu 100', r.sortie.p50, 100, 0);
+    verifie('… et le site le dit', r.avertissements.some((a) => /100 000/.test(a.texte) && /100k/.test(a.texte)),
+      `→ ${r.avertissements.map((a) => a.texte).join(' | ')}`);
+  }
+  verifie('« 10 % - 20 % » est signalé avec ses pourcentages',
+    analyserModele('x = 10 % - 20 %').avertissements.some((a) => /« 10[\s\u202f]% à 20[\s\u202f]% »/.test(a.texte)));
+
+  // Durées et dates : ce que le site ne convertit pas, il le dit.
+  erreur('« 3 ans et 6 mois » renvoie à une seule unité', 'duree = 3 ans et 6 mois', 'une seule unité');
+  erreur('« 3 ans 6 mois » aussi', 'duree = 3 ans 6 mois', 'une seule unité');
+  erreur('une date n’est pas un nombre', 'debut = 01/09/2026', 'ne lit pas les dates');
+  erreur('« 1h30 » propose 1,5 ou 90', 'duree = 1h30', '1,5');
+  proche('« 2030 - 2026 » reste un calcul', val('x = 2030 - 2026'), 4, 0);
+}
+
 // --- Le détail des calculs --------------------------------------------------
 // Chaque variable calculée avec sa médiane, et chaque somme décomposée en
 // termes : ce qu'un tableur montre et que le site ne montrait pas.
@@ -602,6 +659,24 @@ groupe('Le détail des calculs');
   verifie('la branche « Acheter » se décompose en bien_net − cout_achat',
     ach.termes && ach.termes.length === 2 && ach.termes[1].signe === -1 && ach.termes[1].etiquette === 'cout_achat');
   verifie('ligne cliquable : chaque calcul connaît sa ligne', d.calculs.every((c) => c.ligne > 0));
+
+  // D'où vient l'incertitude de chaque valeur intermédiaire.
+  const ca = d.calculs.find((c) => c.nom === 'cout_achat');
+  verifie('« cout_achat » tient d’abord à « placement »',
+    ca.origines && ca.origines[0].nom === 'placement' && ca.origines[0].part > 0.35,
+    `→ ${JSON.stringify(ca.origines)}`);
+  verifie('… puis à « travaux »', ca.origines[1] && ca.origines[1].nom === 'travaux');
+  verifie('une valeur fixe n’a pas d’origine', mens.origines === undefined);
+  const pr = d.calculs.find((c) => c.nom === 'prix_revente');
+  verifie('« prix_revente » ne tient qu’à « revalorisation »',
+    pr.origines.length === 1 && pr.origines[0].nom === 'revalorisation' && pr.origines[0].part > 0.9,
+    `→ ${JSON.stringify(pr.origines)}`);
+  {
+    const f = analyserModele(MODELES.find((m) => m.cle === 'freelance').source, { N: 20000 });
+    const cr = f.detail.calculs.find((c) => c.nom === 'creuses');
+    verifie('une source qui porte le nom de la valeur n’est pas listée comme son origine',
+      cr.origines && !cr.origines.some((o) => o.nom === 'creuses'), `→ ${JSON.stringify(cr.origines)}`);
+  }
 
   // Un terme qui tire au sort ne se décompose pas : ses tirages ne seraient
   // pas ceux du calcul. Et un terme évalué après coup n'ajoute aucune source.

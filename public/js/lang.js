@@ -59,6 +59,23 @@ const MESSAGE_ENVIRON = '« environ » ne dit pas de combien vous pourriez vous 
   + 'Écrivez la fourchette elle-même, celle qui a 9 chances sur 10 de contenir la vraie '
   + 'valeur : « 80 à 120 » plutôt que « environ 100 ».';
 
+// Les opérateurs dits avec des mots : « prix fois 12 », « 1 sur 10 »,
+// « revenue minus costs ». Jamais si le mot est un nom défini.
+const MOTS_SOMME = { plus: '+', minus: '-', moins: '-' };
+const MOTS_PRODUIT = { fois: '*', times: '*', sur: '/', divided: '/' };
+
+// « deux à trois » : les petits nombres en toutes lettres.
+const NOMBRES_MOTS = {
+  'zéro': 0, zero: 0, un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6,
+  sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, quinze: 15, vingt: 20,
+  trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100,
+  one: 1, two: 2, three: 3, four: 4, five: 5, seven: 7, eight: 8, nine: 9, ten: 10,
+  twenty: 20, fifty: 50, hundred: 100,
+};
+
+const MESSAGE_DUREE = 'une durée s’écrit dans une seule unité : « 3,5 » (en années) ou « 42 » '
+  + '(en mois), pas « 3 ans et 6 mois ». Le site ne convertit pas les unités, il calcule sur les nombres.';
+
 const EST_LETTRE = /\p{L}/u;
 const EST_IDENT = /[\p{L}\p{N}_]/u;
 
@@ -102,20 +119,48 @@ export function lexer(source) {
       continue;
     }
 
+    // « $100 », « €200 » : le symbole devant le nombre est décoratif aussi.
+    if ('€$£¥'.includes(c)) {
+      let s = i + 1;
+      while (s < n && (source[s] === ' ' || source[s] === '\u00a0')) s++;
+      if (/[0-9]/.test(source[s] || '')) { i = s; continue; }
+    }
+
     // Nombre. Accepte 1 234,5 / 1_234.5 / 12% / 250k / 3.2e4
     if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(source[i + 1] || ''))) {
+      // Une date n'est pas un nombre : « 01/09/2026 » se calculait comme une
+      // double division et valait 0,00005.
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}(?![0-9])/.test(source.slice(i, i + 10))) {
+        throw new ErreurModele(
+          'le site ne lit pas les dates. Écrivez une durée — « 18 » (mois) ou « 1,5 » (années) — '
+          + 'ou un écart entre deux années, comme « 2030 - 2026 »', ligne);
+      }
+      // « 1h30 » se lisait « 1 » suivi d'une unité « h30 ».
+      {
+        const h = source.slice(i).match(/^(\d+)h(\d{2})(?![\p{L}\p{N}_])/u);
+        if (h) {
+          throw new ErreurModele(
+            `« ${h[0]} » : écrivez ${(+h[1] + h[2] / 60).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} `
+            + `(en heures) ou ${+h[1] * 60 + +h[2]} (en minutes)`, ligne);
+        }
+      }
       let j = i, brut = '';
+      let ambigu = false;
       // Les quatre espaces qui séparent les milliers en français : l'ordinaire,
       // l'insécable, la fine insécable — celle que produit `toLocaleString('fr-FR')`,
       // donc tout copier-coller d'une page web — et la fine.
-      while (j < n && /[0-9_    ]/.test(source[j])) {
+      while (j < n && /[0-9_    ']/.test(source[j])) {
         // Un espace n'est un séparateur de milliers que s'il est suivi de 3 chiffres.
-        if (/[    ]/.test(source[j])) {
+        // L'apostrophe suisse (« 100'000 ») suit la même règle.
+        if (/[    ']/.test(source[j])) {
           if (!/^[0-9]{3}(?![0-9])/.test(source.slice(j + 1, j + 5))) break;
         }
         if (/[0-9]/.test(source[j])) brut += source[j];
         j++;
       }
+      // « 100.000 » : cent, ou cent mille ? Ici le point est décimal. On le
+      // lit ainsi, et on le dit, parce que l'autre lecture est courante.
+      if (/^\.[0-9]{3}(?![0-9.,])/.test(source.slice(j, j + 5))) ambigu = true;
       // Séparateur décimal : `.` toujours, `,` seulement s'il ne sert pas de virgule d'argument.
       if (source[j] === '.' && /[0-9]/.test(source[j + 1] || '')) {
         brut += '.'; j++;
@@ -175,6 +220,7 @@ export function lexer(source) {
       pousser('nombre', valeur);
       jetons[jetons.length - 1].pourcent = pourcent;
       jetons[jetons.length - 1].suffixe = suffixe;
+      if (ambigu) jetons[jetons.length - 1].ambigu = source.slice(i, j).trim();
       i = j;
       continue;
     }
@@ -184,6 +230,17 @@ export function lexer(source) {
       let j = i, mot = '';
       while (j < n && EST_IDENT.test(source[j])) { mot += source[j]; j++; }
       const bas = mot.toLowerCase();
+      // « 10 pour cent », « 3 pour mille » : le nombre qui précède est une proportion.
+      if (bas === 'pour') {
+        const suite = source.slice(j).match(/^[ \u00a0]*(cent|mille)(?![\p{L}\p{N}_])/u);
+        const prec = jetons[jetons.length - 1];
+        if (suite && prec && prec.type === 'nombre') {
+          prec.valeur /= suite[1] === 'cent' ? 100 : 1000;
+          prec.pourcent = suite[1] === 'cent';
+          i = j + suite[0].length;
+          continue;
+        }
+      }
       if (MULTIPLICATEURS_MOTS[bas] !== undefined) {
         pousser('mult', MULTIPLICATEURS_MOTS[bas]);
       } else if (INTERVALLE.has(bas) && mot.length <= 2) {
@@ -341,8 +398,17 @@ class Parseur {
       if (APPROXIMATIFS.has(bas)) throw new ErreurModele(MESSAGE_ENVIRON, mot.ligne);
       const apres = this.j[this.i + 1];
       if (apres && (apres.type === '(' || apres.type === 'assign')) return;
+      // « 100 k à 200 k », « 2 M » : le suffixe d'échelle, séparé par une espace.
+      if (SUFFIXES[mot.valeur] !== undefined && mot.valeur !== 'm' && mot.valeur !== 'md'
+          && noeud.k === 'nombre' && noeud.suffixe === 1 && !noeud.unites) {
+        noeud.v *= SUFFIXES[mot.valeur]; noeud.suffixe = SUFFIXES[mot.valeur];
+        this.avance(); continue;
+      }
       // « 12 x 3 » : la croix de multiplication, pas une unité.
       if ((bas === 'x') && apres && ['nombre', 'ident', '('].includes(apres.type)) return;
+      // « 1 sur 10 », « 2 fois 3 » : un opérateur, pas une unité — mais
+      // « 2 fois par semaine » en est une.
+      if ((MOTS_SOMME[bas] || MOTS_PRODUIT[bas]) && this.motOperateur(MOTS_SOMME[bas] ? MOTS_SOMME : MOTS_PRODUIT)) return;
       // « 3 ans a 5 ans » : ce « a » est la fourchette, pas un mot de plus.
       if ((bas === 'a' || bas === 'to') && apres && apres.type === 'nombre') {
         t.type = 'interv'; t.valeur = bas; return;
@@ -351,6 +417,8 @@ class Parseur {
       // « par mois » : les mots consécutifs forment une seule unité.
       if (noeud.unites) noeud.unites[noeud.unites.length - 1] += ' ' + mot.valeur;
       else noeud.unites = [mot.valeur];
+      // « 3 ans 6 mois » : deux unités, donc une conversion que le site ne fait pas.
+      if (this.estType('nombre')) throw new ErreurModele(MESSAGE_DUREE, mot.ligne);
     }
   }
   sauterNL() { while (this.estType('nl')) this.avance(); }
@@ -399,7 +467,11 @@ class Parseur {
     let g = this.comparaison();
     while (this.estMC('et') || this.estMC('and')) {
       const ligne = this.ligne(); this.avance();
-      g = { k: 'bin', op: 'et', g, d: this.comparaison(), ligne };
+      const d = this.comparaison();
+      if (g.k === 'nombre' && g.unites && d.k === 'nombre' && d.unites) {
+        throw new ErreurModele(MESSAGE_DUREE, ligne);
+      }
+      g = { k: 'bin', op: 'et', g, d, ligne };
     }
     return g;
   }
@@ -459,12 +531,34 @@ class Parseur {
     return g;
   }
 
+  // « prix plus frais », « revenue minus costs » : l'opérateur en toutes lettres,
+  // quand le mot n'est pas un nom défini et qu'un opérande le suit.
+  motOperateur(table) {
+    const t = this.cur();
+    if (t.type !== 'ident' || this.estDeclare(t)) return null;
+    const op = table[t.valeur.toLowerCase()];
+    if (!op) return null;
+    let k = this.i + 1;
+    // « divided by »
+    if (t.valeur.toLowerCase() === 'divided') {
+      if (this.j[k] && this.j[k].type === 'ident' && this.j[k].valeur.toLowerCase() === 'by') k++;
+      else return null;
+    }
+    const apres = this.j[k];
+    if (!apres) return null;
+    if (apres.type === 'nombre' || apres.type === '(' || this.estDeclare(apres)
+        || (apres.type === 'ident' && NOMBRES_MOTS[apres.valeur.toLowerCase()] !== undefined)) return { op, k };
+    return null;
+  }
+
   somme() {
     let g = this.produit();
     for (;;) {
-      if (!this.estOp('+', '-') && !this.continueLigne(['+', '-'])) break;
+      let op, mot;
+      if (this.estOp('+', '-') || this.continueLigne(['+', '-'])) op = this.avance().valeur;
+      else if ((mot = this.motOperateur(MOTS_SOMME))) { op = mot.op; this.i = mot.k; }
+      else break;
       const ligne = this.ligne();
-      const op = this.avance().valeur;
       g = { k: 'bin', op, g, d: this.produit(), ligne };
     }
     return g;
@@ -490,6 +584,12 @@ class Parseur {
         const ligne = this.ligne();
         this.avance();
         g = { k: 'bin', op: '*', g, d: this.unaire(), ligne };
+      } else if (this.motOperateur(MOTS_PRODUIT)) {
+        // « prix fois 12 », « 1 sur 10 », « x divided by 2 ».
+        const mot = this.motOperateur(MOTS_PRODUIT);
+        const ligne = this.ligne();
+        this.i = mot.k;
+        g = { k: 'bin', op: mot.op, g, d: this.unaire(), ligne };
       } else break;
     }
     return g;
@@ -556,6 +656,13 @@ class Parseur {
     if (t.type === 'nombre') {
       this.avance();
       const noeud = { k: 'nombre', v: t.valeur, pourcent: t.pourcent, suffixe: t.suffixe || 1, ligne: t.ligne };
+      if (t.ambigu) noeud.ambigu = t.ambigu;
+      this.unites(noeud);
+      return noeud;
+    }
+    if (t.type === 'ident' && NOMBRES_MOTS[t.valeur.toLowerCase()] !== undefined && !this.declares.has(t.valeur)) {
+      this.avance();
+      const noeud = { k: 'nombre', v: NOMBRES_MOTS[t.valeur.toLowerCase()], suffixe: 1, ligne: t.ligne };
       this.unites(noeud);
       return noeud;
     }
@@ -603,6 +710,7 @@ export function analyser(sourceBrute) {
         && (k === 0 || jetons[k - 1].type === 'nl')) declares.add(jetons[k].valeur);
   }
   const p = new Parseur(jetons, declares);
+  const lignesBrutes = source.split('\n').map((l) => l.replace(/#.*$|\/\/.*$/, '').trim());
   const declarations = [];
   const options = [];
   let sortie = null;
@@ -618,6 +726,29 @@ export function analyser(sourceBrute) {
 
     if (p.estType('assign')) {
       throw new ErreurModele('il manque un nom avant « = » : écrivez « nom = … »', ligne);
+    }
+
+    // Un tableau collé tel quel : « loyer;900;1150 », « loyer,900,1150 », ou
+    // son en-tête « poste bas haut ». Le point-virgule aurait découpé la ligne
+    // en trois instructions et calculé « 1150 » sans un mot.
+    {
+      const brute = lignesBrutes[ligne - 1] || '';
+      const champs = brute.split(/[;\t]/).map((c) => c.trim());
+      const nombre = /^[-+]?\d[\d\s\u00a0\u202f.,]*%?$/;
+      const nomSeul = /^[\p{L}_][\p{L}\p{N}_]*$/u;
+      if (champs.length >= 3 && nomSeul.test(champs[0]) && champs.slice(1).every((c) => nombre.test(c))) {
+        throw new ErreurModele(
+          `cette ligne ressemble à une ligne de tableau. Écrivez-la « ${champs[0]} = ${champs[1]} à ${champs[champs.length - 1]} »`, ligne);
+      }
+      const virgules = brute.split(',').map((c) => c.trim());
+      if (virgules.length >= 3 && nomSeul.test(virgules[0]) && virgules.slice(1).every((c) => /^[-+]?\d+$/.test(c))) {
+        throw new ErreurModele(
+          `cette ligne ressemble à une ligne de tableau. Écrivez-la « ${virgules[0]} = ${virgules[1]} à ${virgules[virgules.length - 1]} »`, ligne);
+      }
+      if (champs.length >= 2 && !/[=\d]/.test(brute) && champs.every((c) => /^[\p{L}_][\p{L}\p{N}_ ]*$/u.test(c))) {
+        throw new ErreurModele(
+          'cette ligne ressemble à l’en-tête d’un tableau. Supprimez-la : le site ne lit que des lignes « nom = valeur »', ligne);
+      }
     }
 
     // Directives « unité: € » et « seuil: 0 ».
@@ -687,16 +818,24 @@ export function analyser(sourceBrute) {
       for (let q = iDebut; p.j[q] && p.j[q].type !== 'nl' && p.j[q].type !== 'fin'; q++) {
         ligneJetons.push(p.j[q]);
       }
-      if (ligneJetons.length >= 2 && ligneJetons.length <= 3
-          && ligneJetons[0].type === 'ident'
+      // Sans séparateur de milliers : le message doit pouvoir être recopié tel
+      // quel dans l'éditeur, et le visiteur n'avait pas écrit d'espace.
+      const texteNombre = (t) => (t.pourcent
+        ? (t.valeur * 100).toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 6 }) + ' %'
+        : t.valeur.toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 6 }));
+      const nombres = ligneJetons.filter((t) => t.type === 'nombre');
+      if (ligneJetons.length >= 3 && ligneJetons[0].type === 'ident'
           && ligneJetons.slice(1).every((t) => t.type === 'nombre')) {
-        // Sans séparateur de milliers : le message doit pouvoir être recopié tel
-        // quel dans l'éditeur, et le visiteur n'avait pas écrit d'espace.
-        const nb = ligneJetons.slice(1).map(
-          (t) => t.valeur.toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 6 }));
         throw new ErreurModele(
           `cette ligne ressemble à une ligne de tableau. Écrivez-la « `
-          + `${ligneJetons[0].valeur} = ${nb.join(' à ')} »`, ligne);
+          + `${ligneJetons[0].valeur} = ${texteNombre(nombres[0])} à ${texteNombre(nombres[nombres.length - 1])} »`, ligne);
+      }
+      // « loyer = 900   1150 » : deux nombres après le « = », la fourchette sans son « à ».
+      if (ligneJetons.length >= 4 && ligneJetons[0].type === 'ident' && ligneJetons[1].type === 'assign'
+          && ligneJetons.slice(2).every((t) => t.type === 'nombre')) {
+        throw new ErreurModele(
+          `deux nombres à la suite : pour une fourchette, écrivez « `
+          + `${ligneJetons[0].valeur} = ${texteNombre(nombres[0])} à ${texteNombre(nombres[nombres.length - 1])} »`, ligne);
       }
       // Une suite de mots sans « = », c'est presque toujours une phrase écrite
       // dans l'éditeur. Autant le dire.

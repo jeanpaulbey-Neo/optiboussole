@@ -9,7 +9,7 @@
 // du modèle, le fait de lever l'incertitude sur une hypothèse et une seule.
 
 import { analyser } from './lang.js';
-import { evaluerModele, quantile, trier, moyenne, variance } from './evaluer.js';
+import { evaluerModele, quantile, trier, moyenne, variance, imprimer } from './evaluer.js';
 
 const K_BINS = 32;
 
@@ -335,11 +335,20 @@ function avertissements(ast) {
       if (n.k === 'bin' && n.op === '-'
           && n.g.k === 'nombre' && n.d.k === 'nombre'
           && n.g.v > 0 && n.d.v > 0 && n.g.v < n.d.v) {
-        const fr = (x) => x.toLocaleString('fr-FR', { maximumFractionDigits: 4 });
+        const g = imprimer(n.g), d = imprimer(n.d);
+        const diff = imprimer({ k: 'nombre', v: n.g.v - n.d.v, pourcent: n.g.pourcent && n.d.pourcent, suffixe: 1 });
         liste.push({
           ligne: n.ligne,
-          texte: `« ${fr(n.g.v)} - ${fr(n.d.v)} » est lu comme une soustraction et vaut `
-            + `${fr(n.g.v - n.d.v)}. Pour une fourchette, écrivez « ${fr(n.g.v)} à ${fr(n.d.v)} ».`,
+          texte: `« ${g} - ${d} » est lu comme une soustraction et vaut `
+            + `${diff}. Pour une fourchette, écrivez « ${g} à ${d} ».`,
+        });
+      }
+      // « 100.000 » : lu cent, parce que le point est décimal ici.
+      if (n.k === 'nombre' && n.ambigu) {
+        liste.push({
+          ligne: n.ligne,
+          texte: `« ${n.ambigu} » est lu ${imprimer(n)} : le point est la virgule décimale. `
+            + `Pour ${imprimer({ k: 'nombre', v: n.v * 1000, suffixe: 1 })}, écrivez « ${n.ambigu.replace('.', ' ')} » ou « ${imprimer({ k: 'nombre', v: n.v, suffixe: 1 })}k ».`,
         });
       }
     });
@@ -605,7 +614,36 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   }
 
   resultat.detail = detailCalculs(r.details, pas);
+  if (resultat.detail) originesCalculs(resultat.detail, r.details, sources, N);
   return resultat;
+}
+
+// D'où vient l'incertitude de chaque valeur intermédiaire : le même indice
+// que pour le résultat, sur un sous-échantillon de 4 000 tirages — assez
+// pour distinguer 60 % de 10 %, pas assez pour coûter un tri de 20 000
+// éléments par valeur et par hypothèse à chaque frappe.
+const N_ORIGINES = 4000;
+const PART_ORIGINE = 0.1;
+
+function originesCalculs(detail, details, sources, N) {
+  if (sources.length === 0 || sources.length > SOURCES_AVANT_ALLEGEMENT || details.calculs.length > 30) return;
+  const pas = Math.max(1, Math.floor(N / N_ORIGINES));
+  const Na = Math.ceil(N / pas);
+  const bins = bornesBins(Na, K_BINS);
+  const ordres = sources.map((s) => ordre(sousEchantillon(s.valeurs, pas)));
+  details.calculs.forEach((c, i) => {
+    const cible = detail.calculs[i];
+    if (cible.fixe || !(c.valeurs instanceof Float64Array)) return;
+    const rg = rangs(sousEchantillon(c.valeurs, pas));
+    const varR = variance(rg), moyR = moyenne(rg);
+    cible.origines = sources
+      // Une source qui porte le nom de la valeur est cette valeur : rien à dire.
+      .filter((s) => s.nom !== c.nom)
+      .map((s, k) => ({ nom: s.nom, part: effetPrincipal(ordres[sources.indexOf(s)], rg, varR, moyR, bins) }))
+      .filter((o) => o.part >= PART_ORIGINE)
+      .sort((a, b) => b.part - a.part)
+      .slice(0, 3);
+  });
 }
 
 // Médiane et fourchette de chaque valeur intermédiaire, sur le même

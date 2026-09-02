@@ -107,18 +107,24 @@ const DETERMINISTES = {
 const ARITE = {
   min: [1, Infinity], max: [1, Infinity], mod: [2, 2], pow: [2, 2], puissance: [2, 2],
   cumul: [2, 2], serie: [3, 3],
-  unif: [2, 2], uniforme: [2, 2], normale: [2, 2], normal: [2, 2],
+  unif: [2, 2], uniforme: [2, 2], uniform: [2, 2], normale: [2, 2], normal: [2, 2],
   lognormale: [1, 2], lognormal: [1, 2], beta: [2, 2], bernoulli: [1, 1], pile: [1, 1],
   poisson: [1, 1], triangulaire: [3, 3],
 };
 const arite = (nom) => ARITE[nom] || [1, 1];
 
 const ALEATOIRES = new Set([
-  'unif', 'uniforme', 'normale', 'normal', 'lognormale', 'lognormal',
+  'unif', 'uniforme', 'uniform', 'normale', 'normal', 'lognormale', 'lognormal',
   'beta', 'bernoulli', 'pile', 'poisson', 'triangulaire',
 ]);
 
-const AGREGATS = new Set(['esperance', 'espérance', 'moyenne', 'proba', 'mediane', 'médiane', 'ecart_type', 'écart_type']);
+// Les résumés d'une simulation, et leurs noms anglais.
+const AGREGATS = {
+  esperance: 'moyenne', 'espérance': 'moyenne', moyenne: 'moyenne', average: 'moyenne', mean: 'moyenne',
+  proba: 'proba', probability: 'proba',
+  mediane: 'mediane', 'médiane': 'mediane', median: 'mediane',
+  ecart_type: 'ecart_type', 'écart_type': 'ecart_type', stdev: 'ecart_type', sd: 'ecart_type', std: 'ecart_type',
+};
 
 // Distance d'édition, plafonnée : inutile de calculer au-delà du seuil qu'on
 // s'autorise, et ça évite de suggérer un nom qui n'a rien à voir.
@@ -327,6 +333,9 @@ class Contexte {
     const N = this.N;
     const nom = n.nom.toLowerCase();
 
+    if (!AGREGATS[nom] && !DETERMINISTES[nom] && !ALEATOIRES.has(nom)) {
+      throw new ErreurModele(`fonction « ${n.nom} » inconnue`, n.ligne);
+    }
     {
       const [mini, maxi] = arite(nom);
       if (n.args.length < mini || n.args.length > maxi) {
@@ -337,12 +346,13 @@ class Contexte {
       }
     }
 
-    if (AGREGATS.has(nom)) {
+    if (AGREGATS[nom]) {
+      const quoi = AGREGATS[nom];
       const v = this.evaluer(n.args[0]);
-      if (!estVec(v)) return nom === 'ecart_type' || nom === 'écart_type' ? 0 : v;
-      if (nom === 'proba') return moyenne(v);
-      if (nom === 'mediane' || nom === 'médiane') return quantile(trier(v), 0.5);
-      if (nom === 'ecart_type' || nom === 'écart_type') return Math.sqrt(variance(v));
+      if (!estVec(v)) return quoi === 'ecart_type' ? 0 : v;
+      if (quoi === 'proba') return moyenne(v);
+      if (quoi === 'mediane') return quantile(trier(v), 0.5);
+      if (quoi === 'ecart_type') return Math.sqrt(variance(v));
       return moyenne(v);
     }
 
@@ -392,7 +402,7 @@ class Contexte {
         const out = new Float64Array(N);
         const r = this.rng;
         switch (nom) {
-          case 'unif': case 'uniforme': {
+          case 'unif': case 'uniforme': case 'uniform': {
             const A = lire(0), B = lire(1);
             for (let i = 0; i < N; i++) { const a = A(i), b = B(i); out[i] = a + (b - a) * r.next(); }
             break;
