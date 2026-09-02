@@ -317,6 +317,73 @@ groupe('Bibliothèque');
   }
 }
 
+// --- Formules sur plusieurs lignes ------------------------------------------
+groupe('Continuation de ligne');
+{
+  // Ce cas a tronqué en silence un modèle de la bibliothèque pendant deux
+  // sessions : « changer = a - b » suivi de lignes commençant par « + ».
+  const src = 'a = 100\nb = 20\nc = 3\ntotal = a - b\n  + c * 2\n  - 5';
+  proche('une ligne commençant par « + » continue la précédente', val(src), 81, 0);
+  proche('… et une ligne commençant par « * » aussi',
+    val('a = 4\nx = a\n  * 3'), 12, 0);
+  proche('parenthèse ouverte : la fin de ligne est suspendue',
+    val('x = (1\n + 2\n + 3)'), 6, 0);
+  proche('appel de fonction sur plusieurs lignes',
+    val('x = max(\n  1,\n  5,\n  3\n)'), 5, 0);
+  proche('une ligne isolée reste une expression',
+    val('a = 1\n7 * 6'), 42, 0);
+  {
+    const r = analyserModele('a = 100\nb = 20\nd = 3\ntotal = a - b\n  + d', { N: 500 });
+    verifie('la continuation ne laisse aucune variable orpheline',
+      (r.avertissements || []).length === 0,
+      `→ ${(r.avertissements || []).map((x) => x.texte).join(' | ')}`);
+  }
+}
+
+// --- Avertissements et cas dégénérés ----------------------------------------
+groupe('Avertissements');
+const av = (src) => (analyserModele(src, { N: 2000 }).avertissements || []).map((a) => a.texte).join(' | ');
+{
+  verifie('« 900-1150 » est signalé comme une fourchette manquée',
+    /fourchette/.test(av('loyer = 900-1150\ntotal = loyer')), `→ ${av('loyer = 900-1150\ntotal = loyer')}`);
+  verifie('… même écrit avec des espaces',
+    /fourchette/.test(av('loyer = 900 - 1150\ntotal = loyer')));
+  verifie('une soustraction légitime n\'est pas signalée',
+    !/fourchette/.test(av('marge = 1150 - 900\ntotal = marge')), `→ ${av('marge = 1150 - 900\ntotal = marge')}`);
+  verifie('une variable oubliée est signalée',
+    /loyerr/.test(av('loyer = 900 à 1150\nloyerr = 5\ntotal = loyer')));
+  verifie('la dernière variable ne compte pas comme inutilisée',
+    !/utilisé/.test(av('a = 1\nb = a + 1')), `→ ${av('a = 1\nb = a + 1')}`);
+  verifie('une variable utilisée par une option ne l\'est pas non plus',
+    !/utilisé/.test(av('x = 1 à 3\noption "A" = x\noption "B" = 2')));
+  verifie('une variable utilisée par le seuil ne l\'est pas non plus',
+    !/utilisé/.test(av('cible = 10\nseuil: cible\nx = 1 à 30\ny = x')));
+  verifie('deux branches homonymes sont signalées',
+    /Deux branches/.test(av('option "A" = 1\noption "A" = 2')));
+  verifie('une seule branche est signalée',
+    /seule branche/.test(av('option "A" = 1')));
+  verifie('un modèle sain ne produit aucun avertissement',
+    av('x = 1 à 3\ny = x * 2') === '', `→ ${av('x = 1 à 3\ny = x * 2')}`);
+  for (const m of (await import('../public/js/modeles.js')).MODELES) {
+    verifie(`« ${m.titre} » ne produit aucun avertissement`, av(m.source) === '', `→ ${av(m.source)}`);
+  }
+}
+
+groupe('Cas dégénérés');
+{
+  verifie('une seule option : rien à afficher, sans exception',
+    analyserModele('option "A" = 10').probleme === 'sans-resultat');
+  verifie('division par zéro : valeurs impossibles',
+    analyserModele('a = 0\ny = 10 / a').probleme === 'valeurs-impossibles');
+  verifie('racine d\'un négatif : valeurs impossibles',
+    analyserModele('y = racine(0 - 4)').probleme === 'valeurs-impossibles');
+  verifie('un modèle valide n\'a aucun problème',
+    analyserModele('x = 1 à 3\ny = x').probleme === undefined);
+  // Une poignée de tirages non finis ne doit pas condamner tout le modèle.
+  const r = analyserModele('d = 0 à 100\ny = si d > 0,0001 alors 1 / d sinon 0', { N: 20000 });
+  verifie('un cas limite rare ne bloque pas le modèle', r.probleme === undefined, `→ ${r.probleme}`);
+}
+
 // --- Enjeu et décision acquise ----------------------------------------------
 groupe('Enjeu du choix');
 {

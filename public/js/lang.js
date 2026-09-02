@@ -54,7 +54,7 @@ const EST_IDENT = /[\p{L}\p{N}_]/u;
 
 export function lexer(source) {
   const jetons = [];
-  let i = 0, ligne = 1;
+  let i = 0, ligne = 1, profondeur = 0;
   const n = source.length;
 
   const pousser = (type, valeur) => jetons.push({ type, valeur, ligne });
@@ -62,7 +62,9 @@ export function lexer(source) {
   while (i < n) {
     const c = source[i];
 
-    if (c === '\n') { pousser('nl'); ligne++; i++; continue; }
+    // Une parenthèse ouverte suspend la fin de ligne : une formule peut
+    // s'écrire sur plusieurs lignes sans être tronquée en silence.
+    if (c === '\n') { if (profondeur === 0) pousser('nl'); ligne++; i++; continue; }
     if (c === ' ' || c === '\t' || c === '\r') { i++; continue; }
     if (c === '#' || (c === '/' && source[i + 1] === '/')) {
       while (i < n && source[i] !== '\n') i++;
@@ -107,7 +109,12 @@ export function lexer(source) {
       let valeur = parseFloat(brut);
       let pourcent = false;
 
-      if (source[j] === '%') { valeur /= 100; pourcent = true; j++; }
+      // « 3,2 % » avec une espace : c'est la typographie française, et c'est
+      // ce que les gens écrivent. Il n'y a pas d'opérateur modulo dans le
+      // langage, donc un « % » après un nombre est toujours un pourcentage.
+      let k = j;
+      while (k < n && (source[k] === ' ' || source[k] === '\u00a0' || source[k] === '\u202f')) k++;
+      if (source[k] === '%') { valeur /= 100; pourcent = true; j = k + 1; }
       else {
         // Suffixe collé : 250k, 3.2M, 12Md
         const deux = source.slice(j, j + 3);
@@ -163,9 +170,18 @@ export function lexer(source) {
     if (c === '~') { pousser('interv', '~'); i++; continue; }
     if (c === '=') { pousser('assign'); i++; continue; }
     if (c === '>' || c === '<') { pousser('op', c); i++; continue; }
-    if ('(),'.includes(c)) { pousser(c); i++; continue; }
+    if ('(),'.includes(c)) {
+      if (c === '(') profondeur++;
+      else if (c === ')') profondeur = Math.max(0, profondeur - 1);
+      pousser(c); i++; continue;
+    }
     if (c === ':') { pousser(':'); i++; continue; }
 
+    if ('€$£¥₽¢°'.includes(c)) {
+      throw new ErreurModele(
+        `« ${c} » n'a pas sa place dans un calcul — l'unité se déclare en tête `
+        + `du modèle, avec une ligne « unité: ${c} »`, ligne);
+    }
     throw new ErreurModele(`caractère inattendu « ${c} »`, ligne);
   }
   pousser('fin');
@@ -192,6 +208,18 @@ class Parseur {
     return this.avance();
   }
   sauterNL() { while (this.estType('nl')) this.avance(); }
+
+  // Une ligne qui commence par un opérateur binaire continue la précédente.
+  // C'est ainsi qu'on écrit une formule longue, et ne pas le gérer tronquait
+  // le calcul sans rien signaler.
+  continueLigne(ops) {
+    if (!this.estType('nl')) return false;
+    let k = this.i;
+    while (this.j[k] && this.j[k].type === 'nl') k++;
+    const t = this.j[k];
+    if (t && t.type === 'op' && ops.includes(t.valeur)) { this.i = k; return true; }
+    return false;
+  }
 
   expr() { return this.ternaire(); }
 
@@ -256,7 +284,8 @@ class Parseur {
 
   somme() {
     let g = this.produit();
-    while (this.estOp('+', '-')) {
+    for (;;) {
+      if (!this.estOp('+', '-') && !this.continueLigne(['+', '-'])) break;
       const ligne = this.ligne();
       const op = this.avance().valeur;
       g = { k: 'bin', op, g, d: this.produit(), ligne };
@@ -267,7 +296,7 @@ class Parseur {
   produit() {
     let g = this.unaire();
     for (;;) {
-      if (this.estOp('*', '/')) {
+      if (this.estOp('*', '/') || this.continueLigne(['*', '/'])) {
         const ligne = this.ligne();
         const op = this.avance().valeur;
         g = { k: 'bin', op, g, d: this.unaire(), ligne };

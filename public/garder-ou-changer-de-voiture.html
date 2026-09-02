@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garder ou changer de voiture — Boussole</title>
-<meta name="description" content="Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Ce modèle montre un cas typique où une hypothèse fait beaucoup bouger le résultat sans jamais renverser la décision — donc où il est inutile de chercher plus loin.">
+<meta name="description" content="Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu'on ne croit, et un seul chiffre les sépare vraiment : ce que l'ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.">
 <link rel="canonical" href="https://optiboussole.fr/garder-ou-changer-de-voiture">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Garder ou changer de voiture — Boussole">
-<meta property="og:description" content="Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Ce modèle montre un cas typique où une hypothèse fait beaucoup bouger le résultat sans jamais renverser la décision — donc où il est inutile de chercher plus loin.">
+<meta property="og:description" content="Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu'on ne croit, et un seul chiffre les sépare vraiment : ce que l'ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://optiboussole.fr/garder-ou-changer-de-voiture">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -28,7 +28,7 @@
     <a class="retour" href="/">Boussole</a>
   </div>
   <h1 class="baseline titre-modele">Garder ou changer de voiture</h1>
-  <p class="sous-baseline">Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Ce modèle montre un cas typique où une hypothèse fait beaucoup bouger le résultat sans jamais renverser la décision — donc où il est inutile de chercher plus loin.</p>
+  <p class="sous-baseline">Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu'on ne croit, et un seul chiffre les sépare vraiment : ce que l'ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.</p>
 </header>
 
 <nav aria-label="Modèles">
@@ -90,6 +90,7 @@ changer = revente_actuelle - prix_nouvelle
 option "Garder l'actuelle" = garder
 option "Changer" = changer</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
+    <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
   <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>

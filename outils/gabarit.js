@@ -195,6 +195,7 @@ ${chips(modeles, modele.cle, defaut)}
     <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
       aria-label="Description du modèle">${echappe(modele.source)}</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
+    <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
   <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>

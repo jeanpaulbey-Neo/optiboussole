@@ -80,6 +80,7 @@ gain_total = gain_an1 * serie(placement, prix_energie, horizon)
 option "Isoler"     = gain_total - cout * (1 + placement)^horizon
 option "Ne rien faire" = 0</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
+    <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
   <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>

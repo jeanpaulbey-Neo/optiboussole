@@ -291,12 +291,86 @@ export function analyserRobustesse(r) {
   };
 }
 
+// --- Avertissements ---------------------------------------------------------
+//
+// Non bloquants : le modèle se calcule quand même. Ils visent les fautes qui
+// donnent un résultat plausible mais faux — celles qu'un message d'erreur ne
+// rattrapera jamais, puisqu'il n'y a pas d'erreur.
+
+function parcourir(n, f) {
+  if (!n || typeof n !== 'object') return;
+  f(n);
+  for (const cle of ['e', 'g', 'd', 'cond', 'oui', 'non', 'bas', 'haut']) parcourir(n[cle], f);
+  if (n.args) for (const a of n.args) parcourir(a, f);
+}
+
+function avertissements(ast) {
+  const liste = [];
+
+  // « loyer = 900-1150 » se calcule sans broncher et vaut −250. C'est la faute
+  // la plus coûteuse du langage : elle ne lève rien et fausse tout.
+  for (const d of ast.declarations) {
+    parcourir(d.expr, (n) => {
+      if (n.k === 'bin' && n.op === '-'
+          && n.g.k === 'nombre' && n.d.k === 'nombre'
+          && n.g.v > 0 && n.d.v > 0 && n.g.v < n.d.v) {
+        const fr = (x) => x.toLocaleString('fr-FR', { maximumFractionDigits: 4 });
+        liste.push({
+          ligne: n.ligne,
+          texte: `« ${fr(n.g.v)} - ${fr(n.d.v)} » est lu comme une soustraction et vaut `
+            + `${fr(n.g.v - n.d.v)}. Pour une fourchette, écrivez « ${fr(n.g.v)} à ${fr(n.d.v)} ».`,
+        });
+      }
+    });
+  }
+
+  // Deux branches du même nom : le verdict devient illisible.
+  const vus = new Set();
+  for (const o of ast.options) {
+    if (vus.has(o.nom)) {
+      liste.push({ ligne: o.ligne, texte: `Deux branches s\u2019appellent « ${o.nom} » : renommez-en une.` });
+    }
+    vus.add(o.nom);
+  }
+
+  // Une variable définie et jamais utilisée est presque toujours une faute de
+  // frappe dans le nom, ailleurs.
+  const utilisees = new Set();
+  const noter = (n) => { if (n.k === 'var') utilisees.add(n.nom); };
+  for (const d of ast.declarations) parcourir(d.expr, noter);
+  for (const o of ast.options) parcourir(o.expr, noter);
+  if (ast.sortie) parcourir(ast.sortie.expr, noter);
+  if (ast.seuil) parcourir(ast.seuil.expr, noter);
+  for (const d of ast.declarations) {
+    if (!utilisees.has(d.nom)) {
+      liste.push({ ligne: d.ligne, texte: `« ${d.nom} » est défini mais n\u2019est utilisé nulle part.` });
+    }
+  }
+
+  if (ast.options.length === 1) {
+    liste.push({
+      ligne: ast.options[0].ligne,
+      texte: 'Une seule branche : ajoutez une seconde ligne « option » pour que le site puisse comparer.',
+    });
+  }
+
+  return liste.sort((a, b) => a.ligne - b.ligne);
+}
+
+// Un modèle qui divise par zéro ou prend la racine d'un négatif produit des
+// valeurs impossibles. Mieux vaut le dire que d'afficher des tirets partout.
+function partNonFinie(v) {
+  let n = 0;
+  for (let i = 0; i < v.length; i++) if (!Number.isFinite(v[i])) n++;
+  return n / v.length;
+}
+
 // --- Analyse complète -------------------------------------------------------
 
 export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   const ast = analyser(source);
   if (ast.declarations.length === 0 && ast.options.length === 0) {
-    return { vide: true, ast };
+    return { vide: true, ast, avertissements: [] };
   }
   const r = evaluerModele(ast, { N });
   // Un « seuil: » écrit dans le modèle prime sur celui passé par l'appelant.
@@ -313,8 +387,23 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     .filter((s) => s.stats.p95 - s.stats.p05 > 0 || s.stats.ecartType > 0);
 
   const modeDecision = r.options.length >= 2;
+  const notes = avertissements(ast);
+
+  // Rien à montrer : une seule branche, et aucune expression de résultat.
+  if (!modeDecision && !r.sortie) {
+    return { probleme: 'sans-resultat', ast, N, sources: [], avertissements: notes };
+  }
+
+  // Valeurs impossibles : on le dit au lieu d'afficher des tirets.
+  const aTester = modeDecision ? r.options.map((o) => o.valeurs) : [r.sortie];
+  for (const v of aTester) {
+    if (partNonFinie(v) > 0.001) {
+      return { probleme: 'valeurs-impossibles', ast, N, sources: [], avertissements: notes };
+    }
+  }
+
   const resultat = {
-    ast, N, modeDecision, sources: [],
+    ast, N, modeDecision, sources: [], avertissements: notes,
     options: null, sortie: null, seuil, seuilSens, unite: ast.unite || '',
     nomSortie: ast.sortie && ast.sortie.expr.k === 'var' ? ast.sortie.expr.nom : null,
   };

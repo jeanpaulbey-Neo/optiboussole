@@ -242,6 +242,31 @@ nav .exemples { margin-bottom: 0; }
 .erreur code { font-family: var(--mono); }
 .erreur[hidden] { display: none; }
 
+/* Les avertissements ne bloquent rien : ton neutre, pas alarmiste. */
+.avertissements {
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  border-top: 1px solid var(--trait);
+  font-size: 13px;
+  color: var(--attenue);
+  border-radius: 0 0 10px 10px;
+}
+.avertissements[hidden] { display: none; }
+.avertissements li { margin: 3px 0; }
+.avertissements li::marker { color: var(--alerte); }
+
+.renvoi {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--alerte);
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+}
+
 /* ---------- Résultats ---------- */
 
 .resultats { display: flex; flex-direction: column; gap: 22px; }

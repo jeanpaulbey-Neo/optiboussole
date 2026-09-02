@@ -84,6 +84,7 @@ deficit = sorties - entrees
 # Plafonné à 60 mois : au-delà, la question ne se pose plus.
 mois_tenables = si deficit &lt;= 0 alors 60 sinon min(60, reserve / deficit)</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
+    <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
   <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>

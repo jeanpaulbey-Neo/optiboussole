@@ -426,8 +426,36 @@ function rendreRobustesse(rob, r) {
 
 // --- Rendu principal --------------------------------------------------------
 
+// Les problèmes qui empêchent d'afficher un résultat, dits en français plutôt
+// qu'en message d'exception.
+const PROBLEMES = {
+  'sans-resultat': [
+    'Il manque un résultat.',
+    'Votre modèle ne calcule rien pour l’instant : il faut soit une dernière ligne '
+    + 'qui donne le résultat, soit au moins deux lignes « option » à comparer.',
+  ],
+  'valeurs-impossibles': [
+    'Le calcul produit des valeurs impossibles.',
+    'Quelque part, une division par zéro, la racine d’un nombre négatif ou une '
+    + 'puissance qui explose. Vérifiez les lignes où une hypothèse peut valoir zéro : '
+    + 'écrire « 0 à 100 » autorise des valeurs très proches de zéro, et diviser par '
+    + 'elles ne donne rien de bon.',
+  ],
+};
+
 function rendre(r) {
   zoneResultats.replaceChildren();
+  rendreAvertissements(r.avertissements);
+  if (r.probleme) {
+    const [titre, explication] = PROBLEMES[r.probleme];
+    const bloc = el('section', { class: 'panneau bloc verdict serre' }, [
+      el('p', { class: 'verdict-chapeau', text: 'Rien à afficher' }),
+      el('h2', { class: 'verdict-titre', text: titre }),
+    ]);
+    bloc.appendChild(phrase(explication));
+    zoneResultats.appendChild(bloc);
+    return;
+  }
   if (r.vide) {
     zoneResultats.appendChild(el('section', { class: 'panneau bloc' },
       el('p', { class: 'rien', text: 'Écrivez une première ligne, par exemple \u00ab\u202fclients = 20 à 200\u202f\u00bb. Le résultat apparaît ici au fur et à mesure.' })));
@@ -470,6 +498,24 @@ function rendre(r) {
 }
 
 // --- Erreurs ----------------------------------------------------------------
+
+// Un avertissement ne bloque pas le calcul : il signale les fautes qui donnent
+// un résultat plausible mais faux, celles qu'aucun message d'erreur ne rattrape.
+function rendreAvertissements(liste) {
+  const zone = $('#avertissements');
+  if (!zone) return;
+  zone.replaceChildren();
+  if (!liste || liste.length === 0) { zone.hidden = true; return; }
+  zone.hidden = false;
+  for (const a of liste) {
+    const ligne = el('li', {});
+    const lien = el('button', { class: 'renvoi', type: 'button', text: `ligne ${a.ligne}` });
+    lien.addEventListener('click', () => surligneLigne(a.ligne));
+    ligne.appendChild(lien);
+    ligne.appendChild(document.createTextNode(' · ' + a.texte));
+    zone.appendChild(ligne);
+  }
+}
 
 function montrerErreur(e) {
   zoneErreur.replaceChildren();
@@ -514,6 +560,7 @@ function calculer() {
     }, 450);
   } catch (e) {
     montrerErreur(e);
+    rendreAvertissements(null);
   }
   // Le travail en cours reste dans le navigateur du visiteur, nulle part ailleurs.
   try {

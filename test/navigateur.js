@@ -210,6 +210,60 @@ console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
   await p5.close();
 }
 
+// --- Fautes de frappe courantes ---------------------------------------------------
+console.log('\n\x1b[1mQuand le visiteur écrit de travers\x1b[0m');
+{
+  const p8 = await navigateur.newPage();
+  const inc8 = [];
+  p8.on('pageerror', (e) => inc8.push(e.message));
+  await p8.goto(URL + '/nouveau-modele', { waitUntil: 'networkidle0' });
+  await p8.waitForSelector('.verdict-titre');
+
+  const essayer = async (src) => {
+    await p8.evaluate((s) => {
+      const t = document.querySelector('#modele');
+      t.value = s;
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    }, src);
+    await new Promise((r) => setTimeout(r, 700));
+    return p8.evaluate(() => ({
+      res: document.querySelector('#resultats').innerText,
+      err: document.querySelector('#erreur').hidden ? '' : document.querySelector('#erreur').textContent,
+      av: document.querySelector('#avertissements').hidden ? '' : document.querySelector('#avertissements').innerText,
+    }));
+  };
+
+  let e = await essayer('option "Acheter" = 10');
+  verifie('une seule branche : message clair, pas une exception',
+    /manque un résultat/i.test(e.res) && !/Cannot read|undefined/i.test(e.err + e.res), `→ ${e.err || e.res.slice(0, 60)}`);
+  verifie('… avec l’avertissement qui dit quoi faire', /seule branche/.test(e.av));
+
+  e = await essayer('a = 0\ny = 10 / a');
+  verifie('division par zéro : expliquée en français',
+    /valeurs impossibles/i.test(e.res), `→ ${e.res.slice(0, 60)}`);
+
+  e = await essayer('loyer = 900-1150\ntotal = loyer * 12');
+  verifie('« 900-1150 » : le calcul se fait mais le piège est signalé',
+    /fourchette/.test(e.av) && !e.err, `→ ${e.av.slice(0, 70)}`);
+
+  e = await essayer('taux = 3,2 %\ncapital = 1000\ny = capital * taux');
+  verifie('« 3,2 % » avec une espace est accepté', !e.err && /32/.test(e.res), `→ ${e.err || e.res.slice(0, 40)}`);
+
+  e = await essayer('prix = 250 000 €');
+  verifie('un symbole d’unité donne un message utile',
+    /unité:/.test(e.err), `→ ${e.err}`);
+
+  e = await essayer('a = 100\nb = 20\nc = 3\ntotal = a - b\n  + c * 2');
+  verifie('une formule sur plusieurs lignes est calculée en entier',
+    /86/.test(e.res) && !e.av, `→ ${e.res.slice(0, 50)} / ${e.av}`);
+
+  e = await essayer('x = 1 à 3\ny = x * 2');
+  verifie('un modèle sain n’affiche aucun avertissement', e.av === '');
+
+  verifie('aucune exception pendant toute la série', inc8.length === 0, '→ ' + inc8.join(' | '));
+  await p8.close();
+}
+
 // --- Partage par lien ----------------------------------------------------------
 console.log('\n\x1b[1mPartage\x1b[0m');
 // Chrome bride le rendu des onglets en arrière-plan : après avoir travaillé
