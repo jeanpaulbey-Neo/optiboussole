@@ -55,6 +55,21 @@ export const METHODE = {
       ],
     },
     {
+      titre: 'Le contre-argument',
+      blocs: [
+        "Le seuil de bascule déplace **une** hypothèse et laisse les autres à leur médiane. Or il arrive très souvent qu’aucune hypothèse seule ne renverse le verdict, alors que plusieurs déplacées ensemble, chacune d’un cheveu, le renversent sans peine. Le site pose alors la question à l’envers : **quel est le jeu d’hypothèses le plus proche du vôtre qui donnerait la conclusion contraire ?**",
+        "```\na = 90 à 110\nb = 90 à 110\nc = 90 à 110\noption \"Rester\" = a + b + c\noption \"Partir\" = 320\n```",
+        "> « Partir » l’emporte 97 % du temps. Aucune des trois hypothèses ne renverse ce choix à elle seule : il faudrait que `a` dépasse 121, très au-delà de sa fourchette. Mais si les trois valaient 107 au lieu de 99,5 — chacune bien à l’intérieur de sa fourchette —, « Rester » l’emporterait.",
+        "C’est le genre de scénario qu’on ne trouve pas en tâtonnant une variable à la fois, et c’est pourtant celui qui décrit le mieux un désaccord réel : on se trompe rarement sur un seul chiffre, on se trompe dans un sens, sur plusieurs à la fois.",
+        "**Comment se mesure la distance.** Chaque hypothèse est ramenée à son unité propre : zéro à sa médiane, ±1,645 aux bornes de sa fourchette à 90 %. Le site cherche alors le point de la frontière de décision le plus proche de l’origine. Sur l’exemple, ce point est à **2,01 écarts** — un peu au-delà du bord des fourchettes, donc improbable sans l’être absurdement. C’est l’indice de fiabilité de Hasofer-Lind, emprunté au calcul des structures, où l’on cherche de la même façon la combinaison de charges la plus vraisemblable qui fasse céder un pont.",
+        "**Ce que cette distance n’ajoute pas.** Elle dit à peu près la même chose que la probabilité déjà affichée dans le verdict : un choix gagné 97 % du temps est, sans surprise, à environ deux écarts de la frontière. Ce que le contre-argument apporte n’est pas un degré de confiance de plus, c’est une **adresse** — les valeurs précises, dans les unités de votre modèle, d’un scénario que vous pouvez lire et reconnaître, ou rejeter.",
+        "Le site ne l’affiche donc que là où il apprend quelque chose : quand aucune hypothèse ne bascule seule, ou pour signaler l’un des deux cas que rien d’autre ne dit.",
+        "**Vos valeurs médianes disent déjà l’inverse.** Le verdict ne tient alors pas au centre de vos fourchettes mais à leur forme. C’est une hésitation, pas une réponse.",
+        "**Vous êtes exactement sur la ligne.** Sur « ce projet sera-t-il prêt à temps ? », chaque tâche à sa durée médiane donne 89,9 jours contre 90 promis. Il n’y a rien à corriger pour manquer la date : le moindre écart suffit.",
+        "Et quand aucun scénario plausible ne renverse le verdict — quand il faudrait s’être trompé de plus de cinq écarts sur l’ensemble —, le site dit la seule chose utile qui reste : si vous hésitez encore, ce n’est aucun des chiffres du modèle qui vous fait hésiter. C’est quelque chose qui n’y est pas. Le travail n’est plus de mieux estimer, il est d’ajouter ce qui manque.",
+      ],
+    },
+    {
       titre: "La valeur de l’information",
       blocs: [
         "C’est l’idée centrale du site, et la moins connue. La question n’est pas « de quoi suis-je le plus incertain ? » mais **« qu’est-ce que ça vaut, de lever ce doute ? »**",

@@ -6,6 +6,7 @@
 // descend sous 1 %/an, ce qui arrive 4 fois sur 10 » dit quelque chose.
 
 import { analyserModele, analyserRobustesse, histogramme } from './moteur.js';
+import { analyserContreArgument } from './contre.js';
 import { ErreurModele } from './lang.js';
 import { MODELES, MODELE_PAR_DEFAUT } from './modeles.js';
 
@@ -353,6 +354,154 @@ function blocEstimation(r) {
   return [verdict];
 }
 
+
+// --- Le contre-argument ------------------------------------------------------
+//
+// Tout le reste de la page va des hypothèses vers la conclusion. Cette
+// section-ci va dans l'autre sens : elle nomme le jeu d'hypothèses le plus
+// proche du vôtre qui donnerait la réponse contraire. Elle sert à deux choses
+// qu'aucune autre ne sait faire.
+//
+// Quand aucune hypothèse ne renverse le verdict à elle seule — c'est le cas de
+// trois modèles de la bibliothèque — la section précédente n'a rien à dire.
+// Ici, on montre la combinaison qui, elle, le renverse.
+//
+// Et quand même ça ne suffit pas, on dit la seule chose vraiment utile : votre
+// désaccord avec ce modèle n'est pas dans ses chiffres, il est dans ce qui n'y
+// est pas.
+
+// β est une distance dans l'espace des écarts. Le seul repère qui parle est la
+// fourchette que le visiteur a lui-même écrite : son bord, c'est 1,645 écart.
+function ampleur(beta) {
+  if (beta < 0.35) return 'un déplacement minuscule, très en deçà de vos fourchettes';
+  if (beta < 0.9) return 'nettement moins que le bord de vos fourchettes';
+  if (beta < 1.5) return 'un peu moins que le bord de vos fourchettes';
+  if (beta < 2.1) return 'à peu près le bord de vos fourchettes';
+  if (beta < 3.2) return 'au-delà de ce que vos fourchettes admettent';
+  return 'très au-delà de ce que vos fourchettes admettent';
+}
+
+const ecarts = (b) => nf({ maximumFractionDigits: 2 }).format(b) + ' écart' + (b >= 2 ? 's' : '');
+
+function rendreContre(c, r) {
+  if (!c || !c.applicable) return null;
+
+  // La section précédente balaie chaque hypothèse seule, les autres à leur
+  // médiane. Quand elle trouve un seuil de bascule, elle a déjà répondu, et
+  // plus simplement : redire la même chose avec cinq décimales de plus
+  // n'aiderait personne. On ne prend la parole que là où elle se tait — quand
+  // aucune hypothèse ne renverse le verdict à elle seule — ou pour dire l'une
+  // des deux choses qu'elle ne sait pas dire : que les valeurs centrales
+  // donnent déjà l'autre réponse, ou qu'elles tombent pile sur la frontière.
+  const aucunSeuilSimple = r.sources.every((s) => s.bascules.length === 0);
+  if (!aucunSeuilSimple && !c.medianeContredit && !c.surLaFrontiere) return null;
+
+  const bloc = el('section', { class: 'panneau bloc contre' },
+    el('h2', { text: 'Le contre-argument' }));
+
+  // Ce qu'on cherche à faire arriver, dit une fois pour toutes.
+  const but = c.modeDecision
+    ? `que \u00ab\u202f${c.cible}\u202f\u00bb l\u2019emporte`
+    : (c.tenu
+        ? `manquer ${valeur(r.seuil, r.unite)}`
+        : `tenir ${valeur(r.seuil, r.unite)}`);
+
+  if (c.medianeContredit) {
+    bloc.appendChild(phrase(
+      el('b', { text: 'Vos valeurs médianes disent déjà l\u2019inverse. ' }),
+      'Si chaque hypothèse tombait exactement sur sa valeur centrale, le résultat serait ',
+      c.modeDecision ? `\u00ab\u202f${c.cible}\u202f\u00bb` : 'de l\u2019autre côté du seuil',
+      '. Ce verdict ne tient donc pas au centre de vos fourchettes mais à leur forme : ',
+      'c\u2019est une hésitation, pas une réponse.'));
+    return bloc;
+  }
+
+  // β presque nul : il n'y a rien à déplacer, et c'est ça, l'information.
+  if (c.surLaFrontiere) {
+    bloc.appendChild(phrase(
+      el('b', { text: 'Vous êtes exactement sur la ligne. ' }),
+      'Avec chaque hypothèse à sa valeur centrale, le résultat tombe pile sur ',
+      c.modeDecision ? 'l\u2019égalité entre les deux branches' : valeur(r.seuil, r.unite),
+      '. Il n\u2019y a aucun chiffre à corriger pour ', but,
+      ' : le moindre écart, dans n\u2019importe quel sens, suffit. ',
+      'Ne lisez pas ce verdict comme une réponse — lisez-le comme l\u2019absence de marge.'));
+    if (c.figees.length) {
+      bloc.appendChild(el('p', { class: 'rien note-basse' },
+        `Sans compter ${c.figees.map((f) => f.nom).join(', ')}, tenu${c.figees.length > 1 ? 's' : ''} `
+        + 'à sa valeur la plus probable.'.replace('sa', c.figees.length > 1 ? 'leur' : 'sa')));
+    }
+    return bloc;
+  }
+
+  if (!c.atteint || c.beta === null) {
+    bloc.appendChild(phrase(
+      el('b', { text: 'Rien de plausible ne renverse ce verdict. ' }),
+      'Pour ', but, ', il faudrait s\u2019être trompé de plus de ', ecarts(c.portee),
+      ' sur l\u2019ensemble de vos hypothèses prises ensemble. Ce n\u2019est plus une erreur ',
+      'd\u2019estimation, c\u2019est un autre problème. ',
+      'Si vous hésitez encore, ce n\u2019est aucun des chiffres de ce modèle qui vous fait ',
+      'hésiter : c\u2019est quelque chose qui n\u2019y est pas. Cherchez quoi, et ajoutez-le — ',
+      'c\u2019est le seul travail qui reste.'));
+    return bloc;
+  }
+
+  const d = c.deplacements;
+  if (d.length === 0) return null;
+  const solo = d[0].part >= 0.7;
+
+  // Un seul chiffre porte tout le contre-argument : la phrase le dit mieux
+  // qu'une liste d'une ligne, et la fourchette d'origine donne l'échelle.
+  if (solo) {
+    const t = d[0];
+    const src = r.sources.find((x) => x.nom === t.nom);
+    bloc.appendChild(phrase(
+      'Pour ', but, ', il suffirait que ', ['code', t.nom], ' ',
+      t.z > 0 ? 'monte à ' : 'tombe à ', el('b', { text: valeur(t.valeur, uniteDe(t)) }),
+      ' au lieu de ', valeur(t.mediane, uniteDe(t)), ', le reste inchangé. ',
+      src ? `Votre fourchette va ${plageProse(src.stats.p05, src.stats.p95, uniteDe(t))}\u202f: ` : '',
+      t.horsFourchette
+        ? 'c\u2019est en dehors. Il ne suffit donc pas que cette hypothèse soit mal '
+          + 'centrée — il faut que la fourchette elle-même soit fausse.'
+        : 'c\u2019est dedans, et rien n\u2019exclut que ce soit la bonne valeur.'));
+    return bloc;
+  }
+  {
+    bloc.appendChild(phrase(
+      'Pour ', but, ', il faudrait que ces ', String(d.length),
+      ' chiffres soient faux ', el('b', { text: 'ensemble, et dans le même sens' }), ' :'));
+  }
+
+  const liste = el('ul', { class: 'contre-liste' });
+  for (const t of d) {
+    liste.appendChild(el('li', {}, [
+      el('span', { class: 'contre-nom', text: t.nom }),
+      el('span', { class: 'contre-valeurs' }, plage(t.mediane, t.valeur, uniteDe(t))),
+      el('span', { class: 'contre-part', text: pourcent(t.part) }),
+      t.horsFourchette ? el('span', { class: 'contre-hors', text: 'hors fourchette' }) : null,
+    ]));
+  }
+  bloc.appendChild(liste);
+
+  {
+    bloc.appendChild(phrase(
+      'Pris ensemble, c\u2019est ', el('b', { text: ecarts(c.beta) }), ' \u2014 ',
+      ampleur(c.beta), '. ',
+      'Aucune de ces valeurs n\u2019est aberrante prise seule : c\u2019est leur conjonction ',
+      'qui l\u2019est, ou non. Regardez-les comme un scénario, et demandez-vous si c\u2019est ',
+      'le vôtre.'));
+  }
+
+  if (c.figees.length) {
+    const noms = c.figees.map((f) => f.nom).join(', ');
+    bloc.appendChild(el('p', { class: 'rien note-basse' },
+      `Ce scénario suppose que ${noms} ${c.figees.length > 1 ? 'restent' : 'reste'} à `
+      + `${c.figees.length > 1 ? 'leurs valeurs les plus probables' : 'sa valeur la plus probable'} : `
+      + 'un événement tout ou rien ne se déplace pas d\u2019une fraction d\u2019écart.'));
+  }
+
+  return bloc;
+}
+
 // --- Robustesse à l'excès de confiance --------------------------------------
 //
 // Le seul chiffre que le visiteur fournit est une fourchette, et c'est
@@ -494,6 +643,14 @@ function rendre(r) {
     }
   }
   zoneResultats.appendChild(section);
+
+  // Le contre-argument coûte quelques millisecondes : il part avec le verdict,
+  // sans attendre l'arrêt de la frappe comme la robustesse.
+  try {
+    const contre = rendreContre(analyserContreArgument(r), r);
+    if (contre) zoneResultats.appendChild(contre);
+  } catch { /* une frontière introuvable ne doit pas emporter la page */ }
+
   zoneResultats.appendChild(el('section', { class: 'panneau bloc', id: 'robustesse', hidden: true }));
 }
 

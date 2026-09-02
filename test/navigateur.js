@@ -210,6 +210,79 @@ console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
   await p5.close();
 }
 
+// --- Le contre-argument -----------------------------------------------------
+//
+// Il n'apparaît que là où la section « ce qu'il faut aller vérifier » se tait.
+// Le vérifier dans un vrai navigateur : les trois cas de figure ont des textes
+// très différents, et c'est exactement le genre d'endroit où une branche non
+// exercée passe des mois à planter en silence.
+console.log('\n\x1b[1mLe contre-argument\x1b[0m');
+{
+  const p10 = await navigateur.newPage();
+  const inc10 = [];
+  p10.on('pageerror', (e) => inc10.push(e.message));
+  p10.on('console', (m) => { if (m.type() === 'error') inc10.push(m.text()); });
+  await p10.setViewport({ width: 1280, height: 1000 });
+
+  const lire = async (chemin) => {
+    await p10.goto(URL + chemin, { waitUntil: 'domcontentloaded' });
+    await p10.evaluate(() => localStorage.clear());
+    await p10.goto(URL + chemin, { waitUntil: 'networkidle0' });
+    await p10.waitForSelector('.verdict-titre');
+    return p10.evaluate(() => {
+      const s = document.querySelector('.contre');
+      return s ? s.innerText : null;
+    });
+  };
+
+  const combles = await lire('/isoler-ses-combles');
+  verifie('combles : le contre-argument s\u2019affiche', combles !== null);
+  verifie('… il nomme la branche à faire gagner',
+    /Ne rien faire/.test(combles || ''), `→ ${(combles || '').slice(0, 80)}`);
+  verifie('… il liste plusieurs chiffres à déplacer',
+    await p10.$$eval('.contre-liste li', (n) => n.length) >= 3);
+  verifie('… chaque ligne montre une valeur de départ et une valeur d\u2019arrivée',
+    /→/.test(await p10.$eval('.contre-valeurs', (n) => n.textContent)));
+  verifie('… et il chiffre l\u2019écart total', /écart/.test(combles || ''));
+  verifie('… sans [object Object]', !/\[object /.test(combles || ''));
+
+  const projet = await lire('/projet-livre-a-temps');
+  verifie('projet : le cas « exactement sur la ligne » est rendu',
+    /sur la ligne/i.test(projet || ''), `→ ${(projet || '').slice(0, 80)}`);
+  verifie('… en nommant l\u2019événement tout ou rien épinglé',
+    /gros_pepin/.test(projet || ''));
+
+  const voiture = await lire('/garder-ou-changer-de-voiture');
+  verifie('voiture : rien, puisqu\u2019un seuil de bascule répond déjà',
+    voiture === null, `→ ${(voiture || '').slice(0, 60)}`);
+
+  // Un modèle qu'aucune erreur plausible ne renverse.
+  await p10.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = 'a = 90 à 110\noption "Garder" = a * 3\noption "Changer" = 90';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  const hors = await p10.evaluate(() => {
+    const s = document.querySelector('.contre');
+    return s ? s.innerText : null;
+  });
+  verifie('un verdict imprenable : le site dit que le désaccord est ailleurs',
+    /rien de plausible/i.test(hors || '') && /qui n\u2019y est pas/.test(hors || ''),
+    `→ ${(hors || '(absent)').slice(0, 90)}`);
+
+  // Écran étroit : la grille des valeurs ne doit pas élargir la page.
+  await p10.setViewport({ width: 360, height: 780 });
+  await p10.goto(URL + '/isoler-ses-combles', { waitUntil: 'networkidle0' });
+  await p10.waitForSelector('.contre');
+  const debC = await p10.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  verifie('aucun débordement horizontal sur écran étroit', debC <= 1, `→ ${debC}px`);
+
+  verifie('aucune erreur pendant le contre-argument', inc10.length === 0, '→ ' + inc10.join(' | '));
+  await p10.close();
+}
+
 // --- Fautes de frappe courantes ---------------------------------------------------
 console.log('\n\x1b[1mQuand le visiteur écrit de travers\x1b[0m');
 {
@@ -432,7 +505,9 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
   verifie('titre et canonique corrects',
     info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
     `→ ${info.titre} / ${info.canonique}`);
-  verifie('les six chapitres sont là', info.h2.length === 6, `→ ${info.h2.length}`);
+  verifie('les sept chapitres sont là', info.h2.length === 7, `→ ${info.h2.length}`);
+  verifie('le contre-argument a son chapitre',
+    info.h2.some((t) => /contre-argument/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('la valeur de l’information a son chapitre',
     info.h2.some((t) => /valeur de l/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('les exemples sont rendus en blocs de code', info.exemples >= 5, `→ ${info.exemples}`);

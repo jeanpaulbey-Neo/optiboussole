@@ -2,6 +2,7 @@
 import { lexer, analyser, ErreurModele } from '../public/js/lang.js';
 import { evaluerModele, quantile, trier, moyenne, variance } from '../public/js/evaluer.js';
 import { analyserModele, analyserRobustesse } from '../public/js/moteur.js';
+import { analyserContreArgument } from '../public/js/contre.js';
 
 let ok = 0, ko = 0;
 const nom = (s) => `\x1b[2m${s}\x1b[0m`;
@@ -407,6 +408,34 @@ groupe('Chiffres cités par /la-methode');
   proche('… le verdict bascule au-delà de 1 010 €/an', rep.bascules[0].valeur, 1010, 60);
   proche('… et lever ce doute vaut environ 830 €', rep.valeurInfo, 830, 120);
 
+  // Le chapitre « Le contre-argument » cite un exemple à trois hypothèses et
+  // deux faits sur la bibliothèque. Si le moteur bouge, c'est la page qu'il
+  // faudra corriger — pas ces assertions qu'il faudra assouplir.
+  const ca = analyserModele(
+    'a = 90 à 110\nb = 90 à 110\nc = 90 à 110\n'
+    + 'option "Rester" = a + b + c\noption "Partir" = 320', { N: 20000 });
+  const cc = analyserContreArgument(ca);
+  proche('« Partir » l\'emporte 97 % du temps',
+    ca.options.liste[ca.options.recommande].pGagne, 0.97, 0.02);
+  verifie('… et aucune des trois n\'y suffit seule',
+    ca.sources.every((x) => x.bascules.length === 0));
+  proche('le contre-argument est à 2,01 écarts', cc.beta, 2.01, 0.08);
+  verifie('… porté à parts égales par les trois',
+    cc.deplacements.length === 3 && cc.deplacements.every((x) => Math.abs(x.part - 1 / 3) < 0.04),
+    `→ ${cc.deplacements.map((x) => x.part.toFixed(2)).join(' / ')}`);
+  verifie('… qui valent 107 au lieu de 99,5',
+    cc.deplacements.every((x) => Math.abs(x.valeur - 107) < 1.2 && Math.abs(x.mediane - 99.5) < 0.6),
+    `→ ${cc.deplacements.map((x) => x.valeur.toFixed(1)).join(' / ')}`);
+
+  const cp = analyserContreArgument(analyserModele(src('projet'), { N: 20000 }));
+  verifie('projet : les durées médianes tombent sur la ligne des 90 jours',
+    cp.surLaFrontiere === true, `→ β = ${cp.beta}`);
+
+  const ck = analyserModele(src('combles'), { N: 20000 });
+  verifie('combles : aucune hypothèse ne bascule seule, donc le contre-argument parle',
+    ck.sources.every((x) => x.bascules.length === 0)
+    && analyserContreArgument(ck).deplacements.length >= 3);
+
   const rl = analyserRobustesse(analyserModele(src('logement'), { N: 20000 }));
   verifie('logement : le verdict bascule à 2,5× plus large', rl.kBascule === 2.5, `→ ${rl.kBascule}`);
   const rc = analyserRobustesse(analyserModele(src('combles'), { N: 20000 }));
@@ -614,6 +643,169 @@ option "Risqué" = x ^ 3
     const rob = analyserRobustesse(r);
     verifie(`« ${m.titre} » : robustesse calculable`,
       rob && rob.applicable && rob.paliers.length === 7);
+  }
+}
+
+
+// --- Le contre-argument -----------------------------------------------------
+//
+// La question inverse : quel est le jeu d'hypothèses le plus proche du vôtre
+// qui donnerait la conclusion contraire ? On vérifie la distance rapportée sur
+// des cas dont la réponse se calcule à la main, puis — c'est le test qui
+// compte — que le point rapporté renverse réellement la conclusion.
+groupe('Le contre-argument');
+
+// Réévalue un modèle en imposant à chaque hypothèse déplacée sa valeur du
+// contre-argument, et rend la conclusion obtenue. C'est le seul contrôle qui
+// vaille : annoncer un scénario qui ne renverse rien serait pire que rien.
+async function conclusionAu(source, c) {
+  const { analyser } = await import('../public/js/lang.js');
+  const { evaluerModele } = await import('../public/js/evaluer.js');
+  const r = analyserModele(source);
+  const remplacements = {};
+  for (const s of r.sources) {
+    const d = c.deplacements.find((x) => x.nom === s.nom);
+    remplacements[s.id] = new Float64Array(1).fill(d ? d.valeur : s.stats.p50);
+  }
+  const res = evaluerModele(analyser(source), { N: 1, remplacements });
+  if (r.modeDecision) {
+    let k = 0;
+    for (let i = 1; i < res.options.length; i++) {
+      if (res.options[i].valeurs[0] > res.options[k].valeurs[0]) k = i;
+    }
+    return res.options[k].nom;
+  }
+  return res.sortie[0];
+}
+
+{
+  // Une seule hypothèse lognormale : β = ln(cible / médiane) / σ, à la main.
+  const src = 'a = 90 à 110\noption "A" = a\noption "B" = 105\n';
+  const r = analyserModele(src);
+  const c = analyserContreArgument(r);
+  const st = r.sources[0].stats;
+  const sigma = Math.log(st.p95 / st.p05) / (2 * 1.6448536269514722);
+  const attendu = Math.log(105 / st.p50) / sigma;
+  proche('une hypothèse : β vaut la distance calculée à la main', c.beta, attendu, 0.04);
+  // « B » vaut 105 fermes contre une moyenne de ~100 pour « A » : c'est donc
+  // « B » qui est recommandée, et le contre-argument vise « A ».
+  verifie('… et le contre-argument vise la branche perdante', c.cible === 'A');
+  verifie('… en déplaçant la seule hypothèse du modèle',
+    c.deplacements.length === 1 && c.deplacements[0].nom === 'a');
+  verifie('… vers le haut, puisque c’est ce qui fait gagner « A »',
+    c.deplacements[0].valeur > c.deplacements[0].mediane);
+  verifie('… et le point rapporté renverse vraiment le verdict',
+    await conclusionAu(src, c) === 'A');
+}
+{
+  // Deux hypothèses normales de même échelle, frontière a + b = −σ.
+  // Le point le plus proche est à mi-chemin : β = 1/√2 = 0,707.
+  const sigma = 20 / (2 * 1.6448536269514722);
+  const src = `a = -10 à 10\nb = -10 à 10\noption "A" = a + b\noption "B" = ${-sigma}\n`;
+  const c = analyserContreArgument(analyserModele(src));
+  proche('deux hypothèses de même poids : β = 1/√2', c.beta, Math.SQRT1_2, 0.05);
+  verifie('… et l’écart se répartit à parts égales',
+    Math.abs(c.deplacements[0].part - c.deplacements[1].part) < 0.05,
+    `→ ${c.deplacements.map((d) => d.part.toFixed(2)).join(' / ')}`);
+}
+{
+  // Trois hypothèses au lieu de deux : le même déplacement total se répartit
+  // sur trois axes, donc chacun bouge moins et β tombe à 1/√3.
+  const sigma = 20 / (2 * 1.6448536269514722);
+  const src = `a = -10 à 10\nb = -10 à 10\nc = -10 à 10\noption "A" = a + b + c\noption "B" = ${-sigma}\n`;
+  const c = analyserContreArgument(analyserModele(src));
+  proche('trois hypothèses : β = 1/√3', c.beta, 1 / Math.sqrt(3), 0.05);
+}
+{
+  // Une hypothèse qui ne touche pas la décision ne doit pas apparaître dans le
+  // contre-argument : la déplacer ne rapproche d'aucune frontière.
+  const src = 'a = 90 à 110\nbruit = 1 à 1000\noption "A" = a + 0 * bruit\noption "B" = 105\n';
+  const c = analyserContreArgument(analyserModele(src));
+  verifie('une hypothèse sans influence ne figure pas dans le contre-argument',
+    !c.deplacements.some((d) => d.nom === 'bruit'),
+    `→ ${c.deplacements.map((d) => d.nom).join(', ')}`);
+}
+{
+  // Verdict hors d'atteinte : deux branches que rien de plausible ne rapproche.
+  const c = analyserContreArgument(analyserModele(
+    'a = 90 à 110\noption "A" = a\noption "B" = 5\n'));
+  verifie('un écart énorme : aucun contre-argument plausible',
+    c.applicable && c.atteint === false && c.beta === null,
+    `→ ${JSON.stringify({ atteint: c.atteint, beta: c.beta })}`);
+}
+{
+  // Mode estimation : la conclusion est « l'objectif est tenu / manqué », et le
+  // contre-argument dit ce qu'il faudrait pour basculer de l'autre côté.
+  const src = 'seuil: <= 90\na = 40 à 60\nb = 20 à 30\nduree = a + b\n';
+  const r = analyserModele(src);
+  const c = analyserContreArgument(r);
+  verifie('mode estimation : la médiane tient l’objectif', c.tenu === true);
+  verifie('… donc le contre-argument cherche à le manquer', c.cible === 'manquer');
+  verifie('… et il fait bien dépasser le seuil',
+    await conclusionAu(src, c) > 90,
+    `→ ${(await conclusionAu(src, c)).toFixed(1)}`);
+}
+{
+  // Objectif déjà manqué à la médiane : la question utile s'inverse toute seule.
+  const src = 'seuil: <= 50\na = 40 à 60\nb = 20 à 30\nduree = a + b\n';
+  const c = analyserContreArgument(analyserModele(src));
+  verifie('objectif manqué à la médiane : on cherche à l’atteindre',
+    c.tenu === false && c.cible === 'atteindre');
+  verifie('… en descendant les durées',
+    c.deplacements.every((d) => d.valeur < d.mediane),
+    `→ ${c.deplacements.map((d) => `${d.mediane.toFixed(1)}→${d.valeur.toFixed(1)}`).join(' ')}`);
+}
+{
+  // Sans frontière — ni deux branches, ni objectif — il n'y a rien à renverser.
+  const c = analyserContreArgument(analyserModele('a = 1 à 10\ny = a * 2'));
+  verifie('sans branche ni seuil, pas de contre-argument',
+    c.applicable === false && c.raison === 'sans-frontiere');
+}
+{
+  // Un événement tout ou rien n'a pas d'unité d'écart : il est épinglé, et le
+  // scénario doit le dire au lieu de supposer en douce qu'il n'arrive pas.
+  const c = analyserContreArgument(analyserModele(
+    'seuil: <= 90\na = 40 à 60\npepin = bernoulli(20%)\nduree = a + (si pepin alors 30 sinon 0)'));
+  verifie('les événements tout ou rien sont signalés comme épinglés',
+    c.figees.length === 1 && c.figees[0].nom === 'pepin',
+    `→ ${JSON.stringify(c.figees)}`);
+}
+{
+  // Toute la bibliothèque : le contre-argument doit être calculable, et le
+  // scénario qu'il décrit doit réellement renverser la conclusion. C'est le
+  // filet qui rattrapera une future régression du moteur.
+  const { MODELES: M3 } = await import('../public/js/modeles.js');
+  for (const m of M3) {
+    const r = analyserModele(m.source);
+    const c = analyserContreArgument(r);
+    if (!c.applicable) {
+      verifie(`« ${m.titre} » : sans frontière, dit sans planter`,
+        c.raison === 'sans-frontiere' || c.raison === 'sans-fourchette');
+      continue;
+    }
+    if (!c.atteint || c.medianeContredit) {
+      verifie(`« ${m.titre} » : contre-argument hors d'atteinte, dit proprement`, true);
+      continue;
+    }
+    if (c.surLaFrontiere) {
+      // β ≈ 0 : les valeurs médianes tombent sur la frontière. Rien à déplacer,
+      // et c'est justement ce qu'il faut vérifier.
+      const y = await conclusionAu(m.source, c);
+      verifie(`« ${m.titre} » : les médianes tombent bien sur la frontière`,
+        Math.abs(y - r.seuil) < Math.abs(r.seuil) * 0.01, `→ ${y} contre ${r.seuil}`);
+      continue;
+    }
+    const avant = r.modeDecision
+      ? r.options.liste[r.options.recommande].nom : null;
+    const apres = await conclusionAu(m.source, c);
+    // « seuil: 12 » se vise par le haut, « seuil: <= 90 » par le bas : le sens
+    // décide de quel côté « renverser » veut dire.
+    const tientLObjectif = r.seuilSens === 'max' ? apres <= r.seuil : apres >= r.seuil;
+    verifie(`« ${m.titre} » : le contre-argument renverse vraiment la conclusion`,
+      r.modeDecision
+        ? (apres === c.cible && apres !== avant)
+        : (c.tenu ? !tientLObjectif : tientLObjectif),
+      `→ ${apres}`);
   }
 }
 

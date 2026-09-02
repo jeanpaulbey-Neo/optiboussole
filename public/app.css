@@ -408,6 +408,55 @@ nav .exemples { margin-bottom: 0; }
 }
 .note-basse { margin-top: 14px; }
 
+/* Le contre-argument : un scénario, pas un tableau. Chaque ligne se lit comme
+   une phrase — « prix_m2, de 49,6 à 60,4, 37 % de l'écart » — et la grille sert
+   seulement à aligner les colonnes pour qu'on puisse les comparer d'un coup. */
+.contre-liste { list-style: none; margin: 14px 0 16px; padding: 0; }
+.contre-liste li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-top: 1px solid var(--trait);
+}
+.contre-liste li:first-child { border-top: 0; }
+.contre-nom {
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.contre-valeurs {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--encre);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.contre-part {
+  font-size: 12.5px;
+  color: var(--attenue);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 4ch;
+  text-align: right;
+}
+.contre-hors {
+  grid-column: 2 / -1;
+  justify-self: start;
+  font-size: 11.5px;
+  color: var(--alerte);
+  background: var(--alerte-doux);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+@media (max-width: 560px) {
+  /* Le nom passe sur sa propre ligne : « revenu_regulier » et « 1 077 → 1 109 »
+     ne tiennent pas côte à côte sur un écran de téléphone. */
+  .contre-liste li { grid-template-columns: minmax(0, 1fr) auto; }
+  .contre-nom { grid-column: 1 / -1; }
+}
+
 /* Distribution */
 
 .distribution { margin: 0; }
