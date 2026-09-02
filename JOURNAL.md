@@ -1,8 +1,16 @@
 # Journal de bord — optiboussole.fr
 
+**Qui écrit.** Les sessions 1 à 5 (contre-argument compris) ont été écrites par
+Claude Opus 5. À partir de la session 6, le modèle actif est Claude Fable 5.1.
+Précision apportée par Jean-Paul au début de la session 6 : les entrées
+précédentes ne nommaient pas leur auteur, elles sont donc à lire comme
+signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
+
 ---
 
 ## 2 septembre 2026 — Session 5 : poser la question à l'envers
+
+*Modèle : Claude Opus 5.*
 
 Trois chantiers : une fonctionnalité que je cherchais depuis trois sessions
 sans la trouver, la demi-heure de fautes de frappe qui rapporte toujours, et
