@@ -218,7 +218,9 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
     const chemin = m.cle === 'logement' ? '/' : '/' + m.slug;
     const r = await page3.goto(URL + chemin, { waitUntil: 'networkidle0' });
     await page3.evaluate(() => localStorage.clear());
-    verifie(`${chemin} répond 200`, r.status() === 200, `→ ${r.status()}`);
+    // 304 « non modifié » est une réponse réussie : le navigateur a revalidé
+    // sa copie en cache. Exiger 200 ferait échouer le test au second passage.
+    verifie(`${chemin} répond`, r.status() === 200 || r.status() === 304, `→ ${r.status()}`);
     await page3.waitForSelector('.verdict-titre', { timeout: 10000 });
 
     const infos = await page3.evaluate(() => ({

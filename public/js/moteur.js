@@ -242,6 +242,7 @@ export function analyserRobustesse(r) {
   const iRecommande = modeDecision ? r.options.recommande : -1;
   const nomsOptions = modeDecision ? r.options.liste.map((o) => o.nom) : [];
   const seuil = r.seuil;
+  const seuilSens = r.seuilSens || 'min';
 
   const paliers = [];
   let kBascule = null, kBrouillage = null;
@@ -272,8 +273,10 @@ export function analyserRobustesse(r) {
       palier.p95 = quantile(tri, 0.95);
       if (seuil !== null && seuil !== undefined) {
         let n = 0;
-        for (let i = 0; i < tri.length; i++) if (tri[i] >= seuil) n++;
-        palier.pAuDessus = n / tri.length;
+        for (let i = 0; i < tri.length; i++) {
+          if (seuilSens === 'max' ? tri[i] <= seuil : tri[i] >= seuil) n++;
+        }
+        palier.pAtteint = n / tri.length;
       }
     }
     paliers.push(palier);
@@ -298,6 +301,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   const r = evaluerModele(ast, { N });
   // Un « seuil: » écrit dans le modèle prime sur celui passé par l'appelant.
   if (r.seuil !== null && r.seuil !== undefined) seuil = r.seuil;
+  const seuilSens = r.seuilSens || 'min';
 
   // On ne garde que les sources qui varient réellement.
   const sources = r.sources
@@ -311,7 +315,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   const modeDecision = r.options.length >= 2;
   const resultat = {
     ast, N, modeDecision, sources: [],
-    options: null, sortie: null, seuil, unite: ast.unite || '',
+    options: null, sortie: null, seuil, seuilSens, unite: ast.unite || '',
     nomSortie: ast.sortie && ast.sortie.expr.k === 'var' ? ast.sortie.expr.nom : null,
   };
 
@@ -355,10 +359,20 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
 
     const rangEcarts = rangs(ecarts);
 
+    // L'écart entre la meilleure et la pire branche : c'est l'enjeu du choix.
+    // Une valeur d'information ne veut rien dire seule — 13 kg comptent si le
+    // choix en pèse 40, pas s'il en pèse 1 900.
+    const moyennes = opts.map((o) => o.stats.moyenne);
+    const enjeu = Math.max(...moyennes) - Math.min(...moyennes);
+
     resultat.options = {
       liste: opts,
       recommande: iRecommande,
       evpi: evpiTotal,
+      enjeu,
+      // En dessous de 2 % de l'enjeu, aucune enquête ne vaut d'être menée :
+      // le choix est fait, quelles que soient les hypothèses.
+      acquise: enjeu > 0 && evpiTotal < 0.02 * enjeu,
       ecart: statistiques(ecarts),
       pRegret: 1 - opts[iRecommande].pGagne,
     };
@@ -385,7 +399,8 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     const varR = variance(rangSortie, moyenne(rangSortie));
     const largeurTotale = st.p95 - st.p05;
     if (seuil !== null) {
-      resultat.pAuDessus = partAuDela(st.tri, seuil, true);
+      // « au moins » compte les tirages au-dessus, « au plus » ceux en dessous.
+      resultat.pAtteint = partAuDela(st.tri, seuil, seuilSens === 'min');
     }
     for (const s of sources) {
       const idx = ordres.get(s.id);

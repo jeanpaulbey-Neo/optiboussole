@@ -361,7 +361,12 @@ export function analyser(sourceBrute) {
       const mot = p.cur().valeur.toLowerCase();
       if (SEUIL.has(mot)) {
         p.avance(); p.avance();
-        seuil = { expr: p.expr(), ligne };
+        // « seuil: 12 » veut dire « au moins 12 » ; « seuil: <= 60 », « au plus 60 ».
+        // Une durée, un budget, une dose se visent par le haut, pas par le bas.
+        let sens = 'min';
+        if (p.estOp('<=', '<')) { p.avance(); sens = 'max'; }
+        else if (p.estOp('>=', '>')) { p.avance(); sens = 'min'; }
+        seuil = { expr: p.expr(), sens, ligne };
         if (!p.estType('nl') && !p.estType('fin')) {
           throw new ErreurModele('fin de ligne attendue après le seuil', p.ligne());
         }

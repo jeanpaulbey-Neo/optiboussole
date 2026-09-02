@@ -57,7 +57,10 @@ function valeur(x, unite, ech = null) {
 // se lit, « 7 977 → 16,1 k » demande un effort inutile.
 function plage(a, b, unite) {
   const ech = echelle(Math.abs(a) > Math.abs(b) ? a : b);
-  return valeur(a, unite, ech) + ' → ' + valeur(b, unite, ech);
+  // L'unité une seule fois, à la fin : « 1 497 → 2 508 kg CO₂e ». Le
+  // pourcentage fait exception, il se colle à chaque nombre pour rester lisible.
+  const debut = valeur(a, unite === '%' ? '%' : '', ech);
+  return debut + ' → ' + valeur(b, unite, ech);
 }
 
 // La même chose au fil d'une phrase, où une flèche ne se lit pas :
@@ -174,9 +177,9 @@ function courbe(stats, unite, seuil = null) {
 // Un gain de 4 € sur un choix qui en vaut 12 800 n'en change aucun : l'afficher
 // au même rang que le reste noierait ce qui compte.
 function notable(s, r) {
-  return r.modeDecision
-    ? s.valeurInfo >= Math.max(r.options.evpi * 0.01, 1e-9)
-    : s.part >= 0.02;
+  if (!r.modeDecision) return s.part >= 0.02;
+  if (r.options.acquise) return false;
+  return s.valeurInfo >= Math.max(r.options.evpi * 0.01, 1e-9);
 }
 
 function ligneHypothese(s, r, indice) {
@@ -190,7 +193,7 @@ function ligneHypothese(s, r, indice) {
   const chiffre = r.modeDecision
     ? el('span', { class: 'hypothese-chiffre' },
         notable(s, r)
-          ? [el('b', { text: valeur(s.valeurInfo, unite) }), ' à gagner à le savoir']
+          ? [el('b', { text: valeur(s.valeurInfo, unite) }), ' à gagner en le sachant']
           : ['ne change pas le choix'])
     : el('span', { class: 'hypothese-chiffre' },
         [el('b', { text: pourcent(s.part) }), ' de l’incertitude']);
@@ -284,8 +287,11 @@ function blocDecision(r) {
       `Lever le doute dessus vaut environ ${valeur(tete.valeurInfo, unite)} — c’est là qu’il faut passer votre temps, pas ailleurs.`));
   } else {
     verdict.appendChild(phrase(
-      'Aucune de vos hypothèses ne renverse ce choix sur sa plage plausible. ',
-      'Chercher des chiffres plus précis ne changerait pas votre décision : ',
+      'Aucune de vos hypothèses ne renverse ce choix sur sa plage plausible',
+      r.options.acquise
+        ? ' : l’écart entre les branches est trop grand pour qu’un chiffre le comble. '
+        : '. ',
+      'Chercher des valeurs plus précises ne changerait pas votre décision — ',
       'c’est le moment d’arrêter d’enquêter et de décider.'));
   }
 
@@ -323,9 +329,11 @@ function blocEstimation(r) {
     'Neuf fois sur dix, entre ', valeur(st.p05, unite), ' et ', valeur(st.p95, unite),
     '. La valeur médiane seule ne vous apprend presque rien : c’est la largeur qui compte.'));
 
-  if (r.seuil !== null && r.pAuDessus !== undefined) {
+  if (r.seuil !== null && r.pAtteint !== undefined) {
+    const max = r.seuilSens === 'max';
     verdict.appendChild(phrase(
-      'Vous visez ', valeur(r.seuil, unite), ' : c’est atteint dans ', pourcent(r.pAuDessus),
+      max ? 'Vous voulez rester sous ' : 'Vous visez au moins ', valeur(r.seuil, unite),
+      max ? ' : c’est tenu dans ' : ' : c’est atteint dans ', pourcent(r.pAtteint),
       ' des cas.'));
   }
 
@@ -406,9 +414,10 @@ function rendreRobustesse(rob, r) {
     'le résultat ne s’étale plus ', plageProse(r.sortie.p05, r.sortie.p95, r.unite),
     ', mais ', plageProse(d.p05, d.p95, r.unite), '.',
   ];
-  if (d.pAuDessus !== undefined && r.pAuDessus !== undefined) {
-    segments.push(' Votre chance d’atteindre ', valeur(r.seuil, r.unite),
-      ' passe de ', pourcent(r.pAuDessus), ' à ', pourcent(d.pAuDessus), '.');
+  if (d.pAtteint !== undefined && r.pAtteint !== undefined) {
+    segments.push(r.seuilSens === 'max' ? ' Votre chance de rester sous ' : ' Votre chance d’atteindre ',
+      valeur(r.seuil, r.unite),
+      ' passe de ', pourcent(r.pAtteint), ' à ', pourcent(d.pAtteint), '.');
   }
   segments.push(' Les intervalles à 90 % qu’on donne spontanément contiennent la vraie ',
     'valeur environ une fois sur deux : cet élargissement n’a rien d’excessif.');

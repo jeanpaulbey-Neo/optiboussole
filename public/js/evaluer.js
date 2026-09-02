@@ -373,15 +373,16 @@ export function evaluerModele(ast,
     sortie = vecteur(ctx.evaluer(ast.sortie.expr), N);
   }
 
-  let seuil = null;
+  let seuil = null, seuilSens = 'min';
   if (ast.seuil) {
     ctx.nomCourant = null;
     const v = ctx.evaluer(ast.seuil.expr);
     seuil = v instanceof Float64Array ? quantile(trier(v), 0.5) : v;
+    seuilSens = ast.seuil.sens || 'min';
   }
 
   const variables = new Map();
   for (const d of ast.declarations) variables.set(d.nom, ctx.cache.get(d.nom));
 
-  return { N, sources: ctx.sources, variables, options, sortie, seuil };
+  return { N, sources: ctx.sources, variables, options, sortie, seuil, seuilSens };
 }

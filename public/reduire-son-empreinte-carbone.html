@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Le vrai prix du kilomètre — Boussole</title>
-<meta name="description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
-<link rel="canonical" href="https://optiboussole.fr/prix-du-kilometre">
+<title>Réduire son empreinte : quoi d'abord ? — Boussole</title>
+<meta name="description" content="Entre isoler son logement, passer à l'électrique, supprimer un vol ou réduire la viande rouge, quel changement pèse réellement le plus ? Les ordres de grandeur sont si différents que l'intuition se trompe presque toujours — et une action visible peut valoir dix fois moins qu'une action discrète.">
+<link rel="canonical" href="https://optiboussole.fr/reduire-son-empreinte-carbone">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Le vrai prix du kilomètre — Boussole">
-<meta property="og:description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
+<meta property="og:title" content="Réduire son empreinte : quoi d'abord ? — Boussole">
+<meta property="og:description" content="Entre isoler son logement, passer à l'électrique, supprimer un vol ou réduire la viande rouge, quel changement pèse réellement le plus ? Les ordres de grandeur sont si différents que l'intuition se trompe presque toujours — et une action visible peut valoir dix fois moins qu'une action discrète.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://optiboussole.fr/prix-du-kilometre">
+<meta property="og:url" content="https://optiboussole.fr/reduire-son-empreinte-carbone">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body data-modele="kilometre">
+<body data-modele="carbone">
 <div class="enveloppe">
 
 <header>
@@ -27,8 +27,8 @@
     </svg>
     <a class="retour" href="/">Boussole</a>
   </div>
-  <h1 class="baseline titre-modele">Le vrai prix du kilomètre</h1>
-  <p class="sous-baseline">Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.</p>
+  <h1 class="baseline titre-modele">Réduire son empreinte : quoi d'abord ?</h1>
+  <p class="sous-baseline">Entre isoler son logement, passer à l'électrique, supprimer un vol ou réduire la viande rouge, quel changement pèse réellement le plus ? Les ordres de grandeur sont si différents que l'intuition se trompe presque toujours — et une action visible peut valoir dix fois moins qu'une action discrète.</p>
 </header>
 
 <nav aria-label="Modèles">
@@ -37,10 +37,10 @@
   <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
   <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
   <li><a class="puce" href="/garder-ou-changer-de-voiture" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
-  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris." aria-current="page">Le vrai prix du kilomètre</a></li>
+  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
   <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
   <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
-  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu'on croit.">Réduire son empreinte : quoi d'abord ?</a></li>
+  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu'on croit." aria-current="page">Réduire son empreinte : quoi d'abord ?</a></li>
   <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu'il reste à vivre à l'appareil.">Réparer ou remplacer ?</a></li>
   <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
 </ul>
@@ -57,30 +57,33 @@
       </span>
     </div>
     <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
-      aria-label="Description du modèle">unité: €/km
-# Combien coûte réellement un kilomètre en voiture ?
-# Presque personne ne compte la décote. C'est souvent le premier poste.
+      aria-label="Description du modèle">unité: kg CO₂e
+# Quel changement réduit le plus votre empreinte, sur une année ?
+# On compare des actions concrètes, chacune sur une année.
+# Les facteurs sont des ordres de grandeur, écrits en fourchettes
+# parce qu'ils sont eux-mêmes incertains. Remplacez la première
+# section par votre situation : c'est elle qui décide.
 
-km_an = 8000 à 16000
+# --- Votre situation --------------------------------------------------
+vols_longs = 1                  # allers-retours long-courriers par an
+km_voiture = 9000               # par an
+surface = 60                    # m² chauffés
+repas_rouge = 4                 # repas de viande rouge par semaine
 
-prix_achat = 20000
-revente_dans = 8               # années
-valeur_residuelle = 15% à 35%  # du prix d'achat
-decote_an = prix_achat * (1 - valeur_residuelle) / revente_dans
+# --- Facteurs d'émission ----------------------------------------------
+par_vol_long = 1500 à 2500      # kg CO₂e par passager, aller-retour
+par_km_thermique = 0,15 à 0,25
+par_km_electrique = 0,03 à 0,09 # fabrication de la batterie incluse
+chauffage_par_m2 = 20 à 70      # dépend énormément de l'isolation actuelle
+gain_isolation = 20% à 40%
+par_repas_rouge = 5 à 12
+par_repas_vege = 0,4 à 2
 
-assurance = 500 à 900
-entretien = 300 à 900
-reparations = 100 à 1200       # la queue est longue : une panne arrive
-pneus = 120 à 300
-controle = 45
-stationnement = 0 à 900
-conso = 5 à 8                  # L/100 km
-prix_carburant = 1,70 à 2,10
-
-carburant = km_an/100 * conso * prix_carburant
-fixe = decote_an + assurance + entretien + reparations + pneus + controle + stationnement
-
-cout_km = (fixe + carburant) / km_an</textarea>
+# --- Les changements possibles ----------------------------------------
+option "Supprimer un vol long-courrier" = si vols_longs &gt;= 1 alors par_vol_long sinon 0
+option "Passer à la voiture électrique" = km_voiture * (par_km_thermique - par_km_electrique)
+option "Isoler le logement" = surface * chauffage_par_m2 * gain_isolation
+option "Moitié moins de viande rouge" = repas_rouge / 2 * 52 * (par_repas_rouge - par_repas_vege)</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
   </section>
 

@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Le vrai prix du kilomètre — Boussole</title>
-<meta name="description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
-<link rel="canonical" href="https://optiboussole.fr/prix-du-kilometre">
+<title>Réparer ou remplacer ? — Boussole</title>
+<meta name="description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.">
+<link rel="canonical" href="https://optiboussole.fr/reparer-ou-remplacer">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Le vrai prix du kilomètre — Boussole">
-<meta property="og:description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
+<meta property="og:title" content="Réparer ou remplacer ? — Boussole">
+<meta property="og:description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://optiboussole.fr/prix-du-kilometre">
+<meta property="og:url" content="https://optiboussole.fr/reparer-ou-remplacer">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body data-modele="kilometre">
+<body data-modele="reparer">
 <div class="enveloppe">
 
 <header>
@@ -27,8 +27,8 @@
     </svg>
     <a class="retour" href="/">Boussole</a>
   </div>
-  <h1 class="baseline titre-modele">Le vrai prix du kilomètre</h1>
-  <p class="sous-baseline">Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.</p>
+  <h1 class="baseline titre-modele">Réparer ou remplacer ?</h1>
+  <p class="sous-baseline">Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.</p>
 </header>
 
 <nav aria-label="Modèles">
@@ -37,11 +37,11 @@
   <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
   <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
   <li><a class="puce" href="/garder-ou-changer-de-voiture" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
-  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris." aria-current="page">Le vrai prix du kilomètre</a></li>
+  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
   <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
   <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
   <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu'on croit.">Réduire son empreinte : quoi d'abord ?</a></li>
-  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu'il reste à vivre à l'appareil.">Réparer ou remplacer ?</a></li>
+  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu'il reste à vivre à l'appareil." aria-current="page">Réparer ou remplacer ?</a></li>
   <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
 </ul>
 </nav>
@@ -57,30 +57,35 @@
       </span>
     </div>
     <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
-      aria-label="Description du modèle">unité: €/km
-# Combien coûte réellement un kilomètre en voiture ?
-# Presque personne ne compte la décote. C'est souvent le premier poste.
+      aria-label="Description du modèle">unité: €
+# Lave-linge, ordinateur, vélo : réparer ou racheter ?
+# On compare le coût par année de service obtenue.
 
-km_an = 8000 à 16000
+# --- Réparer ----------------------------------------------------------
+devis = 90 à 200
+# Le vrai inconnu : combien d'années tiendra-t-il après réparation ?
+survie_reparee = 1 à 6
+# Et la réparation peut ne pas suffire.
+rechute = bernoulli(20%)
+annees_reparees = si rechute alors survie_reparee * 0,3 sinon survie_reparee
 
-prix_achat = 20000
-revente_dans = 8               # années
-valeur_residuelle = 15% à 35%  # du prix d'achat
-decote_an = prix_achat * (1 - valeur_residuelle) / revente_dans
+# --- Remplacer --------------------------------------------------------
+prix_neuf = 500 à 900
+survie_neuve = 7 à 12
+revente_epave = 0 à 40
 
-assurance = 500 à 900
-entretien = 300 à 900
-reparations = 100 à 1200       # la queue est longue : une panne arrive
-pneus = 120 à 300
-controle = 45
-stationnement = 0 à 900
-conso = 5 à 8                  # L/100 km
-prix_carburant = 1,70 à 2,10
+# --- Écart de consommation, sur toute la période ----------------------
+conso_ancien = 200 à 320        # kWh par an
+conso_neuf = 120 à 200
+prix_kwh = 0,20 à 0,30
 
-carburant = km_an/100 * conso * prix_carburant
-fixe = decote_an + assurance + entretien + reparations + pneus + controle + stationnement
+# On ramène tout à un coût par année de service : c'est la seule
+# comparaison honnête entre un appareil qui tiendra 3 ans et un autre 9.
+cout_reparer = (devis + annees_reparees * conso_ancien * prix_kwh) / annees_reparees
+cout_remplacer = (prix_neuf - revente_epave + survie_neuve * conso_neuf * prix_kwh) / survie_neuve
 
-cout_km = (fixe + carburant) / km_an</textarea>
+option "Réparer" = -cout_reparer
+option "Remplacer" = -cout_remplacer</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
   </section>
 

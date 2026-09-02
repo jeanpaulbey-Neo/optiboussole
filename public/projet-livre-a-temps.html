@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Le vrai prix du kilomètre — Boussole</title>
-<meta name="description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
-<link rel="canonical" href="https://optiboussole.fr/prix-du-kilometre">
+<title>Ce projet sera-t-il prêt à temps ? — Boussole</title>
+<meta name="description" content="Ce projet sera-t-il prêt à la date promise ? Additionner ses estimations de tâches donne toujours une réponse trop optimiste : ce modèle ajoute ce que les plannings oublient — le temps mangé par le reste, et l'imprévu qui arrive une fois sur cinq — et dit quelle tâche décide vraiment de la date.">
+<link rel="canonical" href="https://optiboussole.fr/projet-livre-a-temps">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Le vrai prix du kilomètre — Boussole">
-<meta property="og:description" content="Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.">
+<meta property="og:title" content="Ce projet sera-t-il prêt à temps ? — Boussole">
+<meta property="og:description" content="Ce projet sera-t-il prêt à la date promise ? Additionner ses estimations de tâches donne toujours une réponse trop optimiste : ce modèle ajoute ce que les plannings oublient — le temps mangé par le reste, et l'imprévu qui arrive une fois sur cinq — et dit quelle tâche décide vraiment de la date.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://optiboussole.fr/prix-du-kilometre">
+<meta property="og:url" content="https://optiboussole.fr/projet-livre-a-temps">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body data-modele="kilometre">
+<body data-modele="projet">
 <div class="enveloppe">
 
 <header>
@@ -27,8 +27,8 @@
     </svg>
     <a class="retour" href="/">Boussole</a>
   </div>
-  <h1 class="baseline titre-modele">Le vrai prix du kilomètre</h1>
-  <p class="sous-baseline">Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d'où vient l'essentiel de l'incertitude.</p>
+  <h1 class="baseline titre-modele">Ce projet sera-t-il prêt à temps ?</h1>
+  <p class="sous-baseline">Ce projet sera-t-il prêt à la date promise ? Additionner ses estimations de tâches donne toujours une réponse trop optimiste : ce modèle ajoute ce que les plannings oublient — le temps mangé par le reste, et l'imprévu qui arrive une fois sur cinq — et dit quelle tâche décide vraiment de la date.</p>
 </header>
 
 <nav aria-label="Modèles">
@@ -37,9 +37,9 @@
   <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
   <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
   <li><a class="puce" href="/garder-ou-changer-de-voiture" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
-  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris." aria-current="page">Le vrai prix du kilomètre</a></li>
+  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
   <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
-  <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
+  <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter." aria-current="page">Ce projet sera-t-il prêt à temps ?</a></li>
   <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu'on croit.">Réduire son empreinte : quoi d'abord ?</a></li>
   <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu'il reste à vivre à l'appareil.">Réparer ou remplacer ?</a></li>
   <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
@@ -57,30 +57,33 @@
       </span>
     </div>
     <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
-      aria-label="Description du modèle">unité: €/km
-# Combien coûte réellement un kilomètre en voiture ?
-# Presque personne ne compte la décote. C'est souvent le premier poste.
+      aria-label="Description du modèle">unité: jours
+# Combien de jours avant que ce soit livré ?
+# On vise la date promise : 90 jours ouvrés.
 
-km_an = 8000 à 16000
+seuil: &lt;= 90
 
-prix_achat = 20000
-revente_dans = 8               # années
-valeur_residuelle = 15% à 35%  # du prix d'achat
-decote_an = prix_achat * (1 - valeur_residuelle) / revente_dans
+# --- Les tâches -------------------------------------------------------
+# Pour chacune : votre estimation si tout va bien, puis si ça coince.
+cadrage = 3 à 8
+maquettes = 4 à 14
+developpement = 18 à 55
+integration = 4 à 20
+recette = 3 à 14
+corrections = 3 à 18
 
-assurance = 500 à 900
-entretien = 300 à 900
-reparations = 100 à 1200       # la queue est longue : une panne arrive
-pneus = 120 à 300
-controle = 45
-stationnement = 0 à 900
-conso = 5 à 8                  # L/100 km
-prix_carburant = 1,70 à 2,10
+travail = cadrage + maquettes + developpement + integration + recette + corrections
 
-carburant = km_an/100 * conso * prix_carburant
-fixe = decote_an + assurance + entretien + reparations + pneus + controle + stationnement
+# --- Ce que les plannings oublient ------------------------------------
+# Personne ne passe 100 % de ses journées sur le projet : réunions,
+# support, autres dossiers. C'est le poste le plus systématiquement omis.
+interruptions = 15% à 45%
 
-cout_km = (fixe + carburant) / km_an</textarea>
+# Et l'incident qui n'était pas au planning, par définition.
+gros_pepin = bernoulli(20%)
+retard_pepin = si gros_pepin alors 8 à 30 sinon 0
+
+duree = travail / (1 - interruptions) + retard_pepin</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
   </section>
 

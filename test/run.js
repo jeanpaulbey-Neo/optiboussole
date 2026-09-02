@@ -260,6 +260,21 @@ groupe('Directives unité / seuil');
 }
 erreur('réglage inconnu', 'bidule: 3\nx = 1', 'inconnu');
 {
+  const a = analyserModele('seuil: 12\nx = 5 à 40\ny = x', { N: 40000 });
+  verifie('« seuil: 12 » se lit « au moins »', a.seuilSens === 'min');
+  proche('… et compte les tirages au-dessus', a.pAtteint,
+    a.sortie.tri.filter((v) => v >= 12).length / a.N, 1e-9);
+  const b = analyserModele('seuil: <= 60\nx = 20 à 90\ny = x', { N: 40000 });
+  verifie('« seuil: <= 60 » se lit « au plus »', b.seuilSens === 'max');
+  proche('… et compte les tirages en dessous', b.pAtteint,
+    b.sortie.tri.filter((v) => v <= 60).length / b.N, 1e-9);
+  const c = analyserModele('seuil: >= 100\nx = 50 à 200\ny = x', { N: 20000 });
+  verifie('« seuil: >= 100 » reste « au moins »', c.seuilSens === 'min');
+  verifie('les deux sens donnent des probabilités complémentaires',
+    Math.abs(analyserModele('seuil: 60\nx = 20 à 90\ny = x', { N: 40000 }).pAtteint
+             + b.pAtteint - 1) < 0.02);
+}
+{
   const r = analyserModele('unité: %\noption A: 1\noption B: 2', { N: 1000 });
   verifie('« option X: » accepté comme « option X = »', r.modeDecision && r.options.liste.length === 2);
 }
@@ -300,6 +315,41 @@ groupe('Bibliothèque');
     verifie(`« ${m.titre} » n'explose pas (p95 raisonnable)`, !large,
       `→ p50 ${st.p50.toPrecision(3)} p95 ${st.p95.toPrecision(3)}`);
   }
+}
+
+// --- Enjeu et décision acquise ----------------------------------------------
+groupe('Enjeu du choix');
+{
+  // Un écart énorme entre les branches : aucune enquête ne peut le combler.
+  const r = analyserModele(`
+x = 1 à 3
+option "Grand" = 10000 + x
+option "Petit" = 10
+`, { N: 20000 });
+  proche('l\'enjeu est l\'écart entre branches', r.options.enjeu, 9992, 5);
+  verifie('une décision écrasante est déclarée acquise', r.options.acquise === true);
+}
+{
+  // Deux branches serrées : l'information vaut quelque chose.
+  const r = analyserModele(`
+x = 0 à 200
+option "A" = x
+option "B" = 100
+`, { N: 20000 });
+  verifie('une décision serrée n\'est pas acquise', r.options.acquise === false,
+    `→ EVPI ${r.options.evpi.toFixed(1)} / enjeu ${r.options.enjeu.toFixed(1)}`);
+  verifie('l\'information y vaut plus de 2 % de l\'enjeu',
+    r.options.evpi > 0.02 * r.options.enjeu);
+}
+{
+  const parModele = {};
+  const { MODELES: M3 } = await import('../public/js/modeles.js');
+  for (const m of M3) {
+    const r = analyserModele(m.source);
+    if (r.modeDecision) parModele[m.cle] = r.options.acquise;
+  }
+  verifie('« Réduire son empreinte » : le choix est acquis', parModele.carbone === true);
+  verifie('« Louer ou acheter » : le choix ne l\'est pas', parModele.logement === false);
 }
 
 // --- Élargissement des fourchettes ------------------------------------------
@@ -389,7 +439,7 @@ option "Risqué" = x ^ 3
   verifie('… et il élargit bien l\'intervalle',
     d.p05 < r.sortie.p05 && d.p95 > r.sortie.p95,
     `→ ${d.p05.toFixed(1)}–${d.p95.toFixed(1)} contre ${r.sortie.p05.toFixed(1)}–${r.sortie.p95.toFixed(1)}`);
-  verifie('… en donnant la probabilité de seuil', typeof d.pAuDessus === 'number');
+  verifie('… en donnant la probabilité de seuil', typeof d.pAtteint === 'number');
 }
 {
   // Toute la bibliothèque doit produire une analyse de robustesse exploitable.
