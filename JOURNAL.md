@@ -8,6 +8,140 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 2 septembre 2026 — Session 6 : lire le moteur avec d'autres yeux
+
+*Modèle : Claude Fable 5.1. Première session de ce modèle ; les cinq
+précédentes sont d'Opus 5, et Jean-Paul a demandé que ce soit dit.*
+
+Je n'ai rien écrit de ce site. J'en hérite avec le journal pour seule mémoire,
+et la première chose que j'ai voulue savoir, c'est si je le comprendrais sans
+son auteur. Réponse : oui, et vite — parce que le journal est écrit pour ça,
+et parce que le code dit pourquoi à chaque endroit où il fait quelque chose
+d'étonnant. Je continue dans la même veine.
+
+### Écrire de travers, quatrième fois
+
+Soixante-dix-sept entrées, sur les catégories notées à la fin de la session 5
+— anglais, trois branches ou plus, résultat réutilisé — et sur ce qui me venait
+en lisant le lexer pour la première fois. Cette lecture-là a payé : trois
+lectures **fausses en silence**, la catégorie que les sessions précédentes
+disaient la plus coûteuse.
+
+- `taux = 15 à 30 %` se lisait « 15 à 0,3 » : la borne haute était un
+  pourcentage, la borne basse un nombre. Un modèle où c'est écrit ainsi
+  calculait quelque chose, sans un mot, avec une hypothèse fausse d'un facteur
+  cinquante.
+- `budget = 1 à 3 millions` se lisait « 1 à 3 000 000 ». Même mécanique.
+- `prix = 1000 ± 10 %` se lisait « 1000 ± 0,1 ».
+
+La règle est maintenant : **l'échelle donnée à une borne vaut pour l'autre**,
+avec un garde-fou pour le multiplicateur — `500 à 2k` va bien de 500 à 2 000,
+parce que 500 est plus grand que 2. Et `± 10 %` est relatif au centre.
+
+Le reste de la récolte : `max()` sans argument affichait une exception
+interne (« Reduce of empty array ») ; `option "C" = max(A, B)` était
+recommandée en gagnant « 0 % du temps », parce qu'une égalité stricte comptait
+pour la première branche ; `total = a + b` écrit **avant** ses termes donnait
+`b` comme résultat, avec un avertissement disant que `total` ne servait à
+rien — ce qui était le symptôme, pas le diagnostic. Le résultat implicite est
+maintenant la dernière variable dont rien ne dépend.
+
+Et une décision que je note parce qu'elle n'allait pas de soi : **les mots
+après un nombre sont lus comme des unités et ignorés**. `duree = 3 ans`,
+`temps = 40 h/semaine`, `10 à 20 par mois` — jusqu'ici, « ans » déclenchait
+« cette ligne ressemble à une phrase », ce qui est faux et bloquant. Le risque
+de l'autre côté est `y = 3 prx` où `prx` est une faute de frappe : le site
+calculerait 3. J'ai pris le risque avec deux filets : un mot qui est un nom
+défini n'est jamais une unité (`3 x` renvoie à `3 * x`), et chaque mot ignoré
+est signalé en avertissement. La faute de frappe donne alors deux
+avertissements côte à côte — « prx » ignoré, « prix » jamais utilisé — qui se
+lisent ensemble.
+
+En anglais : `to`, `between … and`, `threshold:`, `if … then … else`,
+`floor`, `ceil`, `pow`, `**`. Le `? :` renvoie à `si … alors … sinon`. Les
+paramètres des lois sont vérifiés : `bernoulli(120 %)` valait toujours 1,
+`triangulaire(1, 5, 3)` sortait de ses propres bornes. `environ 100` refuse
+avec la seule réponse honnête : dites de combien.
+
+### Le détail des calculs
+
+Ce qui m'a le plus manqué en lisant les modèles : ce que valent
+`mensualite`, `cout_achat`, `depense_an`. Un tableur montre chaque cellule ;
+ici, seules les hypothèses et le résultat existaient, et une variable
+intermédiaire était un nom sans valeur. On ne pouvait vérifier son modèle
+qu'en le croyant.
+
+Un panneau dépliant, sous les résultats, donne maintenant chaque variable
+calculée avec sa médiane et sa fourchette, et **décompose les sommes en
+termes**, avec une jauge de leur poids. C'est la moitié de « décomposer un
+total » qui restait sans réponse depuis la session 2, et je crois que la
+réponse était simple parce qu'elle est modeste : le poids de chaque poste **à
+sa valeur médiane**. Le panneau le dit en une phrase — ce qui pèse le plus,
+pas ce qui est le plus incertain — parce que c'est exactement la confusion que
+la session 2 avait refusé de laisser passer dans le modèle carbone.
+
+Deux points de conception. Un terme est réévalué après coup dans le même
+contexte que le calcul, donc avec les mêmes tirages en cache ; mais un terme
+qui **tire lui-même au sort** (`5 + (1 à 3)`) produirait d'autres tirages, et
+les sommes qui en contiennent ne sont pas décomposées. Un test vérifie que le
+détail n'ajoute aucune source. Et l'état déplié survit au recalcul : la page
+se redessine à chaque frappe, et un panneau qui se referme à chaque lettre
+n'aurait servi à rien. Six millisecondes de plus par évaluation.
+
+### Le verdict en texte
+
+Quatre sessions sur la liste. « Copier le verdict » produit ce que la page
+affiche, dans le même ordre, précédé du lien qui contient le modèle. Rien de
+réécrit : le texte est lu dans la page, pas composé à part, donc il ne peut
+pas contenir un chiffre qui ne soit pas à l'écran. C'est le seul export que je
+trouve défendable ici : une décision se prend rarement seul, et ce qu'on veut
+envoyer à l'autre, c'est « voilà ce qu'il faudrait vérifier », avec le moyen
+de changer une hypothèse.
+
+### Ce que je n'ai pas fait, et pourquoi
+
+Le facteur d'optimisme commun dans le modèle de planning. Le modèle est
+l'illustration du cas « exactement sur la ligne » sur `/la-methode`, la
+limite est déclarée dans « ce qu'il ignore », et lier les tâches déplaçait
+l'exemple. J'ai mis dans le modèle deux lignes commentées qui montrent comment
+faire — c'est la technique que la page de méthode recommande, à portée de
+main.
+
+### Ce que les captures ont montré
+
+Le « ＋ » des panneaux dépliants s'affichait en carré vide dans le Chrome de
+test : glyphe pleine chasse absent de la police. Il l'était depuis la
+session 4 dans le panneau d'aide, et personne ne l'aurait vu sans regarder
+une capture. Remplacé par un signe ordinaire. La leçon de la session 1 tient
+toujours : regarder les captures fait partie du travail.
+
+### État à la fin de la session
+
+- 360 assertions sur le moteur, 177 dans un vrai navigateur. Toutes vertes.
+- Onze pages. Le détail des calculs et le verdict en texte sur chacune.
+
+### Ce que je ferais ensuite
+
+1. **Écrire de travers, encore.** Quatre récoltes, quatre fois rentable.
+   Catégories pas encore essayées : un tableau collé avec plusieurs colonnes,
+   un modèle entièrement en anglais (noms d'options, commentaires compris),
+   quelqu'un qui écrit des dates ou des durées en mois et années mélangés.
+2. **Décomposer un produit.** Les sommes sont faites ; `ca = tjm *
+   jours_facturables` ne se décompose pas, et c'est la forme de la plupart des
+   calculs. En logarithme, un produit est une somme — mais expliquer un poids
+   logarithmique à un visiteur est une autre affaire. À peser.
+3. **Cliquer une valeur intermédiaire pour voir d'où vient *son*
+   incertitude.** L'analyse par hypothèse existe pour le résultat ; la refaire
+   pour une variable choisie est la même machinerie. C'est l'idée de la
+   session 4, et le détail des calculs lui donne maintenant un endroit où
+   vivre.
+
+Toujours pas de graphiques. Les jauges du détail sont des barres de largeur,
+comme celles des hypothèses : un ordre de grandeur lisible d'un coup d'œil,
+pas un tableau de bord.
+
+---
+
 ## 2 septembre 2026 — Session 5 : poser la question à l'envers
 
 *Modèle : Claude Opus 5.*

@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 2 septembre 2026 (fin de session 5).
+État au 2 septembre 2026 (fin de session 6).
 
 ## En une phrase
 
@@ -30,7 +30,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── rng.js          xoshiro128** déterministe, lois de probabilité
 │       ├── lang.js         lexer + parseur du langage de modèle
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
-│       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info
+│       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info, détail des calculs
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
 │       ├── modeles.js      bibliothèque des dix modèles de départ
 │       └── ui.js           rendu, phrases en français, partage par URL
@@ -40,8 +40,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              294 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       166 vérifications dans un vrai Chrome + captures
+│   ├── run.js              360 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       177 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -59,10 +59,11 @@ texte du modèle
 AST { declarations, options, sortie, unite, seuil, objectifDeduit }
    │  evaluer.js : évaluation vectorisée, N = 20 000 tirages
    ▼
-{ sources[], variables, options[], sortie }        « source » = un tirage aléatoire
+{ sources[], variables, options[], sortie, details }   « source » = un tirage aléatoire
    │  moteur.js : indices, seuils, EVPPI
    ▼
-{ modeDecision, options{}, sortie{}, sources[{ part, valeurInfo, bascules }] }
+{ modeDecision, options{}, sortie{}, sources[{ part, valeurInfo, bascules }],
+  detail{ calculs[], options[], sortie } }
    │  ui.js
    ▼
 des phrases en français
@@ -151,6 +152,29 @@ des phrases en français
   affichait « Résultat : 0 ». Chacune de ces tolérances a un test dans le
   groupe « Ce que le visiteur écrit vraiment » : elles viennent toutes d'une
   demi-heure passée à taper de travers, pas d'une relecture.
+- **Le détail des calculs réévalue les termes d'une somme dans le même
+  contexte**, après le calcul principal : les variables sont en cache, donc
+  les valeurs sont celles du calcul. Un terme qui tire lui-même au sort
+  (`5 + (1 à 3)`) créerait une nouvelle source avec d'autres tirages — les
+  sommes qui en contiennent ne sont pas décomposées (`contientTirage`), et un
+  test vérifie que `sources.length` ne bouge pas. L'option `detail: true` de
+  `evaluerModele` n'est passée que par `analyserModele` : les balayages et le
+  contre-argument n'en ont pas besoin.
+- **L'échelle d'une borne vaut pour l'autre** (`fourchette()` dans lang.js) :
+  `15 à 30 %`, `1 à 3 millions`, `100 à 150k`. Le multiplicateur ne se
+  propage que si les chiffres écrits restent dans l'ordre — `500 à 2k` va de
+  500 à 2 000. `1000 ± 10 %` est relatif au centre.
+- **Les mots après un nombre sont des unités** (`Parseur.unites`) : lus,
+  ignorés, gardés sur le nœud, signalés en avertissement. Jamais un nom défini
+  — `3 x` avec `x` défini renvoie à `3 * x`. Les noms définis sont collectés
+  sur les jetons avant l'analyse, parce qu'une définition peut venir après.
+- **Le résultat implicite est la dernière variable dont rien ne dépend**, pas
+  la dernière définie : `total = a + b` écrit avant ses termes donne `total`.
+- **Une branche à égalité avec la meilleure l'emporte aussi** dans `pGagne` :
+  `option "C" = max(A, B)` était recommandée en gagnant « 0 % du temps ».
+- **Le verdict en texte est lu dans la page** (`texteVerdict` dans ui.js),
+  section par section, pas composé à part : il ne peut pas contenir un
+  chiffre qui ne soit pas à l'écran. Le détail des calculs en est exclu.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
