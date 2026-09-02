@@ -1,7 +1,7 @@
 // Génère public/index.html et une page par modèle. `npm run pages`
 import { writeFileSync } from 'node:fs';
 import { MODELES, MODELE_PAR_DEFAUT } from '../public/js/modeles.js';
-import { page, lien } from './gabarit.js';
+import { page, pageMethode, lien } from './gabarit.js';
 
 const options = { modeles: MODELES, defaut: MODELE_PAR_DEFAUT };
 const ecrites = [];
@@ -16,6 +16,9 @@ for (const m of MODELES) {
   writeFileSync(fichier, page({ modele: m, accueil: false, ...options }));
   ecrites.push([lien(m, MODELE_PAR_DEFAUT), `${m.slug}.html`]);
 }
+
+writeFileSync('public/la-methode.html', pageMethode());
+ecrites.push(['/la-methode', 'la-methode.html']);
 
 // Un plan du site : c'est le seul moyen qu'a un moteur de recherche de savoir
 // que ces adresses existent, personne ne pointant encore vers elles.

@@ -328,6 +328,11 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
       infos.titre.includes('Boussole') && infos.canonique === URL + (chemin === '/' ? '/' : chemin),
       `→ « ${infos.titre} » / ${infos.canonique}`);
     verifie(`${chemin} : un h1 unique et parlant`, !!infos.h1 && infos.h1.length > 2, `→ « ${infos.h1} »`);
+    // Toute la prose du site utilise l'apostrophe typographique ; une droite
+    // trahit un texte oublié quelque part.
+    const droites = await page3.evaluate(() =>
+      (document.body.innerText.match(/\w'\w/g) || []).slice(0, 3));
+    verifie(`${chemin} : aucune apostrophe droite`, droites.length === 0, `→ ${droites}`);
   }
 
   // Le HTML servi contient le modèle : il reste lisible sans JavaScript.
@@ -401,6 +406,64 @@ console.log('\n\x1b[1mTexte de fond\x1b[0m');
   await p7.close();
 }
 
+// --- La page de méthode ---------------------------------------------------------
+console.log('\n\x1b[1mLa méthode\x1b[0m');
+{
+  const p9 = await navigateur.newPage();
+  const inc9 = [];
+  p9.on('pageerror', (e) => inc9.push(e.message));
+  await p9.setViewport({ width: 1000, height: 900 });
+
+  const r = await p9.goto(URL + '/la-methode', { waitUntil: 'networkidle0' });
+  verifie('/la-methode répond', r.status() === 200 || r.status() === 304, `→ ${r.status()}`);
+
+  const info = await p9.evaluate(() => ({
+    titre: document.title,
+    canonique: document.querySelector('link[rel=canonical]')?.href,
+    h1: document.querySelector('h1')?.textContent.trim(),
+    h2: [...document.querySelectorAll('.chapitre h2')].map((n) => n.textContent),
+    reponses: document.querySelectorAll('.reponse').length,
+    exemples: document.querySelectorAll('pre.exemple').length,
+    mots: document.body.innerText.trim().split(/\s+/).length,
+    brut: /\*\*|```/.test(document.body.innerText),
+    droites: /\w'\w/.test(document.body.innerText),
+    retour: !!document.querySelector('.retour-outil a'),
+  }));
+  verifie('titre et canonique corrects',
+    info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
+    `→ ${info.titre} / ${info.canonique}`);
+  verifie('les six chapitres sont là', info.h2.length === 6, `→ ${info.h2.length}`);
+  verifie('la valeur de l’information a son chapitre',
+    info.h2.some((t) => /valeur de l/i.test(t)), `→ ${info.h2.join(' | ')}`);
+  verifie('les exemples sont rendus en blocs de code', info.exemples >= 5, `→ ${info.exemples}`);
+  verifie('les réponses du site sont mises en valeur', info.reponses >= 4, `→ ${info.reponses}`);
+  verifie('la page a de la substance', info.mots > 900, `→ ${info.mots} mots`);
+  verifie('aucun balisage brut ne fuit', !info.brut);
+  verifie('aucune apostrophe droite', !info.droites);
+  verifie('un chemin de retour vers l’outil', info.retour);
+
+  const deb = await p9.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  verifie('aucun débordement horizontal', deb <= 1, `→ ${deb}px`);
+  await p9.setViewport({ width: 390, height: 844 });
+  await p9.reload({ waitUntil: 'networkidle0' });
+  const debM = await p9.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  verifie('… ni sur écran étroit', debM <= 1, `→ ${debM}px`);
+
+  // Chaque page du site doit y mener.
+  await p9.setViewport({ width: 1000, height: 900 });
+  let liees = 0;
+  for (const m of MODELES) {
+    await p9.goto(URL + (m.cle === 'logement' ? '/' : '/' + m.slug), { waitUntil: 'domcontentloaded' });
+    if (await p9.$('footer a[href="/la-methode"]')) liees++;
+  }
+  verifie('toutes les pages de modèle y mènent', liees === MODELES.length, `→ ${liees}/${MODELES.length}`);
+
+  verifie('aucune erreur sur la page de méthode', inc9.length === 0, '→ ' + inc9.join(' | '));
+  await p9.close();
+}
+
 // --- Plan du site et 404 --------------------------------------------------------
 console.log('\n\x1b[1mIndexation\x1b[0m');
 {
@@ -412,7 +475,8 @@ console.log('\n\x1b[1mIndexation\x1b[0m');
   const plan = await p4.goto(URL + '/sitemap.xml', { waitUntil: 'domcontentloaded' });
   const xml = await plan.text();
   verifie('le plan du site liste toutes les pages',
-    MODELES.every((m) => xml.includes(m.cle === 'logement' ? '<loc>' + URL + '/</loc>' : '/' + m.slug)),
+    MODELES.every((m) => xml.includes(m.cle === 'logement' ? '<loc>' + URL + '/</loc>' : '/' + m.slug))
+    && xml.includes('/la-methode'),
     `→ ${(xml.match(/<loc>/g) || []).length} adresses`);
   await p4.close();
 }

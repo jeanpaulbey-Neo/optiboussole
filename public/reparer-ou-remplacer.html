@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Réparer ou remplacer ? — Boussole</title>
-<meta name="description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.">
+<meta name="description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu’il reste à vivre à l’appareil après réparation — et c’est justement le chiffre que personne ne connaît.">
 <link rel="canonical" href="https://optiboussole.fr/reparer-ou-remplacer">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Réparer ou remplacer ? — Boussole">
-<meta property="og:description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.">
+<meta property="og:description" content="Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu’il reste à vivre à l’appareil après réparation — et c’est justement le chiffre que personne ne connaît.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://optiboussole.fr/reparer-ou-remplacer">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -28,7 +28,7 @@
     <a class="retour" href="/">Boussole</a>
   </div>
   <h1 class="baseline titre-modele">Réparer ou remplacer ?</h1>
-  <p class="sous-baseline">Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu'il reste à vivre à l'appareil après réparation — et c'est justement le chiffre que personne ne connaît.</p>
+  <p class="sous-baseline">Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu’il reste à vivre à l’appareil après réparation — et c’est justement le chiffre que personne ne connaît.</p>
 </header>
 
 <nav aria-label="Modèles">
@@ -40,8 +40,8 @@
   <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
   <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
   <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
-  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu'on croit.">Réduire son empreinte : quoi d'abord ?</a></li>
-  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu'il reste à vivre à l'appareil." aria-current="page">Réparer ou remplacer ?</a></li>
+  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu’on croit.">Réduire son empreinte : quoi d’abord ?</a></li>
+  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu’il reste à vivre à l’appareil." aria-current="page">Réparer ou remplacer ?</a></li>
   <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
 </ul>
 </nav>
@@ -63,7 +63,7 @@
 
 # --- Réparer ----------------------------------------------------------
 devis = 90 à 200
-# Le vrai inconnu : combien d'années tiendra-t-il après réparation ?
+# Le vrai inconnu : combien d’années tiendra-t-il après réparation ?
 survie_reparee = 1 à 6
 # Et la réparation peut ne pas suffire.
 rechute = bernoulli(20%)
@@ -79,7 +79,7 @@ conso_ancien = 200 à 320        # kWh par an
 conso_neuf = 120 à 200
 prix_kwh = 0,20 à 0,30
 
-# On ramène tout à un coût par année de service : c'est la seule
+# On ramène tout à un coût par année de service : c’est la seule
 # comparaison honnête entre un appareil qui tiendra 3 ans et un autre 9.
 cout_reparer = (devis + annees_reparees * conso_ancien * prix_kwh) / annees_reparees
 cout_remplacer = (prix_neuf - revente_epave + survie_neuve * conso_neuf * prix_kwh) / survie_neuve
@@ -117,12 +117,12 @@ option "Remplacer" = -cout_remplacer</textarea>
   <summary>La syntaxe tient en dix lignes</summary>
   <div class="aide-corps">
     <table>
-      <tr><td>prix = 250k</td><td>Une valeur que vous connaissez. <code>k</code>, <code>M</code>, <code>Md</code>, <code>12 %</code>, <code>1 234,5</code> et <code>3 millions</code> s'écrivent comme on les dit.</td></tr>
-      <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu'il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C'est tout ce que le site vous demande de savoir.</td></tr>
-      <tr><td>total = prix + loyer * 12</td><td>De l'arithmétique ordinaire. Une variable réutilisée garde la même valeur tirée : <code>a - a</code> fait toujours zéro.</td></tr>
+      <tr><td>prix = 250k</td><td>Une valeur que vous connaissez. <code>k</code>, <code>M</code>, <code>Md</code>, <code>12 %</code>, <code>1 234,5</code> et <code>3 millions</code> s’écrivent comme on les dit.</td></tr>
+      <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu’il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C’est tout ce que le site vous demande de savoir.</td></tr>
+      <tr><td>total = prix + loyer * 12</td><td>De l’arithmétique ordinaire. Une variable réutilisée garde la même valeur tirée : <code>a - a</code> fait toujours zéro.</td></tr>
       <tr><td>option "Acheter" = …<br>option "Louer" = …</td><td>Deux lignes <code>option</code> ou plus, et le site passe en mode décision : il compare, recommande, et cherche les seuils de bascule.</td></tr>
-      <tr><td>unité: €</td><td>Le libellé du <b>résultat</b>, pas des hypothèses — dans un modèle en <code>€/km</code>, un nombre de kilomètres reste un nombre de kilomètres. Libre : <code>€/km</code>, <code>mois</code>, <code>kg CO₂e</code>. Une hypothèse écrite <code>3 % à 5 %</code> s'affiche en pourcentage parce que vous l'avez écrite ainsi.</td></tr>
-      <tr><td>seuil: 12<br>seuil: &lt;= 90</td><td>En mode estimation : la valeur que vous visez. Sans signe, elle se lit « au moins 12 » ; avec <code>&lt;=</code>, « au plus 90 » — une durée, un budget ou une dose se visent par le haut. Le site calcule la probabilité de tenir l'objectif, et à partir de quelle hypothèse vous passez du mauvais côté.</td></tr>
+      <tr><td>unité: €</td><td>Le libellé du <b>résultat</b>, pas des hypothèses — dans un modèle en <code>€/km</code>, un nombre de kilomètres reste un nombre de kilomètres. Libre : <code>€/km</code>, <code>mois</code>, <code>kg CO₂e</code>. Une hypothèse écrite <code>3 % à 5 %</code> s’affiche en pourcentage parce que vous l’avez écrite ainsi.</td></tr>
+      <tr><td>seuil: 12<br>seuil: &lt;= 90</td><td>En mode estimation : la valeur que vous visez. Sans signe, elle se lit « au moins 12 » ; avec <code>&lt;=</code>, « au plus 90 » — une durée, un budget ou une dose se visent par le haut. Le site calcule la probabilité de tenir l’objectif, et à partir de quelle hypothèse vous passez du mauvais côté.</td></tr>
       <tr><td># commentaire</td><td>Ignoré. La dernière ligne sans <code>=</code>, ou la dernière variable définie, est le résultat.</td></tr>
     </table>
 
@@ -140,39 +140,39 @@ option "Remplacer" = -cout_remplacer</textarea>
     <p>
       <code>100 à 400</code> avec deux bornes positives donne une <b>lognormale</b> : la médiane est
       la moyenne géométrique (200, pas 250), et le résultat ne peut pas devenir négatif.
-      C'est le bon réflexe pour des prix, des durées, des quantités.
+      C’est le bon réflexe pour des prix, des durées, des quantités.
       <code>−2 % à 5 %</code>, dont les bornes changent de signe, donne une <b>normale</b>.
       <code>0 à 100</code> donne une normale repliée sur les positifs : écrire zéro comme borne basse
-      veut dire qu'on exclut le négatif.
+      veut dire qu’on exclut le négatif.
     </p>
 
     <h3>Ce que veulent dire les trois chiffres affichés</h3>
     <p>
-      <b>La part</b> est la fraction de l'incertitude du résultat qu'une hypothèse porte à elle seule.
+      <b>La part</b> est la fraction de l’incertitude du résultat qu’une hypothèse porte à elle seule.
       Elle est calculée sur les rangs et non sur les valeurs : sur des grandeurs à queue longue, un
       indice de variance classique est confisqué par quelques tirages extrêmes.
       <b>Le seuil de bascule</b> est obtenu en figeant toutes les autres hypothèses à leur médiane et
-      en balayant celle-là — c'est donc un seuil « toutes choses égales par ailleurs », pas une frontière exacte.
-      <b>La valeur de l'information</b> est ce que vous gagneriez, en moyenne et dans l'unité du modèle,
-      à connaître exactement cette hypothèse-là avant de choisir. Quand elle vaut zéro, l'hypothèse
+      en balayant celle-là — c’est donc un seuil « toutes choses égales par ailleurs », pas une frontière exacte.
+      <b>La valeur de l’information</b> est ce que vous gagneriez, en moyenne et dans l’unité du modèle,
+      à connaître exactement cette hypothèse-là avant de choisir. Quand elle vaut zéro, l’hypothèse
       peut être très incertaine et rester sans intérêt : elle ne change pas la décision.
     </p>
 
     <h3>« Et si vos fourchettes étaient trop étroites ? »</h3>
     <p>
-      C'est la question que le site vous retourne en dernier, et c'est la plus importante.
-      Tout le reste suppose que vos fourchettes sont honnêtes — or c'est exactement ce que
-      les humains font le plus mal : quand on demande à quelqu'un un intervalle dans lequel
+      C’est la question que le site vous retourne en dernier, et c’est la plus importante.
+      Tout le reste suppose que vos fourchettes sont honnêtes — or c’est exactement ce que
+      les humains font le plus mal : quand on demande à quelqu’un un intervalle dans lequel
       il est <em>sûr à 90 %</em> que la vraie valeur se trouve, elle y tombe en réalité
-      autour d'une fois sur deux. Le résultat est robuste, il s'observe chez les experts
+      autour d’une fois sur deux. Le résultat est robuste, il s’observe chez les experts
       comme chez les novices, et sur leur propre domaine.
-      Le site élargit donc toutes vos fourchettes d'un facteur croissant — médiane
-      inchangée, jamais de valeur négative là où vous n'en vouliez pas — et regarde à
+      Le site élargit donc toutes vos fourchettes d’un facteur croissant — médiane
+      inchangée, jamais de valeur négative là où vous n’en vouliez pas — et regarde à
       partir de quand votre conclusion ne tient plus. Un verdict qui survit à des
       fourchettes trois fois plus larges ne dépend pas de la justesse de vos fourchettes ;
-      un verdict qui tombe à 1,3 n'est pas un verdict. Les lois discrètes
+      un verdict qui tombe à 1,3 n’est pas un verdict. Les lois discrètes
       (<code>bernoulli</code>, <code>poisson</code>) ne sont pas élargies : une probabilité
-      ne s'étire pas comme une fourchette.
+      ne s’étire pas comme une fourchette.
     </p>
 
     <h3>Ce que ce site ne fait pas</h3>
@@ -181,7 +181,7 @@ option "Remplacer" = -cout_remplacer</textarea>
       ceux que vous écrivez, et les modèles de départ sont des ordres de grandeur à remplacer par les vôtres.
       Il suppose vos hypothèses indépendantes, sauf là où vous les liez explicitement par une formule.
       Il ne remplace pas un conseil professionnel. Et il ne saura jamais ce qui, dans votre décision,
-      ne s'écrit pas en chiffres.
+      ne s’écrit pas en chiffres.
     </p>
   </div>
 </details>
@@ -191,6 +191,7 @@ option "Remplacer" = -cout_remplacer</textarea>
     Construit par Claude. Aucun compte, aucun traceur, aucun cookie&nbsp;: le modèle et la simulation
     ne quittent pas votre navigateur, et le lien de partage contient le modèle lui-même.
   </p>
+  <p><a href="/la-methode">La méthode, en détail</a></p>
 </footer>
 
 </div>

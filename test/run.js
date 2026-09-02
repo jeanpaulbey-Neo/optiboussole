@@ -317,6 +317,51 @@ groupe('Bibliothèque');
   }
 }
 
+// --- Les chiffres cités par /la-methode -------------------------------------
+// La page explique la méthode avec des exemples chiffrés. Si le moteur change,
+// la page doit changer avec lui : ces assertions sont là pour l'imposer.
+groupe('Chiffres cités par /la-methode');
+{
+  const a = analyserModele('x = 100 à 400', { N: 80000 });
+  proche('« 100 à 400 » : médiane 200', a.sortie.p50, 200, 3);
+
+  const b = analyserModele('gros = 0 à 100\npetit = 49 à 51\ny = gros + petit', { N: 60000 });
+  const parts = Object.fromEntries(b.sources.map((x) => [x.nom, x.part]));
+  proche('« gros » porte 100 % de l\'incertitude', parts.gros, 1, 0.03);
+  proche('« petit » en porte 0 %', parts.petit, 0, 0.03);
+  proche('la fourchette du résultat fait 93 de large', b.largeurTotale, 93, 4);
+  proche('… et 5 une fois « gros » connu',
+    b.sources.find((x) => x.nom === 'gros').largeurResiduelle, 5, 2);
+
+  const c = analyserModele('a = 1 à 1000\ny = a', { N: 40000 });
+  proche('« y = a » : la part sur les rangs vaut 1', c.sources[0].part, 1, 0.01);
+
+  const d = analyserModele(
+    'cout_actuel = 1200\ncout_nouveau = 700 à 1900\n'
+    + 'option "Garder" = -cout_actuel\noption "Changer" = -cout_nouveau', { N: 80000 });
+  const bascule = d.sources[0].bascules[0];
+  proche('le seuil de bascule tombe à 1 200', bascule.valeur, 1200, 15);
+  verifie('… et bascule bien vers « Garder »', bascule.vers === 'Garder', `→ ${bascule.vers}`);
+  proche('… ce qui arrive 45 % du temps', bascule.proba, 0.45, 0.02);
+  proche('la valeur de l\'information vaut 141', d.options.evpi, 141, 8);
+
+  const { MODELES: M4 } = await import('../public/js/modeles.js');
+  const src = (cle) => M4.find((m) => m.cle === cle).source;
+
+  const v = analyserModele(src('voiture'), { N: 40000 });
+  const rep = v.sources.find((x) => x.nom === 'reparations');
+  proche('voiture : les réparations portent 55 % de l\'incertitude', rep.part, 0.55, 0.06);
+  proche('… le verdict bascule au-delà de 1 010 €/an', rep.bascules[0].valeur, 1010, 60);
+  proche('… et lever ce doute vaut environ 830 €', rep.valeurInfo, 830, 120);
+
+  const rl = analyserRobustesse(analyserModele(src('logement'), { N: 20000 }));
+  verifie('logement : le verdict bascule à 2,5× plus large', rl.kBascule === 2.5, `→ ${rl.kBascule}`);
+  const rc = analyserRobustesse(analyserModele(src('combles'), { N: 20000 }));
+  verifie('combles : la conclusion tient jusqu\'à 6×', rc.kBascule === null, `→ ${rc.kBascule}`);
+  verifie('combles : et rien ne vaut d\'être vérifié',
+    analyserModele(src('combles'), { N: 20000 }).options.acquise === true);
+}
+
 // --- Formules sur plusieurs lignes ------------------------------------------
 groupe('Continuation de ligne');
 {

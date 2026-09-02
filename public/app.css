@@ -450,6 +450,63 @@ nav .exemples { margin-bottom: 0; }
 .aide-corps p { color: var(--attenue); max-width: 70ch; }
 .aide-corps code { font-family: var(--mono); background: var(--papier); padding: .1em .3em; border-radius: 3px; }
 
+/* ---------- Page de contenu ---------- */
+
+.article {
+  margin-top: 8px;
+  padding: 32px 40px 36px;
+}
+
+.article > p, .chapitre p {
+  font-size: 15.5px;
+  line-height: 1.65;
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+
+.article > p:first-child {
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.chapitre { margin-top: 38px; }
+
+.chapitre h2 {
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin: 0 0 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--trait);
+}
+
+.article code, .chapitre code {
+  font-family: var(--mono);
+  font-size: .87em;
+  background: var(--papier);
+  padding: .1em .3em;
+  border-radius: 3px;
+}
+.article b, .chapitre b { font-weight: 600; }
+
+/* La réponse que le site donne à l'exemple qui précède. */
+.reponse {
+  border-left: 3px solid var(--accent);
+  padding: 2px 0 2px 14px;
+  color: var(--accent);
+  font-family: var(--serif);
+}
+.reponse code { background: var(--accent-doux); color: inherit; }
+
+.retour-outil { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--trait); }
+
+@media (max-width: 700px) {
+  .article { padding: 20px 18px 24px; }
+  .chapitre h2 { font-size: 20px; }
+  .article > p, .chapitre p { font-size: 15px; }
+}
+
 /* ---------- Texte de fond ---------- */
 
 .fond {
@@ -486,7 +543,7 @@ nav .exemples { margin-bottom: 0; }
   border-radius: 3px;
 }
 
-.fond .exemple {
+.exemple, .fond .exemple {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.6;

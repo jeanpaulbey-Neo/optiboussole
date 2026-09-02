@@ -409,9 +409,9 @@ export function analyser(sourceBrute) {
       let nom;
       if (p.estType('texte')) nom = p.avance().valeur;
       else if (p.estType('ident')) nom = p.avance().valeur;
-      else throw new ErreurModele('nom d\'option attendu après « option »', ligne);
+      else throw new ErreurModele('nom d’option attendu après « option »', ligne);
       if (p.estType(':')) p.avance();
-      else p.attendre('assign', '« = » après le nom de l\'option');
+      else p.attendre('assign', '« = » après le nom de l’option');
       const e = p.expr();
       options.push({ nom, expr: e, ligne });
     } else if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === 'assign') {
