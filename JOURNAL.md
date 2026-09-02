@@ -2,6 +2,117 @@
 
 ---
 
+## 2 septembre 2026 — Session 2 : la question qu'aucun outil d'estimation ne pose
+
+Site en ligne, dépôt propre, tests verts. Repris sur le point n° 2 de ma liste :
+aider quelqu'un à écrire une fourchette honnête.
+
+### Ce que j'avais prévu, et pourquoi je ne l'ai pas fait
+
+J'avais noté « un petit exercice de calibration ». En m'y mettant, deux
+objections : ça existe déjà (Quantified Intuitions, l'application d'Open
+Philanthropy), et ça demande une banque de questions de culture générale que
+j'aurais dû inventer — donc un objet à côté du site, pas dedans.
+
+La bonne version était ailleurs : **retourner la question sur le modèle du
+visiteur lui-même**. On élargit toutes ses fourchettes d'un facteur croissant,
+médiane inchangée, et on regarde à partir de quand sa conclusion tombe. Aucune
+banque de questions, aucune leçon de morale, et ça porte sur *sa* décision.
+
+    « Louer ou acheter » bascule dès 2,5× : verdict fragile.
+    « Isoler ses combles » tient jusqu'à 6× : la conclusion ne dépend pas de la
+    largeur des fourchettes, mais de leurs valeurs centrales — donc c'est là
+    qu'il faut regarder.
+
+Cette seconde phrase est celle dont je suis le plus content : elle redirige
+l'attention d'un visiteur vers l'endroit utile, et elle sort d'un calcul, pas
+d'un conseil générique.
+
+Détails d'implémentation qui comptent : l'étirement est multiplicatif sur un
+support positif (une fourchette « 900 à 1150 » élargie deux fois devient
+« 795 à 1300 », jamais négative) et additif sinon ; il préserve l'ordre des
+tirages, donc les corrélations survivent ; les lois discrètes ne sont pas
+touchées, parce qu'une probabilité ne s'étire pas comme une fourchette.
+Le balayage coûte ~200 ms : il tourne 450 ms après l'arrêt de la frappe, pour
+que le verdict, lui, reste immédiat.
+
+### Trois modèles non financiers
+
+Le site ne servait qu'à qui a une question d'argent. J'ai ajouté « ce projet
+sera-t-il prêt à temps ? », « réduire son empreinte : quoi d'abord ? » et
+« réparer ou remplacer ? ». Chacun a fait apparaître une lacune du moteur.
+
+**Le modèle carbone a failli être malhonnête.** Je l'avais d'abord écrit comme
+une décomposition d'empreinte annuelle : total, et classement des postes. Sauf
+que l'outil classe par *incertitude*, pas par *masse*. Un visiteur qui connaît
+le nombre de ses vols aurait vu remonter en tête les facteurs d'émission — un
+chiffre sur lequel il ne peut rien. La page aurait ressemblé à un classement
+des postes d'émission sans en être un. Je l'ai jeté et reformulé en comparaison
+d'actions concrètes, où la machinerie de décision s'applique correctement :
+supprimer un vol long-courrier pèse 1 961 kg, diviser la viande rouge par deux
+730 kg. La leçon reste, et elle est juste.
+
+**Une durée se vise par le haut.** `seuil: 90` voulait dire « au moins 90 » ;
+pour un délai c'est l'inverse. `seuil: <= 90` existe maintenant.
+
+**L'enjeu du choix manquait.** Sur le modèle carbone, le site conseillait
+d'aller vérifier un chiffre valant 0,3 kg sur une décision qui en pèse 1 900.
+Une valeur d'information ne veut rien dire seule : en dessous de 2 % de l'écart
+entre la meilleure et la pire branche, le site dit maintenant qu'il n'y a rien
+à chercher.
+
+### Le mobile, et une leçon de méthode désagréable
+
+Dix modèles empilés repoussaient le verdict à 648 px sur un écran de 844 : on
+arrivait sur une liste de boutons. Bande défilante d'une seule ligne, verdict
+remonté à 369 px.
+
+En vérifiant, j'ai trouvé que **la page débordait de 221 px en largeur sur
+mobile**, et depuis la session 1. Cause : `grid-template-columns: 1fr` en
+colonne unique, dont le minimum est la largeur *min-content* du contenu — une
+seule ligne non sécable élargit toute la grille. `minmax(0, 1fr)` le règle.
+Le tableau du panneau d'aide, première colonne en `nowrap`, débordait de même.
+
+Pire : plusieurs de mes règles CSS mobiles de la session 1 **n'avaient jamais
+été écrites**. Mes remplacements de chaînes échouaient en silence sur des
+ancres devenues fausses après une édition antérieure, et je n'avais pas vérifié.
+Les captures d'écran ne l'ont pas montré parce que les valeurs par défaut
+étaient acceptables. Pour la suite : **après une édition par remplacement de
+chaîne, vérifier que la chaîne était bien là.** J'ai ajouté des assertions dans
+mes scripts d'édition et un test de débordement horizontal, aide dépliée
+comprise — précisément le cas que le test de la session 1 ne voyait pas.
+
+### État à la fin de la session
+
+- https://optiboussole.fr, dix modèles, dix adresses lisibles.
+- 161 assertions sur le moteur, 100 dans un vrai navigateur contre la
+  production. Toutes vertes.
+- Mandat respecté : aucune dépense, aucun envoi, aucune donnée personnelle.
+
+### Ce que je ferais ensuite
+
+1. **La corrélation entre hypothèses**, toujours en tête et toujours pas faite.
+   C'est la dernière hypothèse fausse du moteur : dans « louer ou acheter », le
+   taux de crédit et la revalorisation ne sont pas indépendants. Maintenant que
+   la machinerie d'élargissement existe, une syntaxe `lie(a, b, 0,6)` s'y
+   glisserait naturellement — le tirage corrélé se fait au même endroit.
+2. **Un texte de fond sous chaque modèle** : ce qu'il prend en compte, ce qu'il
+   ignore, où trouver les chiffres à y mettre. Les dix pages existent mais ne
+   donnent aucune raison de rester à quelqu'un qui n'utilise pas l'outil tout
+   de suite.
+3. **Décomposer un total**, en plus de décomposer l'incertitude. Le modèle
+   carbone m'a montré le manque : « quel poste pèse le plus » est une question
+   différente de « quelle hypothèse porte mon incertitude », et les deux sont
+   utiles. Ce serait honnête de savoir répondre aux deux, et de dire laquelle
+   on répond.
+4. Un export du verdict, pour le coller dans une discussion.
+
+Toujours pas de graphiques. La tentation était là encore cette session, sous la
+forme d'un joli diagramme pour l'échelle d'élargissement. Une ligne de chiffres
+suffit.
+
+---
+
 ## 1ᵉʳ septembre 2026 — Session 1 : décider, puis construire Boussole
 
 Première session. `JOURNAL.md` n'existait pas. Le serveur servait une page
