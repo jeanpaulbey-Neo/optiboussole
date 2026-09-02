@@ -2,6 +2,93 @@
 
 ---
 
+## 2 septembre 2026 — Session 4 : expliquer la méthode, et retourner écrire de travers
+
+Deux chantiers, l'un prévu, l'autre repris parce qu'il avait trop bien payé la
+session précédente.
+
+### Une page pour la méthode
+
+Les cinq idées sur lesquelles le site est construit — la fourchette à 90 %, la
+part de l'incertitude, le seuil de bascule, la valeur de l'information, la
+robustesse — vivaient dans un panneau dépliant qu'aucun moteur de recherche ne
+lit comme du contenu. Elles ont maintenant `/la-methode` : six chapitres,
+1 500 mots, un exemple calculé par le moteur à chaque idée.
+
+Ce sont des outils classiques d'analyse de décision, restés dans les manuels.
+Il n'existe presque rien en français qui les mette à portée de quelqu'un qui
+n'en a pas fait, et c'est une raison suffisante d'écrire la page.
+
+**Ce dont je suis le plus content, c'est que la page est testée.** Elle cite des
+chiffres : médiane 200 pour « 100 à 400 », part de 1,00 sur les rangs contre
+0,27 sur les valeurs, seuil à 1 200, EVPI de 141 €, bascule du modèle
+immobilier à 2,5×. Un groupe d'assertions les revérifie sur le moteur. Si je
+change le moteur dans six sessions, ce n'est pas la page qui dérivera en
+silence : ce sont les tests qui casseront. De la documentation qu'on ne peut
+pas laisser mentir.
+
+En écrivant, j'ai trouvé une négligence qui traînait depuis la session 1 : le
+panneau d'aide, les titres de pages, les noms d'options et les messages
+d'erreur utilisaient l'apostrophe droite alors que toute la prose du site
+utilise la typographique. Quatre-vingt-seize occurrences. Le test navigateur
+vérifie maintenant chaque page.
+
+### Retourner écrire de travers
+
+J'avais noté que la demi-heure passée à taper des entrées imparfaites avait
+rapporté plus que toute relecture. J'ai recommencé avec d'autres catégories.
+Six trouvailles, dont une sérieuse.
+
+**L'espace insécable cassait tout.** Une ligne `loyer = 900 à 1150` copiée
+depuis une page web, ou tapée sur un clavier français, contient des U+00A0. Le
+lexer répondait « caractère inattendu «   » » — le pire message possible,
+puisqu'on ne voit pas ce qu'il faut corriger. Un visiteur qui colle son tableau
+depuis ailleurs abandonnait là.
+
+Le reste : le point-virgule refusé, les accolades qui donnaient « caractère
+inattendu » au lieu de renvoyer aux parenthèses, un emoji affiché comme une
+demi-paire de substitution, `loyer: 900 à 1150` qui ne suggérait pas
+`loyer = …`, et une ligne de prose qui ne renvoyait pas au `#`.
+
+Je note pour la prochaine fois : **ces défauts-là ne se trouvent pas en
+relisant, et ils ne se trouvent pas non plus en testant ce qu'on a prévu.** Ils
+se trouvent en tapant ce qu'on n'aurait pas écrit soi-même. Deux sessions de
+suite que c'est la demi-heure la plus rentable.
+
+### Les gros modèles
+
+Un modèle de soixante hypothèses mettait 2,1 secondes bout en bout. La
+simulation n'y est pour rien (163 ms) : c'est l'analyse par hypothèse, un tri
+de 20 000 éléments chacune. Au-delà de vingt sources, elle se fait maintenant
+sur un sous-échantillon régulier, et la robustesse sur moitié moins de tirages.
+956 ms. Les petits modèles gardent le calcul complet — et les chiffres épinglés
+de `/la-methode` le vérifient au passage.
+
+### État à la fin de la session
+
+- 225 assertions sur le moteur, 148 dans un vrai navigateur. Toutes vertes.
+- Onze pages, dont une page de méthode indexable vers laquelle toutes renvoient.
+
+### Ce que je ferais ensuite
+
+1. **Retourner écrire de travers**, encore, sur des catégories nouvelles :
+   modèles très longs, copier-coller de tableur, unités mélangées, quelqu'un
+   qui essaie d'exprimer une contrainte plutôt qu'un calcul.
+2. **Décomposer un total.** Toujours pas d'idée d'interface satisfaisante, mais
+   la question « quel poste pèse le plus » reste sans réponse ici, et c'est
+   celle qu'on se pose devant n'importe quelle addition. Piste à creuser : ne
+   pas décomposer la sortie, mais permettre de cliquer une variable
+   intermédiaire pour voir de quoi *elle* est faite.
+3. **Un export du verdict.** Le seul point de ma liste qui n'a jamais bougé en
+   trois sessions, ce qui est peut-être le signe qu'il ne compte pas tant que ça.
+4. Relire les modèles avec l'œil de quelqu'un qui n'a pas écrit le moteur. Le
+   bug de troncature de la session 3 était dans un modèle depuis le début, et
+   il a fallu un avertissement automatique pour le voir.
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 3 : ce qui arrive quand quelqu'un écrit de travers
 
 Repris sur la corrélation entre hypothèses, que j'avais laissée en tête de liste

@@ -20,6 +20,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
 │   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
 │   ├── <slug>.html         ⚙ générés — une page par modèle (9 fichiers)
+│   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
 │   ├── 404.html            écrit à la main
@@ -35,10 +36,11 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
 │   ├── fond.js             le texte de fond de chaque page (compte / ignore / chiffres)
+│   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              192 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       124 vérifications dans un vrai Chrome + captures
+│   ├── run.js              225 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       148 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -102,6 +104,16 @@ des phrases en français
   second cas a trouvé le bug de troncature ci-dessus. Le test `run.js` vérifie
   qu'aucun modèle de la bibliothèque ne déclenche d'avertissement : c'est un
   filet gratuit, gardez-le.
+- **Le texte de `/la-methode` est testé.** La page cite des chiffres — médiane
+  200, part de 1,00 sur les rangs contre 0,27 sur les valeurs, seuil à 1 200,
+  EVPI de 141 €. `run.js` les revérifie sur le moteur. Si vous changez le
+  moteur et que ce groupe de tests casse, c'est la page qu'il faut mettre à
+  jour, pas le test qu'il faut assouplir.
+- **Les gros modèles passent en analyse allégée.** Au-delà de 20 sources, les
+  statistiques et indices par hypothèse sont calculés sur un sous-échantillon
+  régulier (~6 000 tirages) et la robustesse sur 4 000. Un tri de 20 000
+  éléments par hypothèse coûtait plus cher que toute la simulation. Le seuil
+  garantit que les modèles de la bibliothèque gardent le calcul complet.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
@@ -152,7 +164,11 @@ Configuration : `/etc/caddy/Caddyfile` (sauvegarde de l'originale en `.bak`).
 Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 `nosniff`, `no-referrer`, et un `Cache-Control` court sur les fichiers statiques.
 
-Chaque page porte, sous l'outil, un texte de fond en trois volets — ce que le
+`/la-methode` est une page de contenu (pas d'atelier), générée par
+`pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
+y renvoie.
+
+Chaque page de modèle porte, sous l'outil, un texte de fond en trois volets — ce que le
 modèle compte, ce qu'il ignore, où trouver les chiffres — rédigé dans
 `outils/fond.js` et rendu dans le HTML servi, donc lisible sans JavaScript.
 Le balisage accepté y est minimal : `` `code` ``, `**gras**`, et un bloc
