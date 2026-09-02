@@ -5,7 +5,7 @@
 // expliquée ne dit rien à personne ; « la décision bascule si la revalorisation
 // descend sous 1 %/an, ce qui arrive 4 fois sur 10 » dit quelque chose.
 
-import { analyserModele, histogramme } from './moteur.js';
+import { analyserModele, analyserRobustesse, histogramme } from './moteur.js';
 import { ErreurModele } from './lang.js';
 import { MODELES, MODELE_PAR_DEFAUT } from './modeles.js';
 
@@ -60,6 +60,13 @@ function plage(a, b, unite) {
   return valeur(a, unite, ech) + ' → ' + valeur(b, unite, ech);
 }
 
+// La même chose au fil d'une phrase, où une flèche ne se lit pas :
+// « de 6,1 à 50 mois », l'unité une seule fois, à la fin.
+function plageProse(a, b, unite) {
+  const ech = echelle(Math.abs(a) > Math.abs(b) ? a : b);
+  return 'de ' + valeur(a, unite === '%' ? '%' : '', ech) + ' à ' + valeur(b, unite, ech);
+}
+
 const pourcent = (p) => nf({ maximumFractionDigits: p > 0 && p < 0.01 ? 1 : 0 }).format(p * 100) + ' %';
 
 // « 4 fois sur 10 » parle mieux que « 38 % » pour une fréquence de regret.
@@ -96,8 +103,9 @@ function phrase(...segments) {
   const p = el('p', { class: 'verdict-phrase' });
   for (const s of segments) {
     if (s === null || s === undefined) continue;
-    if (Array.isArray(s)) p.appendChild(el('code', { text: s[1] }));
-    else p.appendChild(document.createTextNode(s));
+    if (s instanceof Node) p.appendChild(s);
+    else if (Array.isArray(s)) p.appendChild(el('code', { text: s[1] }));
+    else p.appendChild(document.createTextNode(String(s)));
   }
   return p;
 }
@@ -337,6 +345,76 @@ function blocEstimation(r) {
   return [verdict];
 }
 
+// --- Robustesse à l'excès de confiance --------------------------------------
+//
+// Le seul chiffre que le visiteur fournit est une fourchette, et c'est
+// précisément ce que les humains font le plus mal : nos intervalles « à 90 % »
+// contiennent la vraie valeur bien moins souvent que 9 fois sur 10. Plutôt que
+// de faire la leçon, on mesure ce que ça coûterait à sa conclusion.
+
+const facteur = (k) => nf({ maximumFractionDigits: 2 }).format(k) + '×';
+
+function rendreRobustesse(rob, r) {
+  const bloc = $('#robustesse');
+  if (!bloc) return;
+  bloc.replaceChildren();
+  if (!rob || !rob.applicable) { bloc.hidden = true; return; }
+  bloc.hidden = false;
+  bloc.appendChild(el('h2', { text: 'Et si vos fourchettes étaient trop étroites ?' }));
+
+  if (rob.modeDecision) {
+    const gagnante = r.options.liste[r.options.recommande].nom;
+    if (rob.kBascule !== null) {
+      const rival = rob.paliers.find((p) => p.k === rob.kBascule).recommande;
+      bloc.appendChild(phrase(
+        el('b', { text: rob.kBascule <= 1.5 ? 'Très fragile. ' : 'Fragile. ' }),
+        'Il suffirait que vos fourchettes soient ', facteur(rob.kBascule),
+        ' trop étroites pour que « ', rival, ' » passe devant « ', gagnante,
+        ' ». C’est dans l’ordre du plausible : les intervalles à 90 % qu’on donne ',
+        'spontanément contiennent la vraie valeur environ une fois sur deux, ',
+        'pas neuf fois sur dix. Élargissez vos fourchettes avant de vous fier à ce verdict.'));
+    } else if (rob.kBrouillage !== null) {
+      bloc.appendChild(phrase(
+        el('b', { text: 'Le classement tient, l’écart non. ' }),
+        '« ', gagnante, ' » reste devant même avec des fourchettes ', facteur(rob.max),
+        ' plus larges. Mais à partir de ', facteur(rob.kBrouillage),
+        ', l’avantage n’est plus assez net pour qu’on puisse trancher dessus.'));
+    } else {
+      bloc.appendChild(phrase(
+        el('b', { text: 'Solide. ' }),
+        'Même avec des fourchettes ', facteur(rob.max),
+        ' plus larges, « ', gagnante, ' » reste devant et l’écart reste net. ',
+        'Cette conclusion ne dépend donc pas de la justesse de vos fourchettes, ',
+        'mais de leurs valeurs centrales : c’est là qu’il faut porter l’attention.'));
+    }
+
+    // L'échelle s'arrête au premier basculement : répéter « → Louer » quatre
+    // fois n'apprend rien de plus.
+    const echelons = [];
+    for (const p of rob.paliers) {
+      if (p.recommande === gagnante) echelons.push(`${facteur(p.k)} ${pourcent(p.pGagne)}`);
+      else { echelons.push(`${facteur(p.k)} → ${p.recommande}`); break; }
+    }
+    bloc.appendChild(el('p', { class: 'echelle', text: echelons.join('  ·  ') }));
+    return;
+  }
+
+  const d = rob.double;
+  if (!d) { bloc.hidden = true; return; }
+  const segments = [
+    el('b', { text: 'Si vos fourchettes sont deux fois trop étroites, ' }),
+    'le résultat ne s’étale plus ', plageProse(r.sortie.p05, r.sortie.p95, r.unite),
+    ', mais ', plageProse(d.p05, d.p95, r.unite), '.',
+  ];
+  if (d.pAuDessus !== undefined && r.pAuDessus !== undefined) {
+    segments.push(' Votre chance d’atteindre ', valeur(r.seuil, r.unite),
+      ' passe de ', pourcent(r.pAuDessus), ' à ', pourcent(d.pAuDessus), '.');
+  }
+  segments.push(' Les intervalles à 90 % qu’on donne spontanément contiennent la vraie ',
+    'valeur environ une fois sur deux : cet élargissement n’a rien d’excessif.');
+  bloc.appendChild(phrase(...segments));
+}
+
 // --- Rendu principal --------------------------------------------------------
 
 function rendre(r) {
@@ -379,6 +457,7 @@ function rendre(r) {
     }
   }
   zoneResultats.appendChild(section);
+  zoneResultats.appendChild(el('section', { class: 'panneau bloc', id: 'robustesse', hidden: true }));
 }
 
 // --- Erreurs ----------------------------------------------------------------
@@ -410,13 +489,20 @@ function surligneLigne(n) {
 // --- Boucle ------------------------------------------------------------------
 
 let minuteur = null;
+let minuteurRobustesse = null;
 
 function calculer() {
   const source = zoneModele.value;
+  clearTimeout(minuteurRobustesse);
   try {
     const r = analyserModele(source, { N: 20000 });
     zoneErreur.hidden = true;
     rendre(r);
+    // Le balayage coûte ~200 ms : on le lance quand la frappe s'est arrêtée,
+    // pour que le verdict, lui, reste immédiat.
+    minuteurRobustesse = setTimeout(() => {
+      try { rendreRobustesse(analyserRobustesse(r), r); } catch { /* sans conséquence */ }
+    }, 450);
   } catch (e) {
     montrerErreur(e);
   }

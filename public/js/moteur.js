@@ -215,6 +215,79 @@ function seuilCible(ast, sources, cible, seuil) {
   return bascules;
 }
 
+// --- Robustesse à l'excès de confiance -------------------------------------
+//
+// Le point faible de toute cette méthode n'est pas le calcul : c'est que les
+// intervalles à 90 % que les gens donnent contiennent la vraie valeur bien
+// moins souvent que 9 fois sur 10. C'est le résultat de laboratoire le plus
+// solide du domaine, et aucun outil d'estimation n'en fait quoi que ce soit.
+//
+// On y répond en élargissant toutes les fourchettes du modèle d'un facteur
+// croissant, médiane inchangée, et en regardant à partir de quand la conclusion
+// ne tient plus. Un verdict qui survit à des fourchettes trois fois plus larges
+// ne dépend pas de la justesse de vos fourchettes ; un verdict qui tombe à 1,3
+// ne devrait pas être traité comme un verdict.
+
+const ECHELLE_ELARGISSEMENT = [1.25, 1.5, 2, 2.5, 3, 4, 6];
+const N_ROBUSTESSE = 8000;
+const SEUIL_SERRE = 0.62;
+
+export function analyserRobustesse(r) {
+  if (!r || r.vide) return null;
+  if (!r.sources.some((s) => s.elargissable)) {
+    return { applicable: false, raison: 'aucune fourchette à élargir' };
+  }
+  const ast = r.ast;
+  const modeDecision = r.modeDecision;
+  const iRecommande = modeDecision ? r.options.recommande : -1;
+  const nomsOptions = modeDecision ? r.options.liste.map((o) => o.nom) : [];
+  const seuil = r.seuil;
+
+  const paliers = [];
+  let kBascule = null, kBrouillage = null;
+
+  for (const k of ECHELLE_ELARGISSEMENT) {
+    const r = evaluerModele(ast, { N: N_ROBUSTESSE, elargissement: k });
+    const palier = { k };
+
+    if (modeDecision) {
+      const opts = r.options;
+      const moyennes = opts.map((o) => moyenne(o.valeurs));
+      let meilleur = 0;
+      for (let i = 1; i < moyennes.length; i++) if (moyennes[i] > moyennes[meilleur]) meilleur = i;
+
+      let gagne = 0;
+      for (let i = 0; i < N_ROBUSTESSE; i++) {
+        let arg = 0, v = opts[0].valeurs[i];
+        for (let j = 1; j < opts.length; j++) if (opts[j].valeurs[i] > v) { v = opts[j].valeurs[i]; arg = j; }
+        if (arg === iRecommande) gagne++;
+      }
+      palier.recommande = nomsOptions[meilleur];
+      palier.pGagne = gagne / N_ROBUSTESSE;
+      if (kBascule === null && meilleur !== iRecommande) kBascule = k;
+      if (kBrouillage === null && palier.pGagne < SEUIL_SERRE) kBrouillage = k;
+    } else if (r.sortie) {
+      const tri = trier(r.sortie);
+      palier.p05 = quantile(tri, 0.05);
+      palier.p95 = quantile(tri, 0.95);
+      if (seuil !== null && seuil !== undefined) {
+        let n = 0;
+        for (let i = 0; i < tri.length; i++) if (tri[i] >= seuil) n++;
+        palier.pAuDessus = n / tri.length;
+      }
+    }
+    paliers.push(palier);
+  }
+
+  return {
+    applicable: true, modeDecision, paliers, kBascule, kBrouillage,
+    max: ECHELLE_ELARGISSEMENT[ECHELLE_ELARGISSEMENT.length - 1],
+    // Le palier « fourchettes deux fois trop étroites » est celui qu'on montre
+    // en mode estimation : c'est l'ordre de grandeur de l'erreur habituelle.
+    double: paliers.find((p) => p.k === 2) || null,
+  };
+}
+
 // --- Analyse complète -------------------------------------------------------
 
 export function analyserModele(source, { N = 20000, seuil = null } = {}) {
@@ -298,7 +371,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
-        binaire: s.binaire, pourcent: !!s.pourcent,
+        binaire: s.binaire, pourcent: !!s.pourcent, elargissable: !!s.elargissable,
         part: effetPrincipal(idx, rangEcarts, variance(rangEcarts), moyenne(rangEcarts), bins),
         valeurInfo: evppi(idx, opts, bins, valeurSansInfo),
         bascules,
@@ -323,7 +396,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
-        binaire: s.binaire, pourcent: !!s.pourcent,
+        binaire: s.binaire, pourcent: !!s.pourcent, elargissable: !!s.elargissable,
         part: effetPrincipal(idx, rangSortie, varR, moyenne(rangSortie), bins),
         largeurResiduelle: resid,
         gainLargeur: largeurTotale > 0 ? 1 - resid / largeurTotale : 0,

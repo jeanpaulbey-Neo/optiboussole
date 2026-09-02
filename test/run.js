@@ -1,7 +1,7 @@
 // Tests du moteur. `node test/run.js`
 import { lexer, analyser, ErreurModele } from '../public/js/lang.js';
-import { evaluerModele, quantile, trier, moyenne } from '../public/js/evaluer.js';
-import { analyserModele } from '../public/js/moteur.js';
+import { evaluerModele, quantile, trier, moyenne, variance } from '../public/js/evaluer.js';
+import { analyserModele, analyserRobustesse } from '../public/js/moteur.js';
 
 let ok = 0, ko = 0;
 const nom = (s) => `\x1b[2m${s}\x1b[0m`;
@@ -299,6 +299,106 @@ groupe('Bibliothèque');
     const large = st.p95 !== 0 && Math.abs(st.p95 / (st.p50 || 1)) > 500;
     verifie(`« ${m.titre} » n'explose pas (p95 raisonnable)`, !large,
       `→ p50 ${st.p50.toPrecision(3)} p95 ${st.p95.toPrecision(3)}`);
+  }
+}
+
+// --- Élargissement des fourchettes ------------------------------------------
+groupe('Élargissement (robustesse)');
+{
+  const src = 'x = 900 à 1150';
+  const base = evaluerModele(analyser(src), { N: 40000 });
+  const large = evaluerModele(analyser(src), { N: 40000, elargissement: 2 });
+  const tb = trier(base.variables.get('x')), tl = trier(large.variables.get('x'));
+  proche('la médiane ne bouge pas', quantile(tl, 0.5), quantile(tb, 0.5), 3);
+  verifie('la fourchette s\'élargit vers le bas', quantile(tl, 0.05) < quantile(tb, 0.05) - 50);
+  verifie('… et vers le haut', quantile(tl, 0.95) > quantile(tb, 0.95) + 50);
+  verifie('support positif : jamais de valeur négative', tl[0] > 0, `→ ${tl[0]}`);
+  // Élargir d'un facteur k double l'écart en log : c'est la définition retenue.
+  const rapport = Math.log(quantile(tl, 0.95) / quantile(tl, 0.5))
+                / Math.log(quantile(tb, 0.95) / quantile(tb, 0.5));
+  proche('l\'écart logarithmique est bien multiplié par k', rapport, 2, 0.05);
+}
+{
+  const base = evaluerModele(analyser('x = -2% à 5%'), { N: 40000 });
+  const large = evaluerModele(analyser('x = -2% à 5%'), { N: 40000, elargissement: 3 });
+  const tb = trier(base.variables.get('x')), tl = trier(large.variables.get('x'));
+  proche('bornes signées : médiane inchangée', quantile(tl, 0.5), quantile(tb, 0.5), 1e-3);
+  proche('bornes signées : écart multiplié par k',
+    (quantile(tl, 0.95) - quantile(tl, 0.5)) / (quantile(tb, 0.95) - quantile(tb, 0.5)), 3, 0.05);
+}
+{
+  const a = evaluerModele(analyser('p = bernoulli(0.2)'), { N: 40000 });
+  const b = evaluerModele(analyser('p = bernoulli(0.2)'), { N: 40000, elargissement: 4 });
+  verifie('un bernoulli n\'est pas élargi',
+    Math.abs(moyenne(a.variables.get('p')) - moyenne(b.variables.get('p'))) < 1e-12);
+}
+{
+  const a = evaluerModele(analyser('x = poisson(5)'), { N: 20000 });
+  const b = evaluerModele(analyser('x = poisson(5)'), { N: 20000, elargissement: 3 });
+  verifie('un poisson n\'est pas élargi non plus',
+    a.variables.get('x').every((v, i) => v === b.variables.get('x')[i]));
+}
+{
+  const a = evaluerModele(analyser('x = normale(10, 2)'), { N: 40000 });
+  const b = evaluerModele(analyser('x = normale(10, 2)'), { N: 40000, elargissement: 2 });
+  proche('une loi continue nommée est élargie',
+    Math.sqrt(variance(b.variables.get('x'))) / Math.sqrt(variance(a.variables.get('x'))), 2, 0.05);
+}
+{
+  // Élargir ne doit pas casser la corrélation : a - a reste nul.
+  const r = evaluerModele(analyser('a = 1 à 10\nb = a - a'), { N: 5000, elargissement: 3 });
+  verifie('les corrélations survivent à l\'élargissement',
+    r.variables.get('b').every((v) => v === 0));
+}
+
+groupe('Analyse de robustesse');
+{
+  const r = analyserModele(`
+sur = 100
+option "A" = sur
+option "B" = 0 à 1
+`, { N: 20000 });
+  const rob = analyserRobustesse(r);
+  verifie('un verdict acquis résiste à tout', rob.applicable && rob.kBascule === null,
+    `→ k=${rob && rob.kBascule}`);
+}
+{
+  // Une option convexe finit par l'emporter si l'on élargit assez.
+  const r = analyserModele(`
+x = 1 à 3
+option "Sûr"    = 25
+option "Risqué" = x ^ 3
+`, { N: 20000 });
+  const rob = analyserRobustesse(r);
+  verifie('un verdict fragile est détecté', rob.kBascule !== null, `→ k=${rob.kBascule}`);
+  verifie('l\'échelle couvre tous les paliers', rob.paliers.length === 7);
+  verifie('chaque palier nomme un gagnant',
+    rob.paliers.every((p) => typeof p.recommande === 'string' && p.pGagne >= 0 && p.pGagne <= 1));
+}
+{
+  const r = analyserModele('p = bernoulli(30%)\ny = si p alors 10 sinon 0', { N: 20000 });
+  const rob = analyserRobustesse(r);
+  verifie('sans fourchette à élargir, l\'analyse le dit',
+    rob.applicable === false && /aucune fourchette/.test(rob.raison), `→ ${JSON.stringify(rob)}`);
+}
+{
+  const r = analyserModele('seuil: 20\nx = 10 à 30\ny = x', { N: 20000 });
+  const rob = analyserRobustesse(r);
+  const d = rob.double;
+  verifie('mode estimation : le palier 2× est fourni', !!d && d.k === 2);
+  verifie('… et il élargit bien l\'intervalle',
+    d.p05 < r.sortie.p05 && d.p95 > r.sortie.p95,
+    `→ ${d.p05.toFixed(1)}–${d.p95.toFixed(1)} contre ${r.sortie.p05.toFixed(1)}–${r.sortie.p95.toFixed(1)}`);
+  verifie('… en donnant la probabilité de seuil', typeof d.pAuDessus === 'number');
+}
+{
+  // Toute la bibliothèque doit produire une analyse de robustesse exploitable.
+  const { MODELES: M2 } = await import('../public/js/modeles.js');
+  for (const m of M2) {
+    const r = analyserModele(m.source);
+    const rob = analyserRobustesse(r);
+    verifie(`« ${m.titre} » : robustesse calculable`,
+      rob && rob.applicable && rob.paliers.length === 7);
   }
 }
 

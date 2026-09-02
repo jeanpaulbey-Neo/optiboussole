@@ -108,11 +108,12 @@ const AGREGATS = new Set(['esperance', 'espérance', 'moyenne', 'proba', 'median
 // --- Contexte d'évaluation --------------------------------------------------
 
 class Contexte {
-  constructor(ast, { N, graine, remplacements }) {
+  constructor(ast, { N, graine, remplacements, elargissement }) {
     this.ast = ast;
     this.N = N;
     this.rng = new RNG(graine);
     this.remplacements = remplacements || null;
+    this.elargissement = elargissement || 1;
     this.decls = new Map();
     for (const d of ast.declarations) this.decls.set(d.nom, d);
     this.cache = new Map();
@@ -120,6 +121,28 @@ class Contexte {
     this.sources = [];
     this.compteurSource = 0;
     this.nomCourant = null;
+  }
+
+  // Étire une distribution autour de sa médiane, d'un facteur k.
+  // Sert à répondre : « et si mes fourchettes étaient trop étroites ? »
+  // Sur un support strictement positif l'étirement est multiplicatif — une
+  // fourchette « 900 à 1150 » élargie deux fois devient « 795 à 1300 », jamais
+  // négative. Ailleurs il est additif. Dans les deux cas la médiane ne bouge
+  // pas et l'ordre des tirages est préservé : on élargit le doute, on ne
+  // déplace pas l'avis.
+  elargir(valeurs) {
+    const k = this.elargissement;
+    if (k === 1 || !(valeurs instanceof Float64Array)) return valeurs;
+    const tri = trier(valeurs);
+    const m = quantile(tri, 0.5);
+    const N = valeurs.length;
+    const out = new Float64Array(N);
+    if (tri[0] > 0 && m > 0) {
+      for (let i = 0; i < N; i++) out[i] = m * Math.pow(valeurs[i] / m, k);
+    } else {
+      for (let i = 0; i < N; i++) out[i] = m + k * (valeurs[i] - m);
+    }
+    return out;
   }
 
   // Chaque tirage aléatoire est une « source d'incertitude » adressable :
@@ -131,6 +154,9 @@ class Contexte {
       valeurs = this.remplacements[id];
     } else {
       valeurs = produire();
+      // Une probabilité ou un comptage ne s'élargit pas comme une fourchette :
+      // on ne touche qu'aux lois continues et non bornées par construction.
+      if (meta.elargissable) valeurs = this.elargir(valeurs);
     }
     let base = this.nomCourant || nom;
     let etiquette = base;
@@ -203,7 +229,8 @@ class Contexte {
         const bas = this.evaluer(n.bas);
         const haut = this.evaluer(n.haut);
         return this.source('incertitude', n.ligne,
-          () => this.tirerIntervalle(bas, haut, n), { pourcent: !!n.pourcent });
+          () => this.tirerIntervalle(bas, haut, n),
+          { pourcent: !!n.pourcent, elargissable: true });
       }
 
       case 'appel': return this.appel(n);
@@ -268,6 +295,8 @@ class Contexte {
         }
         return estVec(a) ? (i) => a[i] : () => a;
       };
+      const CONTINUES = new Set(['unif', 'uniforme', 'normale', 'normal',
+        'lognormale', 'lognormal', 'triangulaire']);
       return this.source(nom, n.ligne, () => {
         const out = new Float64Array(N);
         const r = this.rng;
@@ -318,15 +347,16 @@ class Contexte {
           }
         }
         return out;
-      });
+      }, { elargissable: CONTINUES.has(nom) });
     }
 
     throw new ErreurModele(`fonction « ${n.nom} » inconnue`, n.ligne);
   }
 }
 
-export function evaluerModele(ast, { N = 20000, graine = 20260901, remplacements = null } = {}) {
-  const ctx = new Contexte(ast, { N, graine, remplacements });
+export function evaluerModele(ast,
+  { N = 20000, graine = 20260901, remplacements = null, elargissement = 1 } = {}) {
+  const ctx = new Contexte(ast, { N, graine, remplacements, elargissement });
 
   // Ordre stable : on force l'évaluation dans l'ordre d'écriture pour que les
   // identifiants de source ne dépendent pas du chemin d'accès.

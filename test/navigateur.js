@@ -119,8 +119,66 @@ await new Promise((r) => setTimeout(r, 700));
 const msg2 = await page.$eval('#erreur', (n) => (n.hidden ? '' : n.textContent));
 verifie('une variable inconnue est signalée', /inconnue/.test(msg2), `→ « ${msg2} »`);
 
+// --- Robustesse ----------------------------------------------------------------
+console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
+{
+  const p5 = await navigateur.newPage();
+  const inc5 = [];
+  p5.on('pageerror', (e) => inc5.push(e.message));
+  p5.on('console', (m) => { if (m.type() === 'error') inc5.push(m.text()); });
+  await p5.setViewport({ width: 1280, height: 900 });
+
+  const cas = [
+    ['/', /fragile/i, 'un verdict fragile est annoncé comme tel'],
+    ['/isoler-ses-combles', /solide/i, 'un verdict solide est annoncé comme tel'],
+    ['/tresorerie-combien-de-mois', /deux fois trop étroites/i, 'le mode estimation compare les deux intervalles'],
+  ];
+  for (const [chemin, motif, titre] of cas) {
+    await p5.goto(URL + chemin, { waitUntil: 'domcontentloaded' });
+    await p5.evaluate(() => localStorage.clear());
+    await p5.goto(URL + chemin, { waitUntil: 'networkidle0' });
+    await p5.waitForSelector('#robustesse:not([hidden])', { timeout: 12000 });
+    const texte = await p5.$eval('#robustesse', (n) => n.innerText);
+    verifie(`${chemin} : ${titre}`, motif.test(texte), `→ « ${texte.slice(0, 90)}… »`);
+    verifie(`${chemin} : aucun [object Object] dans le texte`,
+      !/\[object /.test(texte), `→ « ${texte.slice(0, 90)}… »`);
+  }
+
+  // Le verdict doit s'afficher tout de suite ; la robustesse peut attendre.
+  await p5.goto(URL + '/', { waitUntil: 'domcontentloaded' });
+  await p5.evaluate(() => localStorage.clear());
+  await p5.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await p5.waitForSelector('.verdict-titre');
+  await p5.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value.replace('apport = 50k', 'apport = 90k');
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 350));
+  const tot = await p5.$eval('#robustesse', (n) => n.hidden);
+  verifie('la robustesse ne bloque pas la frappe (masquée à 350 ms)', tot === true, `→ hidden=${tot}`);
+  await p5.waitForSelector('#robustesse:not([hidden])', { timeout: 12000 });
+  verifie('… puis elle apparaît une fois la frappe arrêtée', true);
+
+  // Un modèle sans fourchette : le bloc ne doit rien raconter.
+  await p5.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = 'risque = bernoulli(30%)\noption "Oser" = si risque alors -10 sinon 5\noption "Non" = 0';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 1600));
+  verifie('sans fourchette à élargir, le bloc reste masqué',
+    await p5.$eval('#robustesse', (n) => n.hidden));
+
+  verifie('aucune erreur pendant l\'analyse de robustesse', inc5.length === 0, '→ ' + inc5.join(' | '));
+  await p5.close();
+}
+
 // --- Partage par lien ----------------------------------------------------------
 console.log('\n\x1b[1mPartage\x1b[0m');
+// Chrome bride le rendu des onglets en arrière-plan : après avoir travaillé
+// dans un autre onglet, il faut remettre celui-ci devant avant de cliquer.
+await page.bringToFront();
 await page.evaluate(() => {
   const t = document.querySelector('#modele');
   t.value = 'unité: €\nmarge = 10 à 90\nventes = 100\nresultat = marge * ventes';
@@ -128,7 +186,7 @@ await page.evaluate(() => {
 });
 await new Promise((r) => setTimeout(r, 700));
 await page.click('#partager');
-await new Promise((r) => setTimeout(r, 400));
+await page.waitForFunction(() => location.hash.length > 2, { timeout: 8000 });
 const lien = await page.url();
 verifie('le lien contient le modèle', lien.includes('#') && lien.length > URL.length + 20);
 
