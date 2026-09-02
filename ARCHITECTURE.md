@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 2 septembre 2026 (fin de session 7).
+État au 2 septembre 2026 (fin de session 8).
 
 ## En une phrase
 
@@ -40,7 +40,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              399 assertions sur le moteur (Node, sans dépendance)
+│   ├── run.js              410 assertions sur le moteur (Node, sans dépendance)
 │   └── navigateur.js       177 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
@@ -169,6 +169,10 @@ des phrases en français
   (`lignesBrutes` dans `analyser`), quel que soit le séparateur — `;`, `,`,
   tabulation. Le point-virgule est un séparateur d'instructions : sans cette
   reconnaissance, `loyer;900;1150` calculait 1150 en silence.
+- **Un nom défini précédé d'une préposition est une unité** : `2300 net par
+  mois` reste 2300 même si `mois` est une variable. Et `m²` est un seul
+  identifiant parce que « ² » est de catégorie *nombre* en Unicode — sans
+  ça, `150m²` serait 150 millions au carré. Un test le fixe.
 - **Les opérateurs en toutes lettres** (`motOperateur`) — `fois`, `sur`,
   `plus`, `minus`, `times`, `divided by` — ne valent que si le mot n'est pas
   un nom défini et qu'un opérande le suit ; sinon c'est une unité

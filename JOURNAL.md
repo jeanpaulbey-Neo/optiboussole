@@ -8,6 +8,76 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 2 septembre 2026 — Session 8 : des questions réelles
+
+*Modèle : Claude Fable 5.1.*
+
+Session courte. Le point 1 de ma liste : au lieu d'imaginer un visiteur, en
+trouver de vrais. Deux fils de forum avec une question chiffrée dans le
+premier message — une pompe à chaleur air/eau à 20 000 € dans une maison
+neuve très isolée de 150 m², et un rachat de crédit de 276 500 € à 1,69 % sur
+24 ans dont il reste 23 — plus deux formulations typiques (panneaux solaires,
+« je gagne 2300 net, je mets 300 de côté, un apport de 30k c'est combien de
+temps »).
+
+Je les ai transcrits avec les notations de leurs auteurs, sans les corriger :
+`276 500€`, `1.69%`, `150m²`, `20 000€ posé`, `15 à 40 kWh/m²/an`,
+`0,10€ à 0,14€ le kWh`, `6 kWc`, `2 à 5%/an`, `2300 net par mois`. **Tout
+est passé du premier coup**, sauf deux choses. C'est la première récolte où
+le résultat est surtout une confirmation : les sept sessions de tolérance
+tiennent sur du texte que je n'ai pas inventé.
+
+Les deux accrocs. `salaire = 2300 net par mois` refusait avec « la
+multiplication s'écrit 2300 * mois », parce que la dernière ligne du modèle
+définissait une variable `mois`. La règle « un nom défini n'est jamais une
+unité » était trop stricte : quand une préposition précède — *par* mois,
+*le* kWh, *per* month — c'est une unité, quel que soit le nom. Et `1 an et
+demi` ne connaissait pas « demi » ; il vaut maintenant 1,5.
+
+Un point que je note pour ne pas le redécouvrir : `150m²` passe parce que
+« ² » est un caractère de catégorie *nombre* en Unicode, donc `m²` est lu
+comme un seul identifiant, et non comme `m` (million) suivi d'un carré. C'est
+juste par chance, et un test le fixe.
+
+### Ce que le détail des calculs a changé aux textes de fond
+
+Le point 3. Quatre modèles disent maintenant ce que le panneau montre et que
+je ne savais pas en les écrivant. Sur le prix du kilomètre, la décote est le
+poste le plus lourd de loin, mais l'incertitude des postes fixes vient des
+réparations et du stationnement — **ce qui pèse et ce qu'on ignore ne
+coïncident pas**, et c'est la phrase la plus utile que le site puisse dire
+sur une addition. Sur la voiture, « garder » tient aux réparations pour près
+des trois quarts, ce qui explique pourquoi un seul chiffre décide. Sur la
+trésorerie, le loyer est le plus lourd mais on le connaît ; la fourchette
+vient des imprévus et des courses, et c'est là que les relevés servent.
+
+### Ce que je n'ai pas fait
+
+Un test de la valeur médiane du rachat de crédit écrit de tête à 1 213 €, que
+la formule contredisait à 1 210 €. J'ai vérifié la formule, pas le test :
+c'est elle qui avait raison. Je le note parce que c'est exactement le
+réflexe inverse de celui qu'il faut avoir avec les chiffres épinglés de
+`/la-methode`, et qu'il faut savoir lequel des deux on est en train de faire.
+
+### État à la fin de la session
+
+- 410 assertions sur le moteur, 177 dans un vrai navigateur. Toutes vertes.
+
+### Ce que je ferais ensuite
+
+1. **D'autres questions réelles**, dans des domaines que la bibliothèque ne
+   couvre pas : santé, temps, études, associatif. Chaque fil de forum coûte
+   une minute et vaut plus qu'une heure de cas imaginés.
+2. **Un modèle « rachat de crédit » dans la bibliothèque ?** La question est
+   posée partout, le calcul est standard, et le site répond à ce qu'aucun
+   simulateur de courtier ne dit : à partir de quel taux, et avec quels
+   frais, ça bascule. À peser contre l'encombrement de la bande de modèles.
+3. **Décomposer un produit**, toujours à peser.
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 7 : ce qu'un tableur montre et que le site cachait
 
 *Modèle : Claude Fable 5.1.*
