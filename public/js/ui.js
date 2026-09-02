@@ -550,9 +550,19 @@ function decoder(b64) {
 const adresse = (m) => (m.cle === MODELE_PAR_DEFAUT ? '/' : '/' + m.slug);
 
 function marquerPastille(cle) {
+  let actif = null;
   for (const a of listeExemples.querySelectorAll('a')) {
-    if (a.dataset.cle === cle) a.setAttribute('aria-current', 'page');
+    if (a.dataset.cle === cle) { a.setAttribute('aria-current', 'page'); actif = a; }
     else a.removeAttribute('aria-current');
+  }
+  // Quand la liste défile (écran étroit), la pastille active doit être visible :
+  // sinon on ne sait pas quel modèle est affiché.
+  if (actif && listeExemples.scrollWidth > listeExemples.clientWidth + 4) {
+    const cadre = listeExemples.getBoundingClientRect();
+    const puce = actif.getBoundingClientRect();
+    if (puce.left < cadre.left + 8 || puce.right > cadre.right - 8) {
+      listeExemples.scrollLeft += (puce.left - cadre.left) - 12;
+    }
   }
 }
 

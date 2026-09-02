@@ -119,6 +119,42 @@ await new Promise((r) => setTimeout(r, 700));
 const msg2 = await page.$eval('#erreur', (n) => (n.hidden ? '' : n.textContent));
 verifie('une variable inconnue est signalée', /inconnue/.test(msg2), `→ « ${msg2} »`);
 
+// --- Écran étroit ---------------------------------------------------------------
+console.log('\n\x1b[1mÉcran étroit\x1b[0m');
+{
+  const p6 = await navigateur.newPage();
+  await p6.setViewport({ width: 390, height: 844 });
+  await p6.goto(URL + '/reparer-ou-remplacer', { waitUntil: 'domcontentloaded' });
+  await p6.evaluate(() => localStorage.clear());
+  await p6.goto(URL + '/reparer-ou-remplacer', { waitUntil: 'networkidle0' });
+  await p6.waitForSelector('.verdict-titre');
+
+  const mesure = () => p6.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+  verifie('aucun débordement horizontal, aide fermée', (await mesure()) <= 1, `→ ${await mesure()}px`);
+
+  // Le débordement le plus facile à rater : le panneau d'aide déplié.
+  await p6.evaluate(() => { document.querySelector('.aide').open = true; });
+  await new Promise((r) => setTimeout(r, 250));
+  verifie('aucun débordement horizontal, aide ouverte', (await mesure()) <= 1, `→ ${await mesure()}px`);
+  await p6.evaluate(() => { document.querySelector('.aide').open = false; });
+
+  const haut = await p6.$eval('.verdict-titre', (n) => n.getBoundingClientRect().top);
+  verifie('le verdict est visible sans faire défiler', haut < 700, `→ y = ${Math.round(haut)}px`);
+
+  const bande = await p6.evaluate(() => {
+    const l = document.querySelector('#exemples');
+    const a = l.querySelector('[aria-current]');
+    const cl = l.getBoundingClientRect(), ca = a.getBoundingClientRect();
+    return { uneLigne: l.getBoundingClientRect().height < 60,
+             actifVisible: ca.left >= cl.left - 1 && ca.right <= cl.right + 1 };
+  });
+  verifie('les modèles tiennent sur une bande d\'une ligne', bande.uneLigne);
+  verifie('la pastille active y est amenée dans le champ', bande.actifVisible);
+  await p6.close();
+}
+
 // --- Robustesse ----------------------------------------------------------------
 console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
 {

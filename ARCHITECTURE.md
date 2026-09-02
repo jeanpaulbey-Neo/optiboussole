@@ -19,7 +19,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 /srv/optiboussole/
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
 │   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
-│   ├── <slug>.html         ⚙ générés — une page par modèle (6 fichiers)
+│   ├── <slug>.html         ⚙ générés — une page par modèle (9 fichiers)
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
 │   ├── 404.html            écrit à la main
@@ -30,14 +30,14 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── lang.js         lexer + parseur du langage de modèle
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
 │       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info
-│       ├── modeles.js      bibliothèque des six modèles de départ
+│       ├── modeles.js      bibliothèque des dix modèles de départ
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              108 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       67 vérifications dans un vrai Chrome + captures
+│   ├── run.js              161 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       100 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -62,6 +62,11 @@ AST { declarations, options, sortie, unite, seuil }
    │  ui.js
    ▼
 des phrases en français
+
+           ┌─ moteur.js : analyserRobustesse(r), passe séparée ─┐
+           │  réévalue 7 fois avec « elargissement » croissant  │
+           │  → à partir de quel facteur la conclusion tombe    │
+           └───────────────────────────────────────────────────┘
 ```
 
 ### Points de conception à ne pas casser
@@ -81,6 +86,13 @@ des phrases en français
   `el('i', { style: 'width:50%' })` produirait des barres invisibles.
 - **Déterminisme.** La graine du générateur est fixe : deux calculs du même
   modèle donnent le même résultat, sinon l'affichage frémirait à chaque frappe.
+- **`minmax(0, 1fr)`, jamais `1fr`, dans la grille.** Le minimum d'une piste
+  `1fr` est la largeur *min-content* de son contenu : une seule ligne non
+  sécable (l'échelle d'élargissement) suffisait à élargir la grille, donc la
+  page entière, sur mobile.
+- **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
+  et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
+  `analyserModele` doublerait le délai de chaque frappe.
 
 ## Une adresse par modèle
 

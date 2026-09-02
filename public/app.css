@@ -117,6 +117,20 @@ header { padding: 40px 0 26px; }
 nav { margin: 0 0 14px; }
 nav .exemples { margin-bottom: 0; }
 
+/* Sur un écran étroit, dix pastilles empilées repoussent le verdict sous la
+   ligne de flottaison. Une bande défilante rend la liste à une seule ligne. */
+@media (max-width: 700px) {
+  .exemples {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .exemples::-webkit-scrollbar { display: none; }
+  .exemples .puce { white-space: nowrap; }
+}
+
 /* Sur une page de modèle, le nom du site s'efface : c'est un fil d'Ariane,
    pas le titre de la page. Le titre, c'est la question posée. */
 .marque .retour {
@@ -150,7 +164,10 @@ nav .exemples { margin-bottom: 0; }
 @media (max-width: 940px) {
   /* En colonne unique, la réponse passe avant l'outil qui la produit :
      un visiteur qui arrive veut voir le verdict, pas un éditeur de texte. */
-  .atelier { grid-template-columns: 1fr; gap: 20px; }
+  /* minmax(0, 1fr) et non 1fr : le minimum d'une piste « 1fr » est la largeur
+     min-content de son contenu, si bien qu'une seule ligne non sécable
+     (l'échelle d'élargissement) élargissait la grille et donc la page. */
+  .atelier { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .atelier .resultats { order: 1; }
   .atelier .editeur { order: 2; }
 }
@@ -356,6 +373,7 @@ nav .exemples { margin-bottom: 0; }
 
 /* L'échelle d'élargissement : une ligne de chiffres, pas un tableau de bord. */
 .echelle {
+  max-width: 100%;
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--attenue);
@@ -424,10 +442,29 @@ footer p { margin: 0; max-width: 62ch; }
 
 .copie-ok { color: var(--vert); }
 
+/* Le panneau d'aide est un tableau à deux colonnes dont la première ne se coupe
+   pas : sur écran étroit il débordait la page entière. Les colonnes s'empilent. */
+@media (max-width: 700px) {
+  .aide-corps table, .aide-corps tbody, .aide-corps tr, .aide-corps td { display: block; }
+  .aide-corps tr { border-top: 1px solid var(--trait); padding: 9px 0; }
+  .aide-corps tr:first-child { border-top: 0; }
+  .aide-corps td { border-top: 0; padding: 0; }
+  .aide-corps td:first-child { white-space: normal; margin-bottom: 3px; font-size: 12.5px; }
+}
+
 @media (max-width: 560px) {
+  header { padding: 26px 0 20px; }
+  .enveloppe { padding: 0 14px 48px; }
   .marque h1 { font-size: 25px; }
-  .baseline { font-size: 15.5px; }
-  .verdict .verdict-titre { font-size: 24px; }
+  .marque .retour { font-size: 17px; }
+  .baseline { font-size: 16px; }
+  .sous-baseline { font-size: 13.5px; }
+  .titre-modele { font-size: 22px; }
+  .exemples { gap: 6px; }
+  .exemples .puce { font-size: 12px; padding: 4px 10px; }
+  .verdict .verdict-titre { font-size: 25px; }
+  .verdict-phrase { font-size: 15px; }
   .bloc { padding: 16px; }
-  #modele { min-height: 380px; font-size: 12.5px; }
+  #modele { min-height: 340px; font-size: 12.5px; }
+  .hypothese-tete { flex-wrap: wrap; gap: 2px 10px; }
 }
