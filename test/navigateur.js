@@ -99,6 +99,34 @@ const apresEdition = await page.$eval('.verdict-titre', (n) => n.textContent);
 verifie('modifier une hypothèse recalcule', apresEdition !== avantEdition,
   `→ « ${avantEdition} » puis « ${apresEdition} »`);
 
+// --- Le détail des calculs -----------------------------------------------------
+console.log('\n\x1b[1mLe détail des calculs\x1b[0m');
+{
+  const ferme = await page.$eval('.detail', (n) => n.open);
+  verifie('le panneau existe et commence fermé', ferme === false, `→ ${ferme}`);
+  await page.click('.detail summary');
+  await new Promise((r) => setTimeout(r, 200));
+  const lignes = await page.$$eval('.detail-liste > li', (n) => n.length);
+  const termes = await page.$$eval('.detail-liste > li.terme', (n) => n.length);
+  verifie('déplié, il liste les calculs et leurs termes', lignes >= 4 && termes >= 5, `→ ${lignes} lignes, ${termes} termes`);
+  const barre = await page.$eval('.detail-liste li.terme .barre i', (n) => n.getBoundingClientRect().width);
+  verifie('la jauge du poids d’un terme est visible', barre > 4, `→ ${barre}px`);
+  await page.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value.replace('controle = 45', 'controle = 90');
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 900));
+  const encoreOuvert = await page.$eval('.detail', (n) => n.open);
+  verifie('l’état déplié survit au recalcul', encoreOuvert === true);
+  const controle = await page.$$eval('.detail-liste li.terme', (ns) => {
+    const li = ns.find((n) => n.textContent.includes('controle'));
+    return li ? li.querySelector('.detail-val').textContent : '';
+  });
+  verifie('la valeur suit l’édition', controle === '90', `→ « ${controle} »`);
+  await page.click('.detail summary');
+}
+
 // Erreur de syntaxe : message affiché, pas de plantage.
 await page.evaluate(() => {
   const t = document.querySelector('#modele');

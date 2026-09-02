@@ -3,6 +3,7 @@ import { lexer, analyser, ErreurModele } from '../public/js/lang.js';
 import { evaluerModele, quantile, trier, moyenne, variance } from '../public/js/evaluer.js';
 import { analyserModele, analyserRobustesse } from '../public/js/moteur.js';
 import { analyserContreArgument } from '../public/js/contre.js';
+import { MODELES } from '../public/js/modeles.js';
 
 let ok = 0, ko = 0;
 const nom = (s) => `\x1b[2m${s}\x1b[0m`;
@@ -569,6 +570,59 @@ groupe('Ce que le visiteur écrit vraiment (suite)');
     verifie('« C = max(A, B) » est recommandée', r.options.liste[r.options.recommande].nom === 'C');
     proche('… et l’emporte à tous les coups, pas 0 % du temps', c.pGagne, 1, 1e-9);
   }
+}
+
+// --- Le détail des calculs --------------------------------------------------
+// Chaque variable calculée avec sa médiane, et chaque somme décomposée en
+// termes : ce qu'un tableur montre et que le site ne montrait pas.
+groupe('Le détail des calculs');
+{
+  const r = analyserModele(MODELES.find((m) => m.cle === 'logement').source, { N: 20000 });
+  const d = r.detail;
+  verifie('le détail existe', !!d && Array.isArray(d.calculs));
+  const noms = d.calculs.map((c) => c.nom);
+  verifie('les constantes littérales n’y figurent pas', !noms.includes('prix') && !noms.includes('horizon'), `→ ${noms}`);
+  verifie('les fourchettes n’y figurent pas non plus (elles sont au-dessus)', !noms.includes('loyer'));
+  verifie('les valeurs calculées y sont, dans l’ordre du modèle',
+    noms.indexOf('mensualite') < noms.indexOf('depense_an') && noms.includes('cout_achat'), `→ ${noms}`);
+  const mens = d.calculs.find((c) => c.nom === 'mensualite');
+  proche('« mensualite » vaut 969 €', mens.p50, 969.4, 1);
+  verifie('… et elle est fixe', mens.fixe === true && mens.termes === null);
+  const dep = d.calculs.find((c) => c.nom === 'depense_an');
+  verifie('« depense_an » est une somme de quatre termes', dep.termes && dep.termes.length === 4,
+    `→ ${dep.termes && dep.termes.length}`);
+  verifie('… étiquetés par leur expression',
+    dep.termes.map((t) => t.etiquette).join(' | ') === 'mensualite * 12 | charges_copro * 12 | taxe_fonciere | travaux * prix',
+    `→ ${dep.termes.map((t) => t.etiquette).join(' | ')}`);
+  proche('… et la mensualité annuelle vaut bien 12 fois la mensualité', dep.termes[0].p50, 12 * mens.p50, 0.5);
+  const bien = d.calculs.find((c) => c.nom === 'bien_net');
+  verifie('« bien_net » garde le signe de chaque terme',
+    bien.termes.map((t) => t.signe).join('') === '1-1-1', `→ ${bien.termes.map((t) => t.signe)}`);
+  const ach = d.options.find((o) => o.nom === 'Acheter');
+  verifie('la branche « Acheter » se décompose en bien_net − cout_achat',
+    ach.termes && ach.termes.length === 2 && ach.termes[1].signe === -1 && ach.termes[1].etiquette === 'cout_achat');
+  verifie('ligne cliquable : chaque calcul connaît sa ligne', d.calculs.every((c) => c.ligne > 0));
+
+  // Un terme qui tire au sort ne se décompose pas : ses tirages ne seraient
+  // pas ceux du calcul. Et un terme évalué après coup n'ajoute aucune source.
+  const t = analyserModele('a = 1 à 3\nx = 5 + (1 à 3)\ny = x + a', { N: 4000 });
+  verifie('une somme contenant une fourchette n’est pas décomposée',
+    t.detail.calculs.find((c) => c.nom === 'x').termes === null);
+  verifie('… mais une somme de variables l’est', t.detail.calculs.find((c) => c.nom === 'y').termes.length === 2);
+  verifie('le détail n’ajoute aucune source', t.sources.length === 2, `→ ${t.sources.length}`);
+
+  // L'affichage d'une expression.
+  {
+    const r = analyserModele('a = 2\nb = 3\nc = 4\ny = (a + b) * c + a - (b - c)');
+    const ts = r.detail.calculs.find((x) => x.nom === 'y').termes;
+    verifie('l’étiquette d’un terme respecte les priorités, et « a - (b - c) » s’aplatit en +a −b +c',
+      ts.map((t) => (t.signe < 0 ? '-' : '+') + t.etiquette).join(' | ') === '+(a + b) * c | +a | -b | +c',
+      `→ ${ts.map((t) => (t.signe < 0 ? '-' : '+') + t.etiquette).join(' | ')}`);
+  }
+  verifie('« 3 millions » s’affiche comme un nombre',
+    analyserModele('a = 1\ny = a + 3 millions').detail.calculs[0].termes[1].etiquette === '3 000 000');
+  verifie('« 15 % » garde son pourcentage',
+    analyserModele('a = 1\ny = a + 15 %').detail.calculs[0].termes[1].etiquette === '15 %');
 }
 
 // --- Les chiffres cités par /la-methode -------------------------------------

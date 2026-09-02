@@ -440,7 +440,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   if (ast.declarations.length === 0 && ast.options.length === 0 && !ast.sortie) {
     return { vide: true, ast, avertissements: [] };
   }
-  const r = evaluerModele(ast, { N });
+  const r = evaluerModele(ast, { N, detail: true });
   // Un « seuil: » écrit dans le modèle prime sur celui passé par l'appelant.
   if (r.seuil !== null && r.seuil !== undefined) seuil = r.seuil;
   const seuilSens = r.seuilSens || 'min';
@@ -604,5 +604,24 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     resultat.sources.sort((a, b) => b.part - a.part);
   }
 
+  resultat.detail = detailCalculs(r.details, pas);
   return resultat;
+}
+
+// Médiane et fourchette de chaque valeur intermédiaire, sur le même
+// sous-échantillon que le reste de l'analyse.
+function detailCalculs(details, pas) {
+  if (!details) return null;
+  const resume = (v) => {
+    if (!(v instanceof Float64Array)) return { p05: v, p50: v, p95: v, fixe: true };
+    const tri = trier(sousEchantillon(v, pas));
+    const p05 = quantile(tri, 0.05), p95 = quantile(tri, 0.95);
+    return { p05, p50: quantile(tri, 0.5), p95, fixe: p95 - p05 === 0 };
+  };
+  const termes = (ts) => ts && ts.map((t) => ({ signe: t.signe, etiquette: t.etiquette, ...resume(t.valeurs) }));
+  return {
+    calculs: details.calculs.map((c) => ({ nom: c.nom, ligne: c.ligne, ...resume(c.valeurs), termes: termes(c.termes) })),
+    options: details.options.map((o) => ({ nom: o.nom, termes: termes(o.termes) })),
+    sortie: details.sortie ? { termes: termes(details.sortie.termes) } : null,
+  };
 }

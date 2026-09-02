@@ -507,6 +507,89 @@ function rendreContre(c, r) {
   return bloc;
 }
 
+// --- Le détail des calculs ---------------------------------------------------
+//
+// Un tableur montre chaque cellule. Ici, « mensualite » ou « cout_achat »
+// restaient des noms sans valeur : impossible de vérifier son modèle autrement
+// qu'en le croyant. Chaque variable calculée est donnée avec sa médiane et sa
+// fourchette, et chaque somme est décomposée — c'est le poids de chaque poste,
+// à sa valeur médiane, ce que « D'où vient l'incertitude » ne dit pas et ne
+// prétend pas dire.
+
+// L'état déplié survit au recalcul : la page se redessine à chaque frappe.
+let detailOuvert = false;
+
+function ligneDetail(nom, v, unite, { ligne = null, classe = '' } = {}) {
+  const li = el('li', { class: classe });
+  if (ligne) {
+    const b = el('button', { class: 'detail-nom', type: 'button', title: 'Voir cette ligne dans le modèle' }, nom);
+    b.addEventListener('click', () => surligneLigne(ligne));
+    li.appendChild(b);
+  } else {
+    li.appendChild(el('span', { class: 'detail-nom', text: nom }));
+  }
+  li.appendChild(el('span', { class: 'detail-val', text: valeur(v.p50, unite) }));
+  li.appendChild(el('span', { class: 'detail-plage', text: v.fixe ? 'valeur fixe' : plage(v.p05, v.p95, unite) }));
+  return li;
+}
+
+function lignesTermes(termes, unite) {
+  const max = Math.max(...termes.map((t) => Math.abs(t.p50))) || 1;
+  return termes.map((t) => {
+    const li = el('li', { class: 'terme' }, [
+      el('span', { class: 'detail-nom' }, [
+        el('span', { class: 'terme-signe', text: t.signe < 0 ? '−' : '+' }), t.etiquette]),
+      el('span', { class: 'detail-val', text: valeur(t.p50, unite) }),
+      jauge(Math.abs(t.p50) / max, true),
+    ]);
+    return li;
+  });
+}
+
+function rendreDetail(r) {
+  const d = r.detail;
+  if (!d) return null;
+  const unite = r.unite;
+  const liste = el('ul', { class: 'detail-liste' });
+  let n = 0;
+
+  // Les branches et le résultat d'abord, quand ils se décomposent : c'est le
+  // poids de chaque poste dans ce qui est comparé.
+  for (const o of d.options) {
+    if (!o.termes) continue;
+    const stats = r.options.liste.find((x) => x.nom === o.nom);
+    if (!stats) continue;
+    liste.appendChild(ligneDetail(o.nom, { p05: stats.stats.p05, p50: stats.stats.p50, p95: stats.stats.p95, fixe: false }, unite, { classe: 'tete' }));
+    for (const li of lignesTermes(o.termes, unite)) liste.appendChild(li);
+    n++;
+  }
+  if (d.sortie && d.sortie.termes && r.sortie) {
+    liste.appendChild(ligneDetail(r.nomSortie || 'résultat', r.sortie, unite, { classe: 'tete' }));
+    for (const li of lignesTermes(d.sortie.termes, unite)) liste.appendChild(li);
+    n++;
+  }
+  for (const c of d.calculs) {
+    liste.appendChild(ligneDetail(c.nom, c, '', { ligne: c.ligne, classe: c.termes ? 'tete' : '' }));
+    if (c.termes) for (const li of lignesTermes(c.termes, '')) liste.appendChild(li);
+    n++;
+  }
+  if (n === 0) return null;
+
+  const bloc = el('details', { class: 'panneau bloc detail', open: detailOuvert }, [
+    el('summary', {}, [
+      el('h2', { text: 'Le détail des calculs' }),
+      el('span', { class: 'detail-compte', text: `${n} valeur${n > 1 ? 's' : ''}` }),
+    ]),
+    el('p', { class: 'rien' },
+      'Chaque valeur calculée, médiane et fourchette à 90 %, dans l’ordre du modèle. '
+      + 'Les sommes sont décomposées : c’est le poids de chaque poste à sa valeur médiane — '
+      + 'ce qui pèse le plus, pas ce qui est le plus incertain.'),
+    liste,
+  ]);
+  bloc.addEventListener('toggle', () => { detailOuvert = bloc.open; });
+  return bloc;
+}
+
 // --- Robustesse à l'excès de confiance --------------------------------------
 //
 // Le seul chiffre que le visiteur fournit est une fourchette, et c'est
@@ -657,6 +740,9 @@ function rendre(r) {
   } catch { /* une frontière introuvable ne doit pas emporter la page */ }
 
   zoneResultats.appendChild(el('section', { class: 'panneau bloc', id: 'robustesse', hidden: true }));
+
+  const detail = rendreDetail(r);
+  if (detail) zoneResultats.appendChild(detail);
 }
 
 // --- Erreurs ----------------------------------------------------------------

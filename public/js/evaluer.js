@@ -445,8 +445,81 @@ class Contexte {
   }
 }
 
+// --- Le détail des calculs --------------------------------------------------
+//
+// Un tableur montre chaque cellule ; ici, seules les hypothèses et le résultat
+// étaient visibles, et « mensualite » ou « cout_achat » restaient des noms sans
+// valeur. On rend chaque variable calculée, et pour celles qui sont une somme,
+// le poids de chaque terme — c'est la réponse à « quel poste pèse le plus ».
+
+const PRIORITE = {
+  ou: 1, et: 2, '>': 3, '<': 3, '>=': 3, '<=': 3, '==': 3, '!=': 3,
+  '+': 4, '-': 4, '*': 5, '/': 5, '^': 6,
+};
+
+const fr = (x) => x.toLocaleString('fr-FR', { maximumFractionDigits: 4 });
+
+function nombreTexte(n) {
+  if (n.pourcent) return fr(n.v * 100) + '\u202f%';
+  if (n.suffixe >= 1e9) return fr(n.v / 1e9) + '\u202fMd';
+  if (n.suffixe >= 1e6) return fr(n.v / 1e6) + '\u202fM';
+  if (n.suffixe >= 1e3) return fr(n.v / 1e3) + '\u202fk';
+  return fr(n.v);
+}
+
+// L'expression, réécrite lisiblement. Sert d'étiquette à un terme sans nom.
+export function imprimer(n, parent = 0) {
+  switch (n.k) {
+    case 'nombre': return nombreTexte(n);
+    case 'var': return n.nom;
+    case 'neg': return '-' + imprimer(n.e, 7);
+    case 'non': return 'non ' + imprimer(n.e, 7);
+    case 'appel': return n.nom + '(' + n.args.map((a) => imprimer(a)).join(', ') + ')';
+    case 'intervalle': return imprimer(n.bas, 4) + ' à ' + imprimer(n.haut, 4);
+    case 'si': return 'si ' + imprimer(n.cond) + ' alors ' + imprimer(n.oui) + ' sinon ' + imprimer(n.non);
+    case 'bin': {
+      if (n.mult) return fr(n.g.v * n.d.v);
+      const p = PRIORITE[n.op] || 3;
+      const droite = imprimer(n.d, p + (n.op === '-' || n.op === '/' ? 1 : 0));
+      const t = imprimer(n.g, p) + ' ' + n.op + ' ' + droite;
+      return p < parent ? '(' + t + ')' : t;
+    }
+    default: return '…';
+  }
+}
+
+// Les termes d'une somme, avec leur signe : « a - b + c » → +a, −b, +c.
+function termes(n, signe = 1, acc = []) {
+  if (n.k === 'bin' && (n.op === '+' || n.op === '-')) {
+    termes(n.g, signe, acc);
+    termes(n.d, n.op === '-' ? -signe : signe, acc);
+  } else if (n.k === 'neg') {
+    termes(n.e, -signe, acc);
+  } else {
+    acc.push({ signe, expr: n });
+  }
+  return acc;
+}
+
+// Un terme qui tire lui-même au sort ne peut pas être réévalué après coup :
+// il produirait d'autres tirages que ceux du calcul. On ne décompose alors pas.
+function contientTirage(n) {
+  if (!n || typeof n !== 'object') return false;
+  if (n.k === 'intervalle') return true;
+  if (n.k === 'appel' && ALEATOIRES.has(n.nom.toLowerCase())) return true;
+  for (const c of ['e', 'g', 'd', 'cond', 'oui', 'non', 'bas', 'haut']) if (contientTirage(n[c])) return true;
+  if (n.args) return n.args.some(contientTirage);
+  return false;
+}
+
+function estSource(expr) {
+  return expr.k === 'intervalle'
+    || (expr.k === 'appel' && ALEATOIRES.has(expr.nom.toLowerCase()));
+}
+const estLitteral = (expr) => expr.k === 'nombre' || (expr.k === 'neg' && expr.e.k === 'nombre');
+
 export function evaluerModele(ast,
-  { N = 20000, graine = 20260901, remplacements = null, elargissement = 1 } = {}) {
+  { N = 20000, graine = 20260901, remplacements = null, elargissement = 1, detail = false } = {}) {
   const ctx = new Contexte(ast, { N, graine, remplacements, elargissement });
 
   // Ordre stable : on force l'évaluation dans l'ordre d'écriture pour que les
@@ -475,5 +548,24 @@ export function evaluerModele(ast,
   const variables = new Map();
   for (const d of ast.declarations) variables.set(d.nom, ctx.cache.get(d.nom));
 
-  return { N, sources: ctx.sources, variables, options, sortie, seuil, seuilSens };
+  let details = null;
+  if (detail) {
+    ctx.nomCourant = null;
+    const decomposer = (expr) => {
+      const ts = termes(expr);
+      if (ts.length < 2 || ts.some((t) => contientTirage(t.expr))) return null;
+      return ts.map((t) => ({
+        signe: t.signe, etiquette: imprimer(t.expr), valeurs: ctx.evaluer(t.expr),
+      }));
+    };
+    details = {
+      calculs: ast.declarations
+        .filter((d) => !estLitteral(d.expr) && !estSource(d.expr))
+        .map((d) => ({ nom: d.nom, ligne: d.ligne, valeurs: ctx.cache.get(d.nom), termes: decomposer(d.expr) })),
+      options: ast.options.map((o) => ({ nom: o.nom, termes: decomposer(o.expr) })),
+      sortie: ast.sortie && !ast.sortie.implicite ? { termes: decomposer(ast.sortie.expr) } : null,
+    };
+  }
+
+  return { N, sources: ctx.sources, variables, options, sortie, seuil, seuilSens, details };
 }
