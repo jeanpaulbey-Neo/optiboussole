@@ -501,9 +501,10 @@ groupe('Chiffres cités par /la-methode');
 
   const v = analyserModele(src('voiture'), { N: 40000 });
   const rep = v.sources.find((x) => x.nom === 'reparations');
-  proche('voiture : les réparations portent 55 % de l\'incertitude', rep.part, 0.55, 0.06);
-  proche('… le verdict bascule au-delà de 1 010 €/an', rep.bascules[0].valeur, 1010, 60);
-  proche('… et lever ce doute vaut environ 830 €', rep.valeurInfo, 830, 120);
+  proche('voiture : les réparations portent 54 % de l\'incertitude', rep.part, 0.54, 0.06);
+  proche('… le verdict bascule au-delà de 1 110 €/an', rep.bascules[0].valeur, 1110, 60);
+  proche('… ce qui arrive 3 fois sur 10', rep.bascules[0].proba, 0.28, 0.04);
+  proche('… et lever ce doute vaut environ 630 €', rep.valeurInfo, 630, 100);
 
   // Le chapitre « Le contre-argument » cite un exemple à trois hypothèses et
   // deux faits sur la bibliothèque. Si le moteur bouge, c'est la page qu'il

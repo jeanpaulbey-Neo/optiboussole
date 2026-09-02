@@ -76,12 +76,16 @@ frais_fixes = 2000 à 5000       # compta, assurance, matériel, local
 ca = tjm * jours_facturables
 freelance_an = ca * (1 - charges) - frais_fixes
 
-# Le risque n’est pas que la moyenne : une année sans mission arrive.
-annee_creuse = bernoulli(12%)
-freelance_reel = si annee_creuse alors freelance_an * 0,4 sinon freelance_an
+# Le risque n’est pas la moyenne : une année sans mission arrive. Chaque
+# année a sa propre chance d’être creuse, 12 %. Le nombre d’années creuses
+# sur la période se tire donc d’un coup, plafonné à l’horizon. Tirer une
+# seule fois « l’année est creuse » et l’appliquer aux trois années
+# reviendrait à supposer qu’elles se ressemblent : ça triple l’écart pour rien.
+creuses = min(horizon, poisson(12% * horizon))
+perte_creuse = 60%              # part du revenu perdue sur une année creuse
 
 option "Rester salarié" = salarie_an * horizon
-option "Passer freelance" = freelance_reel * horizon</textarea>
+option "Passer freelance" = freelance_an * (horizon - creuses * perte_creuse)</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
@@ -93,7 +97,7 @@ option "Passer freelance" = freelance_reel * horizon</textarea>
 <div class="panneau fond">
     <section class="fond-part">
       <h2>Ce que ce modèle compte</h2>
-      <p>Le net perçu de chaque côté sur trois ans. Côté freelance : chiffre d’affaires facturé, moins les cotisations et l’impôt exprimés en part du CA, moins les frais fixes. Le modèle ajoute une chose que les comparaisons oublient : la probabilité d’une année creuse, où les missions ne s’enchaînent pas.</p>
+      <p>Le net perçu de chaque côté sur trois ans. Côté freelance : chiffre d’affaires facturé, moins les cotisations et l’impôt exprimés en part du CA, moins les frais fixes. Le modèle ajoute une chose que les comparaisons oublient : le nombre d’années creuses, où les missions ne s’enchaînent pas. Chaque année a sa propre chance d’être creuse — et c’est ce compte-là, pas le taux journalier, qui décide.</p>
     </section>
     <section class="fond-part">
       <h2>Ce qu’il ignore</h2>

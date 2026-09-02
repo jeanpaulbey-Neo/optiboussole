@@ -67,6 +67,7 @@ km_an = 12000
 conso_actuelle = 7 à 9          # L/100 km
 reparations = 400 à 1800        # par an, et ça monte avec l’âge
 revente_actuelle = 2500 à 4500  # ce qu’elle vaut aujourd’hui
+revente_plus_tard = 300 à 1200  # ce qu’il en restera dans 6 ans
 assurance_actuelle = 550
 
 # --- Acheter d’occasion récente ---------------------------------------
@@ -82,7 +83,10 @@ prix_carburant = 1,60 à 2,20    # €/L, sur la période
 carburant_actuel = km_an/100 * conso_actuelle * prix_carburant
 carburant_nouveau = km_an/100 * conso_nouvelle * prix_carburant
 
-garder = -(carburant_actuel + reparations + assurance_actuelle) * horizon
+# La garder, c’est aussi la posséder encore à la fin : ce n’est pas grand-chose,
+# mais l’oublier revenait à comparer un patrimoine à zéro.
+garder = revente_plus_tard
+  - (carburant_actuel + reparations + assurance_actuelle) * horizon
 changer = revente_actuelle - prix_nouvelle
   + prix_nouvelle * (1 - decote)^horizon
   - (carburant_nouveau + entretien_nouvelle + assurance_nouvelle) * horizon
@@ -100,7 +104,7 @@ option "Changer" = changer</textarea>
 <div class="panneau fond">
     <section class="fond-part">
       <h2>Ce que ce modèle compte</h2>
-      <p>Le coût total de possession de chaque côté sur l’horizon : carburant, réparations, assurance. Côté remplacement, la décote du véhicule racheté est comptée — c’est le poste que les comparaisons oublient le plus souvent — ainsi que la revente de l’ancien.</p>
+      <p>Le coût total de possession de chaque côté sur l’horizon : carburant, réparations, assurance. Côté remplacement, la décote du véhicule racheté est comptée — c’est le poste que les comparaisons oublient le plus souvent — ainsi que la revente de l’ancien. Côté conservation, ce que l’ancienne vaudra encore au bout de l’horizon : ce n’est pas grand-chose, mais l’oublier revenait à comparer un patrimoine à zéro et penchait vers le remplacement.</p>
     </section>
     <section class="fond-part">
       <h2>Ce qu’il ignore</h2>

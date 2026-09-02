@@ -51,7 +51,7 @@ export const FOND = {
 
   freelance: {
     compte: [
-      "Le net perçu de chaque côté sur trois ans. Côté freelance : chiffre d’affaires facturé, moins les cotisations et l’impôt exprimés en part du CA, moins les frais fixes. Le modèle ajoute une chose que les comparaisons oublient : la probabilité d’une année creuse, où les missions ne s’enchaînent pas.",
+      "Le net perçu de chaque côté sur trois ans. Côté freelance : chiffre d’affaires facturé, moins les cotisations et l’impôt exprimés en part du CA, moins les frais fixes. Le modèle ajoute une chose que les comparaisons oublient : le nombre d’années creuses, où les missions ne s’enchaînent pas. Chaque année a sa propre chance d’être creuse — et c’est ce compte-là, pas le taux journalier, qui décide.",
     ],
     ignore: [
       "La protection sociale, et c’est majeur : assurance chômage, retraite, indemnités d’arrêt maladie, congés payés. L’écart réel entre les deux statuts se joue souvent là plutôt que sur le revenu, et rien de tout cela n’est dans le modèle.",
@@ -66,7 +66,7 @@ export const FOND = {
 
   voiture: {
     compte: [
-      "Le coût total de possession de chaque côté sur l’horizon : carburant, réparations, assurance. Côté remplacement, la décote du véhicule racheté est comptée — c’est le poste que les comparaisons oublient le plus souvent — ainsi que la revente de l’ancien.",
+      "Le coût total de possession de chaque côté sur l’horizon : carburant, réparations, assurance. Côté remplacement, la décote du véhicule racheté est comptée — c’est le poste que les comparaisons oublient le plus souvent — ainsi que la revente de l’ancien. Côté conservation, ce que l’ancienne vaudra encore au bout de l’horizon : ce n’est pas grand-chose, mais l’oublier revenait à comparer un patrimoine à zéro et penchait vers le remplacement.",
     ],
     ignore: [
       "Le confort et la sécurité, qui sont des raisons légitimes de changer et que le calcul ne verra jamais. Le coût d’une immobilisation prolongée si la vieille voiture lâche. Les aides à la conversion, qui peuvent déplacer la décision à elles seules.",

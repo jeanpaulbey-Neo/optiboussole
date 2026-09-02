@@ -121,12 +121,16 @@ frais_fixes = 2000 à 5000       # compta, assurance, matériel, local
 ca = tjm * jours_facturables
 freelance_an = ca * (1 - charges) - frais_fixes
 
-# Le risque n’est pas que la moyenne : une année sans mission arrive.
-annee_creuse = bernoulli(12%)
-freelance_reel = si annee_creuse alors freelance_an * 0,4 sinon freelance_an
+# Le risque n’est pas la moyenne : une année sans mission arrive. Chaque
+# année a sa propre chance d’être creuse, 12 %. Le nombre d’années creuses
+# sur la période se tire donc d’un coup, plafonné à l’horizon. Tirer une
+# seule fois « l’année est creuse » et l’appliquer aux trois années
+# reviendrait à supposer qu’elles se ressemblent : ça triple l’écart pour rien.
+creuses = min(horizon, poisson(12% * horizon))
+perte_creuse = 60%              # part du revenu perdue sur une année creuse
 
 option "Rester salarié" = salarie_an * horizon
-option "Passer freelance" = freelance_reel * horizon`,
+option "Passer freelance" = freelance_an * (horizon - creuses * perte_creuse)`,
   },
 
   {
@@ -146,6 +150,7 @@ km_an = 12000
 conso_actuelle = 7 à 9          # L/100 km
 reparations = 400 à 1800        # par an, et ça monte avec l’âge
 revente_actuelle = 2500 à 4500  # ce qu’elle vaut aujourd’hui
+revente_plus_tard = 300 à 1200  # ce qu’il en restera dans 6 ans
 assurance_actuelle = 550
 
 # --- Acheter d’occasion récente ---------------------------------------
@@ -161,7 +166,10 @@ prix_carburant = 1,60 à 2,20    # €/L, sur la période
 carburant_actuel = km_an/100 * conso_actuelle * prix_carburant
 carburant_nouveau = km_an/100 * conso_nouvelle * prix_carburant
 
-garder = -(carburant_actuel + reparations + assurance_actuelle) * horizon
+# La garder, c’est aussi la posséder encore à la fin : ce n’est pas grand-chose,
+# mais l’oublier revenait à comparer un patrimoine à zéro.
+garder = revente_plus_tard
+  - (carburant_actuel + reparations + assurance_actuelle) * horizon
 changer = revente_actuelle - prix_nouvelle
   + prix_nouvelle * (1 - decote)^horizon
   - (carburant_nouveau + entretien_nouvelle + assurance_nouvelle) * horizon
