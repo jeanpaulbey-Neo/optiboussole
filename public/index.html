@@ -116,6 +116,33 @@ option "Louer"   = apport_place - cout_loyer
 
 </div>
 
+<div class="panneau fond">
+    <section class="fond-part">
+      <h2>Ce que ce modèle compte</h2>
+      <p>La mensualité et le capital restant dû sont calculés sur un prêt à annuités constantes, à la durée que vous indiquez. S’y ajoutent les frais de notaire, les charges de copropriété, la taxe foncière et un budget d’entretien annuel proportionnel au prix du bien.</p>
+      <p>En face, le locataire garde son apport placé et paie un loyer qui monte chaque année. Les deux branches sont ramenées à la même chose : le patrimoine net au bout de l’horizon, en actualisant chaque dépense au taux de placement. C’est la seule comparaison honnête entre quelqu’un qui immobilise 50 000 € et quelqu’un qui les fait travailler.</p>
+    </section>
+    <section class="fond-part">
+      <h2>Ce qu’il ignore</h2>
+      <p>La fiscalité, entièrement : impôts locaux hors taxe foncière, imposition d’une plus-value si le bien n’est pas votre résidence principale, dispositifs d’aide à l’accession. L’assurance emprunteur, les frais de dossier et de garantie, qui ajoutent facilement 1 % du montant emprunté.</p>
+      <p>La mobilité, qui est souvent le vrai sujet : un bien revendu au bout de trois ans est presque toujours perdant, les frais d’entrée n’ayant pas eu le temps d’être absorbés. Changez <code>horizon</code> et vous le verrez immédiatement.</p>
+      <p><b>Et une hypothèse qu’il faut connaître</b> : le modèle tire <code>revalorisation</code>, <code>hausse_loyer</code> et <code>placement</code> indépendamment les uns des autres. Dans la réalité, les trois suivent la même conjoncture. Pour l’écrire, remplacez-les par un facteur commun :</p>
+      <pre class="exemple"><code>conjoncture = -1 à 1
+revalorisation = 1,5% + 2% * conjoncture + (-1% à 1%)
+hausse_loyer  = 2% + 1% * conjoncture
+placement     = 3% + 1,5% * conjoncture</code></pre>
+      <p>Le résultat change : l’écart entre les deux branches se resserre, parce qu’un loyer qui s’envole accompagne un bien qui prend de la valeur. Et le site désigne alors <code>conjoncture</code> comme l’hypothèse décisive — ce qui est plus juste, et plus utile, que de désigner l’une des trois.</p>
+    </section>
+    <section class="fond-part">
+      <h2>Où trouver vos chiffres</h2>
+      <p><b>Le taux</b> : le simulateur de votre banque ou d’un courtier, sur la durée exacte que vous visez — pas le taux moyen national, qui ne correspond à personne.</p>
+      <p><b>Les charges de copropriété</b> : le dernier appel de fonds, que le vendeur doit vous communiquer. Prenez l’année complète, pas le trimestre.</p>
+      <p><b>La taxe foncière</b> : l’avis d’imposition du bien. Le vendeur l’a.</p>
+      <p><b>Le loyer comparable</b> : les annonces du quartier à surface et état égaux, aujourd’hui. C’est ce que vous paieriez si vous n’achetiez pas.</p>
+      <p><b>La revalorisation</b> : les indices notariaux de votre commune donnent le passé. Gardez une fourchette large — c’est le chiffre le plus incertain du modèle, et le site vous le dira lui-même.</p>
+    </section>
+</div>
+
 <details class="panneau aide">
   <summary>La syntaxe tient en dix lignes</summary>
   <div class="aide-corps">

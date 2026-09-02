@@ -5,12 +5,42 @@
 // partagé dise ce qu'il contient. Ces pages sont générées ici et écrites sur
 // le disque : le site reste entièrement statique.
 
+import { FOND } from './fond.js';
+
 const SITE = 'https://optiboussole.fr';
 
 const echappe = (t) => String(t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const attr = (t) => echappe(t).replace(/"/g, '&quot;');
+
+// Balisage minimal du texte de fond : `code`, **gras**, et un bloc ```…```.
+function riche(bloc) {
+  if (bloc.startsWith('```')) {
+    return `<pre class="exemple"><code>${echappe(bloc.replace(/^```\n?|\n?```$/g, ''))}</code></pre>`;
+  }
+  const t = echappe(bloc)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return `<p>${t}</p>`;
+}
+
+// Le texte de fond est dans le HTML servi : il se lit sans JavaScript, et
+// c'est la seule chose de ces pages qu'un moteur de recherche peut indexer.
+function fond(modele) {
+  const f = FOND[modele.cle];
+  if (!f) return '';
+  const colonne = (titre, blocs) =>
+    `    <section class="fond-part">
+      <h2>${titre}</h2>
+${blocs.map((b) => '      ' + riche(b)).join('\n')}
+    </section>`;
+  return `<div class="panneau fond">
+${colonne('Ce que ce modèle compte', f.compte)}
+${colonne('Ce qu\u2019il ignore', f.ignore)}
+${colonne('Où trouver vos chiffres', f.chiffres)}
+</div>`;
+}
 
 const AIDE = `<details class="panneau aide">
   <summary>La syntaxe tient en dix lignes</summary>
@@ -170,6 +200,8 @@ ${chips(modeles, modele.cle, defaut)}
   <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>
 
 </div>
+
+${fond(modele)}
 
 ${AIDE}
 

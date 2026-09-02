@@ -425,6 +425,60 @@ nav .exemples { margin-bottom: 0; }
 .aide-corps p { color: var(--attenue); max-width: 70ch; }
 .aide-corps code { font-family: var(--mono); background: var(--papier); padding: .1em .3em; border-radius: 3px; }
 
+/* ---------- Texte de fond ---------- */
+
+.fond {
+  margin-top: 22px;
+  padding: 24px 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+}
+
+.fond-part h2 {
+  font-size: 12px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--attenue);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.fond-part p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--encre);
+  max-width: 46ch;
+}
+.fond-part p:last-child { margin-bottom: 0; }
+.fond-part b { font-weight: 600; }
+.fond-part code {
+  font-family: var(--mono);
+  font-size: .87em;
+  background: var(--papier);
+  padding: .1em .3em;
+  border-radius: 3px;
+}
+
+.fond .exemple {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--papier);
+  border: 1px solid var(--trait);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0 0 10px;
+  overflow-x: auto;
+}
+.fond .exemple code { background: none; padding: 0; }
+
+@media (max-width: 940px) {
+  .fond { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 20px; }
+  .fond-part p { max-width: none; }
+}
+
 /* ---------- Pied ---------- */
 
 footer {

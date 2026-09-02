@@ -306,6 +306,47 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
   await page3.close();
 }
 
+// --- Texte de fond ---------------------------------------------------------------
+console.log('\n\x1b[1mTexte de fond\x1b[0m');
+{
+  const { FOND } = await import('../outils/fond.js');
+  const p7 = await navigateur.newPage();
+  await p7.setViewport({ width: 1280, height: 900 });
+
+  verifie('chaque modèle a un texte de fond',
+    MODELES.every((m) => FOND[m.cle]), '→ ' + MODELES.filter((m) => !FOND[m.cle]).map((m) => m.cle));
+
+  for (const m of MODELES) {
+    const chemin = m.cle === 'logement' ? '/' : '/' + m.slug;
+    // Sans JavaScript : c'est la seule partie de la page qu'un moteur de
+    // recherche peut lire, et un visiteur sans JS aussi.
+    await p7.setJavaScriptEnabled(false);
+    await p7.goto(URL + chemin, { waitUntil: 'domcontentloaded' });
+    const bloc = await p7.evaluate(() => {
+      const f = document.querySelector('.fond');
+      return f ? { parts: f.querySelectorAll('.fond-part').length, texte: f.innerText.length } : null;
+    });
+    verifie(`${chemin} : trois volets de fond, lisibles sans JS`,
+      bloc && bloc.parts === 3 && bloc.texte > 600, `→ ${JSON.stringify(bloc)}`);
+    await p7.setJavaScriptEnabled(true);
+  }
+
+  // Le balisage minimal doit être rendu, pas affiché tel quel.
+  await p7.goto(URL + '/', { waitUntil: 'networkidle0' });
+  const rendu = await p7.evaluate(() => {
+    const f = document.querySelector('.fond');
+    return { texte: f.innerText, gras: f.querySelectorAll('b').length,
+             code: f.querySelectorAll('code').length, exemples: f.querySelectorAll('pre.exemple').length };
+  });
+  verifie('le gras et le code sont rendus', rendu.gras >= 3 && rendu.code >= 3,
+    `→ ${rendu.gras} gras, ${rendu.code} code`);
+  verifie('l’exemple de facteur commun est un bloc de code', rendu.exemples === 1, `→ ${rendu.exemples}`);
+  verifie('aucun balisage brut ne fuit', !/\*\*|```/.test(rendu.texte));
+  verifie('aucune apostrophe droite dans le texte de fond', !/\w'\w/.test(rendu.texte),
+    `→ ${(rendu.texte.match(/\w'\w/g) || []).slice(0, 3)}`);
+  await p7.close();
+}
+
 // --- Plan du site et 404 --------------------------------------------------------
 console.log('\n\x1b[1mIndexation\x1b[0m');
 {
