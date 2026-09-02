@@ -105,6 +105,40 @@ const ALEATOIRES = new Set([
 
 const AGREGATS = new Set(['esperance', 'espérance', 'moyenne', 'proba', 'mediane', 'médiane', 'ecart_type', 'écart_type']);
 
+// Distance d'édition, plafonnée : inutile de calculer au-delà du seuil qu'on
+// s'autorise, et ça évite de suggérer un nom qui n'a rien à voir.
+function distance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prec = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let meilleur = i;
+    for (let j = 1; j <= b.length; j++) {
+      const c = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prec[j] + 1, cur[j - 1] + 1, prec[j - 1] + c);
+      if (cur[j] < meilleur) meilleur = cur[j];
+    }
+    if (meilleur > max) return max + 1;
+    prec = cur;
+  }
+  return prec[b.length];
+}
+
+// Le nom défini le plus proche : la casse d'abord — « Loyer » contre « loyer »
+// est la faute la plus fréquente et la plus invisible — puis l'orthographe.
+function plusProche(nom, candidats) {
+  const bas = nom.toLowerCase();
+  const memeCasse = candidats.find((c) => c.toLowerCase() === bas);
+  if (memeCasse) return memeCasse;
+  const max = nom.length <= 4 ? 1 : nom.length <= 8 ? 2 : 3;
+  let meilleur = null, d = max + 1;
+  for (const c of candidats) {
+    const e = distance(bas, c.toLowerCase(), max);
+    if (e < d) { d = e; meilleur = c; }
+  }
+  return meilleur;
+}
+
 // --- Contexte d'évaluation --------------------------------------------------
 
 class Contexte {
@@ -169,7 +203,14 @@ class Contexte {
   variable(nom, ligne) {
     if (this.cache.has(nom)) return this.cache.get(nom);
     const d = this.decls.get(nom);
-    if (!d) throw new ErreurModele(`« ${nom} » n'est défini nulle part`, ligne);
+    if (!d) {
+      // Neuf fois sur dix c'est une faute de frappe ou une majuscule perdue, et
+      // le visiteur relit trois fois la bonne ligne sans voir la différence.
+      const suggestion = plusProche(nom, [...this.decls.keys()]);
+      throw new ErreurModele(
+        `« ${nom} » n'est défini nulle part`
+        + (suggestion ? ` — vouliez-vous dire « ${suggestion} » ?` : ''), ligne);
+    }
     if (this.enCours.has(nom)) {
       throw new ErreurModele(`« ${nom} » se définit à partir de lui-même`, d.ligne);
     }

@@ -368,6 +368,19 @@ function avertissements(ast) {
     }
   }
 
+  // Le site a lu une contrainte comme un objectif. Il le dit : sans ça, le
+  // visiteur verrait un seuil qu'il n'a jamais écrit et ne saurait pas d'où
+  // il sort — et il n'apprendrait pas la façon canonique de l'écrire.
+  if (ast.objectifDeduit) {
+    const o = ast.objectifDeduit;
+    liste.push({
+      ligne: o.ligne,
+      texte: `« ${o.op} » a été lu comme un objectif : le site calcule le membre de `
+        + `gauche et mesure la probabilité de rester ${o.sens === 'max' ? 'en dessous' : 'au-dessus'}. `
+        + `L’écriture directe est « seuil: ${o.sens === 'max' ? '<= ' : ''}… ».`,
+    });
+  }
+
   if (ast.options.length === 1) {
     liste.push({
       ligne: ast.options[0].ligne,
@@ -390,7 +403,10 @@ function partNonFinie(v) {
 
 export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   const ast = analyser(source);
-  if (ast.declarations.length === 0 && ast.options.length === 0) {
+  // « Écrivez une première ligne » ne doit s'afficher qu'à quelqu'un qui n'a
+  // rien écrit. Une ligne isolée qui ne définit rien doit être calculée — et
+  // c'est son erreur, pas ce message, qui doit remonter.
+  if (ast.declarations.length === 0 && ast.options.length === 0 && !ast.sortie) {
     return { vide: true, ast, avertissements: [] };
   }
   const r = evaluerModele(ast, { N });
@@ -512,6 +528,17 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     resultat.sources.sort((a, b) => (b.valeurInfo - a.valeurInfo) || (b.part - a.part));
   } else if (r.sortie) {
     const st = statistiques(r.sortie);
+    // Un résultat qui ne prend que deux valeurs est une comparaison qu'on a
+    // prise pour une quantité : « Résultat : 0 » ne veut rien dire. Le filet
+    // couvre les cas que la lecture d'objectif ne rattrape pas (« ok = a > b »).
+    if (!ast.objectifDeduit && seuil === null && estBinaire(st.tri)) {
+      notes.push({
+        ligne: ast.sortie.ligne,
+        texte: 'Le résultat ne vaut que 0 ou 1 : c’est une comparaison, pas une '
+          + 'quantité. Pour mesurer une probabilité, mettez la valeur elle-même en '
+          + 'résultat et fixez l’objectif avec « seuil: … ».',
+      });
+    }
     resultat.sortie = st;
     const sortieA = sousEchantillon(r.sortie, pas);
     const rangSortie = rangs(sortieA);

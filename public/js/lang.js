@@ -44,6 +44,7 @@ const INTERVALLE = new Set(['à', 'a', '~', '..', 'to']);
 const SUFFIXES = { k: 1e3, K: 1e3, M: 1e6, m: 1e6, G: 1e9, Md: 1e9, md: 1e9, Mds: 1e9 };
 
 const MULTIPLICATEURS_MOTS = {
+  'pourcent': 0.01, 'pourcents': 0.01,
   'mille': 1e3, 'milliers': 1e3,
   'million': 1e6, 'millions': 1e6,
   'milliard': 1e9, 'milliards': 1e9,
@@ -71,8 +72,11 @@ export function lexer(source) {
         || c === '\u00a0' || c === '\u202f' || c === '\u2009' || c === '\u2007') {
       i++; continue;
     }
-    // Un point-virgule sépare deux instructions, comme une fin de ligne.
-    if (c === ';') { pousser('nl'); i++; continue; }
+    // Un point-virgule sépare deux instructions, comme une fin de ligne — mais
+    // à l'intérieur d'une parenthèse c'est un séparateur d'arguments. Les
+    // tableurs français écrivent « max(1;2) », et c'est de là que viennent la
+    // moitié des gens qui savent déjà écrire une formule.
+    if (c === ';') { pousser(profondeur > 0 ? ',' : 'nl'); i++; continue; }
     if (c === '#' || (c === '/' && source[i + 1] === '/')) {
       while (i < n && source[i] !== '\n') i++;
       continue;
@@ -92,9 +96,12 @@ export function lexer(source) {
     // Nombre. Accepte 1 234,5 / 1_234.5 / 12% / 250k / 3.2e4
     if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(source[i + 1] || ''))) {
       let j = i, brut = '';
-      while (j < n && /[0-9_  ]/.test(source[j])) {
+      // Les quatre espaces qui séparent les milliers en français : l'ordinaire,
+      // l'insécable, la fine insécable — celle que produit `toLocaleString('fr-FR')`,
+      // donc tout copier-coller d'une page web — et la fine.
+      while (j < n && /[0-9_    ]/.test(source[j])) {
         // Un espace n'est un séparateur de milliers que s'il est suivi de 3 chiffres.
-        if (/[  ]/.test(source[j])) {
+        if (/[    ]/.test(source[j])) {
           if (!/^[0-9]{3}(?![0-9])/.test(source.slice(j + 1, j + 5))) break;
         }
         if (/[0-9]/.test(source[j])) brut += source[j];
@@ -129,6 +136,21 @@ export function lexer(source) {
           (s) => deux.startsWith(s) && !EST_IDENT.test(source[j + s.length] || '')
         );
         if (cle) { valeur *= SUFFIXES[cle]; j += cle.length; }
+      }
+      // « 900 € », « 250 000 €», « 3 %/an » : le symbole qui suit un nombre est
+      // décoratif — il n'y a pas d'arithmétique des symboles monétaires. Le
+      // refuser cassait le modèle sur une habitude typographique française, et
+      // sur tout copier-coller venu d'ailleurs. L'unité du résultat, elle, se
+      // déclare toujours en tête.
+      let deco = false;
+      let u = j;
+      while (u < n && (source[u] === ' ' || source[u] === '\u00a0' || source[u] === '\u202f')) u++;
+      if ('€$£¥₽¢°'.includes(source[u] || '')) { j = u + 1; deco = true; }
+      // Le dénominateur d'une unité composée : « €/mois », « %/an ». Collé,
+      // sans espace, et suivi de lettres — jamais confondu avec une division.
+      if ((deco || pourcent) && source[j] === '/' && EST_LETTRE.test(source[j + 1] || '')) {
+        j++;
+        while (j < n && EST_IDENT.test(source[j])) j++;
       }
       pousser('nombre', valeur);
       jetons[jetons.length - 1].pourcent = pourcent;
@@ -170,6 +192,18 @@ export function lexer(source) {
     }
     if (['≥', '≤', '≠'].includes(c)) {
       pousser('op', c === '≥' ? '>=' : c === '≤' ? '<=' : '!='); i++; continue;
+    }
+    // « 1000 ± 100 » est la façon la plus répandue d'écrire une incertitude
+    // hors de ce site : elle vaut la fourchette « 900 à 1100 ».
+    if (c === '\u00b1') { pousser('pm'); i++; continue; }
+    if (deux === '+-' || source.slice(i, i + 3) === '+/-') {
+      pousser('pm'); i += (deux === '+-' ? 2 : 3); continue;
+    }
+    if (c === '\u00b2' || c === '\u00b3') {
+      // « 2² » : l'exposant typographique se lit comme « ^2 ».
+      pousser('op', '^');
+      pousser('nombre', c === '\u00b2' ? 2 : 3);
+      i++; continue;
     }
     if ('+-*/^×÷'.includes(c)) {
       pousser('op', c === '×' ? '*' : c === '÷' ? '/' : c); i++; continue;
@@ -286,11 +320,34 @@ class Parseur {
     if (this.estType('interv')) {
       const ligne = this.ligne();
       this.avance();
+      if (this.estType('nl') || this.estType('fin')) {
+        throw new ErreurModele(
+          'une fourchette a deux bornes : il manque la valeur haute, '
+          + 'comme dans « 900 à 1150 »', ligne);
+      }
       const d = this.somme();
+      if (this.estType('interv')) {
+        throw new ErreurModele(
+          'une fourchette a deux bornes, pas trois. Pour une estimation basse, '
+          + 'probable et haute, écrivez « triangulaire(900, 1000, 1150) »', ligne);
+      }
       // Si l'auteur a écrit « 1% à 4% », la grandeur est une proportion :
       // on s'en souvient pour l'afficher en pourcentage plus tard.
       const pourcent = (g.k === 'nombre' && g.pourcent) || (d.k === 'nombre' && d.pourcent);
       return { k: 'intervalle', bas: g, haut: d, pourcent, ligne };
+    }
+    // « 1000 ± 100 » : la même fourchette, écrite comme tout le monde l'écrit.
+    if (this.estType('pm')) {
+      const ligne = this.ligne();
+      this.avance();
+      const d = this.somme();
+      return {
+        k: 'intervalle',
+        bas: { k: 'bin', op: '-', g, d, ligne },
+        haut: { k: 'bin', op: '+', g, d, ligne },
+        pourcent: (g.k === 'nombre' && g.pourcent) || (d.k === 'nombre' && d.pourcent),
+        ligne,
+      };
     }
     return g;
   }
@@ -347,6 +404,30 @@ class Parseur {
 
   primaire() {
     const t = this.cur();
+    // Une condition peut servir d'opérande : « travail + si pepin alors 10
+    // sinon 0 ». Sans ça, la seule écriture naturelle du cas le plus courant
+    // — ajouter un aléa à une somme — était refusée.
+    if (t.type === 'mc' && (t.valeur === 'si' || t.valeur === 'if')) return this.ternaire();
+    // « entre 900 et 1150 » : la fourchette dite en français.
+    if (t.type === 'ident' && t.valeur.toLowerCase() === 'entre'
+        && this.j[this.i + 1] && this.j[this.i + 1].type !== '(') {
+      this.avance();
+      const bas = this.somme();
+      if (!this.estMC('et') && !this.estMC('and')) {
+        throw new ErreurModele('« et » attendu après « entre … »', t.ligne);
+      }
+      this.avance();
+      const haut = this.somme();
+      return {
+        k: 'intervalle', bas, haut, ligne: t.ligne,
+        pourcent: (bas.k === 'nombre' && bas.pourcent) || (haut.k === 'nombre' && haut.pourcent),
+      };
+    }
+    if (t.type === 'texte') {
+      throw new ErreurModele(
+        'les guillemets ne servent qu\u2019à nommer une option : '
+        + `écrivez « ${t.valeur} » sans guillemets, ou « option "${t.valeur}" = … »`, t.ligne);
+    }
     if (t.type === 'nombre') {
       this.avance();
       return { k: 'nombre', v: t.valeur, pourcent: t.pourcent, ligne: t.ligne };
@@ -397,6 +478,7 @@ export function analyser(sourceBrute) {
     p.sauterNL();
     if (p.estType('fin')) break;
     const ligne = p.ligne();
+    const iDebut = p.i;
 
     // Directives « unité: € » et « seuil: 0 ».
     if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === ':') {
@@ -443,6 +525,36 @@ export function analyser(sourceBrute) {
     }
 
     if (!p.estType('nl') && !p.estType('fin')) {
+      // Un « = » plus loin sur la même ligne : ce n'est pas l'expression qui
+      // cloche, c'est le nom, écrit avec des espaces ou des tirets. On propose
+      // le même nom d'un seul tenant, construit sur ses propres mots.
+      let k = iDebut, nomBrut = [];
+      while (p.j[k] && p.j[k].type !== 'nl' && p.j[k].type !== 'fin' && p.j[k].type !== 'assign') {
+        if (p.j[k].type === 'ident' || p.j[k].type === 'nombre') nomBrut.push(p.j[k].valeur);
+        k++;
+      }
+      if (p.j[k] && p.j[k].type === 'assign' && nomBrut.length > 1) {
+        throw new ErreurModele(
+          `un nom d’hypothèse s’écrit d’un seul tenant, sans espace ni tiret : `
+          + `essayez « ${nomBrut.join('_')} = … »`, ligne);
+      }
+      // « loyer  900  1150 » — une ligne de tableur collée telle quelle, avec
+      // ses tabulations. On rend au visiteur sa propre ligne, réécrite.
+      const ligneJetons = [];
+      for (let q = iDebut; p.j[q] && p.j[q].type !== 'nl' && p.j[q].type !== 'fin'; q++) {
+        ligneJetons.push(p.j[q]);
+      }
+      if (ligneJetons.length >= 2 && ligneJetons.length <= 3
+          && ligneJetons[0].type === 'ident'
+          && ligneJetons.slice(1).every((t) => t.type === 'nombre')) {
+        // Sans séparateur de milliers : le message doit pouvoir être recopié tel
+        // quel dans l'éditeur, et le visiteur n'avait pas écrit d'espace.
+        const nb = ligneJetons.slice(1).map(
+          (t) => t.valeur.toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 6 }));
+        throw new ErreurModele(
+          `cette ligne ressemble à une ligne de tableau. Écrivez-la « `
+          + `${ligneJetons[0].valeur} = ${nb.join(' à ')} »`, ligne);
+      }
       // Une suite de mots sans « = », c'est presque toujours une phrase écrite
       // dans l'éditeur. Autant le dire.
       if (p.estType('ident') || p.estType('mc')) {
@@ -455,11 +567,24 @@ export function analyser(sourceBrute) {
     }
   }
 
+  // « prix <= budget » n'est pas un calcul, c'est une contrainte — et le site
+  // sait exactement y répondre : il calcule `prix` et mesure la probabilité de
+  // rester sous `budget`. Sans cette lecture, la ligne se calculait sans
+  // broncher et affichait « Résultat : 0 », ce qui ne veut rien dire.
+  let objectifDeduit = null;
+  const COMPARAISONS = { '<': 'max', '<=': 'max', '>': 'min', '>=': 'min' };
+  if (sortie && !seuil && sortie.expr.k === 'bin' && COMPARAISONS[sortie.expr.op]) {
+    const c = sortie.expr;
+    objectifDeduit = { ligne: sortie.ligne, op: c.op, sens: COMPARAISONS[c.op] };
+    seuil = { expr: c.d, sens: COMPARAISONS[c.op], ligne: sortie.ligne };
+    sortie = { expr: c.g, ligne: sortie.ligne };
+  }
+
   if (!sortie && options.length === 0 && declarations.length > 0) {
     // Par défaut, la dernière variable définie est le résultat.
     const derniere = declarations[declarations.length - 1];
     sortie = { expr: { k: 'var', nom: derniere.nom, ligne: derniere.ligne }, ligne: derniere.ligne, implicite: true };
   }
 
-  return { declarations, options, sortie, unite, seuil };
+  return { declarations, options, sortie, unite, seuil, objectifDeduit };
 }

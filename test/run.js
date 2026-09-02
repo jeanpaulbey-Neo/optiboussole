@@ -336,7 +336,15 @@ groupe('Saisies approximatives');
 
   erreur('les accolades renvoient aux parenthèses', 'x = {1 à 3}', 'parenthèses');
   erreur('les crochets aussi', 'x = [1, 3]', 'parenthèses');
-  erreur('un symbole monétaire renvoie à « unité: »', 'prix = 100 €', 'unité');
+  // Un symbole collé à un nombre est décoratif : c'est ainsi qu'on écrit un
+  // prix en français, et le refuser cassait le modèle sur une virgule de style.
+  proche('« 100 € » se lit comme 100', val('x = 100 €'), 100, 0);
+  proche('« 250 000 € » aussi', val('x = 250 000 €'), 250000, 0);
+  proche('« 900 à 1150 €/mois » : l\'unité composée est décorative',
+    analyserModele('x = 900 à 1150 €/mois', { N: 20000 }).sortie.p50, 1017, 12);
+  proche('« 3 %/an » également', val('x = 3 %/an'), 0.03, 1e-12);
+  proche('… mais « 100 / 4 » reste une division', val('x = 100 / 4'), 25, 0);
+  erreur('un symbole monétaire seul renvoie à « unité: »', 'x = € * 2', 'unité');
   erreur('une phrase est reconnue comme telle', 'je veux savoir si je dois acheter', 'ressemble à une phrase');
   erreur('« nom: valeur » renvoie à « nom = valeur »', 'loyer: 900 à 1150', 'loyer = ');
   {
@@ -369,6 +377,95 @@ groupe('Modèles volumineux');
   verifie('le sous-échantillonnage garde le bon classement',
     ri.sources[0].nom === 'gros' && ri.sources[0].part > 0.9,
     `→ ${ri.sources[0].nom} ${ri.sources[0].part.toFixed(2)}`);
+}
+
+// --- Ce que le visiteur écrit vraiment --------------------------------------
+//
+// Trois sessions de suite, une demi-heure passée à taper des entrées plausibles
+// mais imparfaites a rapporté plus que n'importe quelle relecture. Ces cas-là
+// viennent tous de cette demi-heure : chacun était refusé, ou pire, calculé de
+// travers. Ils sont ici pour ne plus jamais l'être.
+groupe('Ce que le visiteur écrit vraiment');
+{
+  // Une contrainte n'est pas un calcul. Elle se calculait pourtant sans
+  // broncher, et affichait « Résultat : 0 » — la pire sortie possible.
+  const c = analyserModele('budget = 300k\nprix = 250k à 400k\nprix <= budget', { N: 20000 });
+  proche('« prix <= budget » : le résultat est le prix', c.sortie.p50, 316000, 4000);
+  verifie('… et le budget devient l’objectif', c.seuil === 300000 && c.seuilSens === 'max',
+    `→ ${c.seuil} / ${c.seuilSens}`);
+  verifie('… avec une probabilité de le tenir', c.pAtteint > 0.3 && c.pAtteint < 0.4,
+    `→ ${c.pAtteint}`);
+  verifie('… et le site dit comment il l’a lu',
+    c.avertissements.some((a) => /lu comme un objectif/.test(a.texte)));
+
+  const d = analyserModele('a = 1 à 2\nb = 3\nok = a > b', { N: 8000 });
+  verifie('un résultat qui ne vaut que 0 ou 1 est signalé',
+    d.avertissements.some((a) => /0 ou 1/.test(a.texte)),
+    `→ ${d.avertissements.map((a) => a.texte).join(' | ')}`);
+
+  // Une condition ajoutée à une somme : l'écriture la plus naturelle du cas le
+  // plus courant, et elle était refusée.
+  proche('« a + si … alors … sinon … » se parse',
+    val('a = 10\nx = a + si a > 5 alors 3 sinon 0'), 13, 0);
+  proche('… et se lie bien au terme de gauche',
+    val('x = 1 + si 0 alors 100 sinon 2'), 3, 0);
+
+  // Les notations d'incertitude venues d'ailleurs.
+  {
+    const r = analyserModele('x = 1000 ± 100', { N: 40000 });
+    proche('« 1000 ± 100 » : borne basse', r.sortie.p05, 900, 8);
+    proche('… borne haute', r.sortie.p95, 1100, 8);
+  }
+  proche('« +/- » s\'écrit aussi en ASCII',
+    analyserModele('x = 1000 +/- 100', { N: 40000 }).sortie.p05, 900, 8);
+  proche('« entre 900 et 1150 » est une fourchette',
+    analyserModele('x = entre 900 et 1150', { N: 40000 }).sortie.p50, 1017, 8);
+  proche('« 3 pourcent » vaut 0,03', val('x = 3 pourcent'), 0.03, 1e-12);
+  proche('« 2² » vaut 4', val('x = 2²'), 4, 0);
+
+  // L'habitude des tableurs français : le point-virgule sépare les arguments.
+  proche('« max(1;2) » comme dans un tableur', val('x = max(1;2)'), 2, 0);
+  proche('« max(1,5 ; 2,5) » : virgule décimale et point-virgule ensemble',
+    val('x = max(1,5 ; 2,5)'), 2.5, 1e-12);
+  proche('… et le point-virgule reste un séparateur d\'instructions dehors',
+    val('a = 2; b = a * 3'), 6, 0);
+
+  // Les messages qui remplacent un « caractère inattendu ».
+  erreur('un nom avec des espaces propose le nom collé',
+    'prix du kilo = 2 à 4', 'prix_du_kilo');
+  erreur('un nom avec un tiret aussi', 'prix-kilo = 2 à 4', 'prix_kilo');
+  erreur('une ligne de tableau est reconnue', 'loyer\t900\t1150', 'loyer = 900 à 1150');
+  proche('… et la ligne proposée se recalcule telle quelle',
+    analyserModele('loyer = 900 à 1150', { N: 20000 }).sortie.p50, 1017, 8);
+  proche('un nombre copié d\'une page web (espace fine insécable) se lit',
+    val('x = 250\u202f000'), 250000, 0);
+  erreur('une fourchette sans borne haute le dit', 'x = 900 à', 'borne');
+  erreur('une fourchette à trois valeurs renvoie à triangulaire',
+    'x = 900 à 1000 à 1150', 'triangulaire');
+  erreur('des guillemets dans un calcul renvoient à « option »',
+    'loyer = "1 150"', 'guillemets');
+
+  // La faute la plus fréquente et la plus invisible : une majuscule perdue.
+  erreur('une majuscule perdue est rattrapée',
+    'Loyer = 900 à 1150\ntotal = loyer * 12', 'vouliez-vous dire « Loyer »');
+  erreur('une lettre en trop aussi',
+    'reparations = 100\ny = reparation * 2', 'vouliez-vous dire « reparations »');
+  {
+    // … mais pas n'importe quoi : suggérer un nom sans rapport serait pire.
+    let msg = '';
+    try { analyserModele('abc = 1\ny = xyzzy'); } catch (e) { msg = e.message; }
+    verifie('un nom sans rapport ne déclenche aucune suggestion',
+      !/vouliez-vous/.test(msg), `→ ${msg}`);
+  }
+
+  // « Écrivez une première ligne » ne doit s'afficher qu'à qui n'a rien écrit.
+  verifie('un modèle vide est dit vide', analyserModele('# rien\n').vide === true);
+  {
+    let msg = '';
+    try { analyserModele('a == 5'); } catch (e) { msg = e.message; }
+    verifie('une ligne isolée remonte son erreur, pas « écrivez une ligne »',
+      /n'est défini nulle part/.test(msg), `→ ${msg}`);
+  }
 }
 
 // --- Les chiffres cités par /la-methode -------------------------------------

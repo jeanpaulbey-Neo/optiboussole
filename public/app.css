@@ -408,6 +408,10 @@ nav .exemples { margin-bottom: 0; }
 }
 .note-basse { margin-top: 14px; }
 
+/* La note de tolérance du panneau d'aide : ce que le site accepte sans qu'on
+   ait à le deviner. Elle suit un tableau, d'où la marge haute. */
+.aide-note { margin: 14px 0 0; color: var(--attenue); font-size: 13.5px; max-width: 72ch; }
+
 /* Le contre-argument : un scénario, pas un tableau. Chaque ligne se lit comme
    une phrase — « prix_m2, de 49,6 à 60,4, 37 % de l'écart » — et la grille sert
    seulement à aligner les colonnes pour qu'on puisse les comparer d'un coup. */

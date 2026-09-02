@@ -322,9 +322,28 @@ console.log('\n\x1b[1mQuand le visiteur écrit de travers\x1b[0m');
   e = await essayer('taux = 3,2 %\ncapital = 1000\ny = capital * taux');
   verifie('« 3,2 % » avec une espace est accepté', !e.err && /32/.test(e.res), `→ ${e.err || e.res.slice(0, 40)}`);
 
-  e = await essayer('prix = 250 000 €');
-  verifie('un symbole d’unité donne un message utile',
+  // Le symbole collé au nombre est décoratif : « 250 000 € » se calcule.
+  e = await essayer('prix = 250 000 €\nseuil: <= 300 000 €\nprix');
+  verifie('un prix écrit à la française se calcule',
+    !e.err && /250/.test(e.res), `→ ${e.err || e.res.slice(0, 60)}`);
+  e = await essayer('x = € * 2');
+  verifie('… mais un symbole seul renvoie toujours à « unité: »',
     /unité:/.test(e.err), `→ ${e.err}`);
+
+  e = await essayer('budget = 300k\nprix = 250k à 400k\nprix <= budget');
+  verifie('une contrainte est lue comme un objectif',
+    !e.err && /objectif/.test(e.av), `→ ${e.err || e.av.slice(0, 70)}`);
+
+  e = await essayer('Loyer = 900 à 1150\ntotal = loyer * 12');
+  verifie('une majuscule perdue est rattrapée',
+    /vouliez-vous dire/.test(e.err), `→ ${e.err}`);
+
+  e = await essayer('prix du kilo = 2 à 4');
+  verifie('un nom avec des espaces propose le nom collé',
+    /prix_du_kilo/.test(e.err), `→ ${e.err}`);
+
+  e = await essayer('a = 1000 ± 100\nb = a * 2');
+  verifie('« ± » écrit une fourchette', !e.err && /2/.test(e.res), `→ ${e.err || e.res.slice(0, 40)}`);
 
   e = await essayer('a = 100\nb = 20\nc = 3\ntotal = a - b\n  + c * 2');
   verifie('une formule sur plusieurs lignes est calculée en entier',

@@ -112,13 +112,21 @@ cout_km = (fixe + carburant) / km_an</textarea>
   <div class="aide-corps">
     <table>
       <tr><td>prix = 250k</td><td>Une valeur que vous connaissez. <code>k</code>, <code>M</code>, <code>Md</code>, <code>12 %</code>, <code>1 234,5</code> et <code>3 millions</code> s’écrivent comme on les dit.</td></tr>
-      <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu’il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C’est tout ce que le site vous demande de savoir.</td></tr>
+      <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu’il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C’est tout ce que le site vous demande de savoir. S’écrit aussi <code>1000 ± 100</code>, <code>entre 900 et 1150</code>, ou <code>900 .. 1150</code>.</td></tr>
       <tr><td>total = prix + loyer * 12</td><td>De l’arithmétique ordinaire. Une variable réutilisée garde la même valeur tirée : <code>a - a</code> fait toujours zéro.</td></tr>
       <tr><td>option "Acheter" = …<br>option "Louer" = …</td><td>Deux lignes <code>option</code> ou plus, et le site passe en mode décision : il compare, recommande, et cherche les seuils de bascule.</td></tr>
       <tr><td>unité: €</td><td>Le libellé du <b>résultat</b>, pas des hypothèses — dans un modèle en <code>€/km</code>, un nombre de kilomètres reste un nombre de kilomètres. Libre : <code>€/km</code>, <code>mois</code>, <code>kg CO₂e</code>. Une hypothèse écrite <code>3 % à 5 %</code> s’affiche en pourcentage parce que vous l’avez écrite ainsi.</td></tr>
       <tr><td>seuil: 12<br>seuil: &lt;= 90</td><td>En mode estimation : la valeur que vous visez. Sans signe, elle se lit « au moins 12 » ; avec <code>&lt;=</code>, « au plus 90 » — une durée, un budget ou une dose se visent par le haut. Le site calcule la probabilité de tenir l’objectif, et à partir de quelle hypothèse vous passez du mauvais côté.</td></tr>
+      <tr><td>prix &lt;= budget</td><td>Une contrainte plutôt qu’un calcul : le site calcule <code>prix</code> et mesure la probabilité de rester sous <code>budget</code>. C’est une écriture raccourcie de <code>seuil: &lt;= budget</code>.</td></tr>
       <tr><td># commentaire</td><td>Ignoré. La dernière ligne sans <code>=</code>, ou la dernière variable définie, est le résultat.</td></tr>
     </table>
+    <p class="aide-note">
+      Le site accepte ce qu’on écrit vraiment : les symboles collés aux nombres
+      (<code>900 €</code>, <code>3 %/an</code>), l’espace insécable et l’espace des milliers,
+      le point-virgule comme séparateur d’arguments à la mode tableur (<code>max(1;2)</code>),
+      et les accents dans les noms. Un nom d’hypothèse, lui, s’écrit d’un seul tenant :
+      <code>prix_du_kilo</code>, pas <code>prix du kilo</code>.
+    </p>
 
     <h3>Fonctions disponibles</h3>
     <table>
@@ -167,6 +175,17 @@ cout_km = (fixe + carburant) / km_an</textarea>
       un verdict qui tombe à 1,3 n’est pas un verdict. Les lois discrètes
       (<code>bernoulli</code>, <code>poisson</code>) ne sont pas élargies : une probabilité
       ne s’étire pas comme une fourchette.
+    </p>
+
+    <h3>Le contre-argument</h3>
+    <p>
+      Le seuil de bascule déplace <em>une</em> hypothèse. Quand aucune ne renverse le verdict
+      à elle seule, le site cherche le jeu d’hypothèses le plus proche du vôtre qui donnerait
+      la conclusion contraire, et vous le montre chiffré : voilà ce qu’il faudrait croire.
+      La distance est mesurée dans l’unité de vos propres fourchettes — zéro à la médiane,
+      1,645 au bord. Si aucun scénario plausible ne renverse le verdict, le site le dit :
+      votre désaccord, s’il en reste un, n’est pas dans les chiffres du modèle mais dans
+      ce qui n’y figure pas.
     </p>
 
     <h3>Ce que ce site ne fait pas</h3>
