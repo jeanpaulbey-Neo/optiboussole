@@ -97,6 +97,7 @@ mois_tenables = si deficit &lt;= 0 alors 60 sinon min(60, reserve / deficit)</te
       <h2>Ce que ce modèle compte</h2>
       <p>Les sorties mensuelles, les entrées incertaines, et la réserve disponible. Le résultat est le nombre de mois avant épuisement, plafonné à cinq ans — au-delà, la question ne se pose plus dans ces termes.</p>
       <p>Le site calcule la probabilité de tenir l’objectif que vous fixez avec <code>seuil</code>, et le niveau de revenu à partir duquel vous passez du mauvais côté. C’est ce seuil-là qui sert : il se surveille, contrairement à une moyenne.</p>
+      <p>Dans le détail des calculs, les sorties se décomposent poste par poste : le loyer est le plus lourd, mais l’incertitude des sorties vient des <code>imprevus</code> et des <code>courses</code>. Le loyer, on le connaît ; c’est sur les deux autres que porte la fourchette, et c’est là que vos relevés servent.</p>
     </section>
     <section class="fond-part">
       <h2>Ce qu’il ignore</h2>

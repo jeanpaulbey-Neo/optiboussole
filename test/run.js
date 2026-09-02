@@ -629,6 +629,56 @@ groupe('Ce que le visiteur écrit vraiment (cinquième récolte)');
   proche('« 2030 - 2026 » reste un calcul', val('x = 2030 - 2026'), 4, 0);
 }
 
+// --- Sixième récolte : des questions réelles, transcrites telles quelles ------
+// Deux fils de forum (forumconstruire, moneyvox) réécrits avec les notations
+// de leurs auteurs : « 276 500€ à 1.69% », « 150m² », « 20 000€ posé ».
+groupe('Des questions réelles, écrites comme on les pose');
+{
+  const rachat = `unité: €
+capital = 276 500€
+taux_actuel = 1.69%
+duree_restante = 23 ans
+nouveau_taux = 1.35% à 1.48%
+frais = 1000 à 3000  # IRA + dossier + garantie
+i1 = taux_actuel/12
+i2 = nouveau_taux/12
+n = duree_restante*12
+mensualite_actuelle = capital * i1 / (1 - (1+i1)^-n)
+mensualite_nouvelle = capital * i2 / (1 - (1+i2)^-n)
+gain = (mensualite_actuelle - mensualite_nouvelle) * n - frais`;
+  const r = analyserModele(rachat, { N: 20000 });
+  proche('rachat de crédit (moneyvox) : la mensualité actuelle', r.detail.calculs.find((c) => c.nom === 'mensualite_actuelle').p50, 1210, 2);
+  proche('… et le gain médian', r.sortie.p50, 8050, 150);
+  verifie('… avec « ans » signalé comme unité, et rien d’autre',
+    r.avertissements.length === 1 && /« ans »/.test(r.avertissements[0].texte));
+
+  const pac = `unité: €
+surface = 150m²
+cout_pac = 20 000€ posé
+cout_gaz = 8000€ à 12000€ posé
+besoin_chauffage = 15 à 40 kWh/m²/an
+cop = 2,5 à 4
+prix_elec = 0,25€/kWh à 0,32€/kWh
+prix_gaz = 0,10€ à 0,14€ le kWh
+duree = 15 ans
+facture_pac = surface * besoin_chauffage / cop * prix_elec
+facture_gaz = surface * besoin_chauffage / 0,9 * prix_gaz
+option "PAC" = -cout_pac - facture_pac * duree
+option "Gaz" = -cout_gaz - facture_gaz * duree`;
+  const q = analyserModele(pac, { N: 20000 });
+  verifie('pompe à chaleur (forumconstruire) : « 150m² » vaut 150', q.detail.calculs.length >= 2 && q.modeDecision);
+  verifie('… « Gaz » l’emporte sur cette maison très isolée', q.options.liste[q.options.recommande].nom === 'Gaz');
+  proche('… avec un coût PAC médian cohérent', q.options.liste.find((o) => o.nom === 'PAC').stats.p50, -25200, 800);
+
+  proche('« 2300 net par mois » quand « mois » est aussi un nom défini',
+    analyserModele('salaire = 2300 net par mois\nepargne = 300\nmois = 30k / epargne').sortie.p50, 100, 0);
+  proche('« 1 an et demi » vaut 1,5', val('x = 1 an et demi'), 1.5, 0);
+  proche('« 2 mois et demi » vaut 2,5', val('x = 2 mois et demi'), 2.5, 0);
+  proche('« 6 kWc * 1100 kWh/kWc »', val('x = 6 kWc * 1100 kWh/kWc'), 6600, 0);
+  proche('« 2 à 5%/an » est une fourchette de pourcentages',
+    analyserModele('x = 2 à 5%/an', { N: 40000 }).sortie.p05, 0.02, 0.001);
+}
+
 // --- Le détail des calculs --------------------------------------------------
 // Chaque variable calculée avec sa médiane, et chaque somme décomposée en
 // termes : ce qu'un tableur montre et que le site ne montrait pas.

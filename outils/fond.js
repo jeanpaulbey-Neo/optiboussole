@@ -16,6 +16,7 @@ export const FOND = {
     compte: [
       "La mensualité et le capital restant dû sont calculés sur un prêt à annuités constantes, à la durée que vous indiquez. S’y ajoutent les frais de notaire, les charges de copropriété, la taxe foncière et un budget d’entretien annuel proportionnel au prix du bien.",
       "En face, le locataire garde son apport placé et paie un loyer qui monte chaque année. Les deux branches sont ramenées à la même chose : le patrimoine net au bout de l’horizon, en actualisant chaque dépense au taux de placement. C’est la seule comparaison honnête entre quelqu’un qui immobilise 50 000 € et quelqu’un qui les fait travailler.",
+      "Le détail des calculs, sous les résultats, donne chaque étape — mensualité, capital restant dû, coût total de l’achat — et d’où vient son incertitude. On y voit que le coût d’achat tient au `placement` avant les `travaux`, et que la branche « Acheter » se résume à deux nombres du même ordre qui se retranchent : c’est ce qui rend ce choix si sensible à la revalorisation.",
     ],
     ignore: [
       "La fiscalité, entièrement : impôts locaux hors taxe foncière, imposition d’une plus-value si le bien n’est pas votre résidence principale, dispositifs d’aide à l’accession. L’assurance emprunteur, les frais de dossier et de garantie, qui ajoutent facilement 1 % du montant emprunté.",
@@ -67,6 +68,7 @@ export const FOND = {
   voiture: {
     compte: [
       "Le coût total de possession de chaque côté sur l’horizon : carburant, réparations, assurance. Côté remplacement, la décote du véhicule racheté est comptée — c’est le poste que les comparaisons oublient le plus souvent — ainsi que la revente de l’ancien. Côté conservation, ce que l’ancienne vaudra encore au bout de l’horizon : ce n’est pas grand-chose, mais l’oublier revenait à comparer un patrimoine à zéro et penchait vers le remplacement.",
+      "Le détail des calculs le montre : le coût de « garder » tient aux réparations pour près des trois quarts de son incertitude, celui de « changer » se répartit entre la décote, le prix d’achat et l’entretien. C’est pour cela qu’un seul chiffre décide, et que c’est celui-là qu’il faut aller chercher dans vos factures.",
     ],
     ignore: [
       "Le confort et la sécurité, qui sont des raisons légitimes de changer et que le calcul ne verra jamais. Le coût d’une immobilisation prolongée si la vieille voiture lâche. Les aides à la conversion, qui peuvent déplacer la décision à elles seules.",
@@ -84,6 +86,7 @@ export const FOND = {
     compte: [
       "Tous les postes annuels ramenés au kilomètre : décote annualisée, assurance, entretien, réparations, pneus, contrôle technique, stationnement, carburant. La décote est calculée comme la perte de valeur étalée sur la durée de détention.",
       "L’intérêt du calcul est là : les postes fixes se divisent par le kilométrage. Rouler peu ne rend pas la voiture bon marché au kilomètre — c’est l’inverse, et le site le montre en désignant `km_an` comme la source dominante de l’incertitude.",
+      "Deux questions différentes se posent sur les postes fixes, et le détail des calculs, sous les résultats, y répond séparément : la décote est le poste **le plus lourd**, de loin ; mais l’incertitude de `fixe` vient des **réparations** et du **stationnement**, pas d’elle. Ce qui pèse et ce qu’on ignore ne coïncident pas.",
     ],
     ignore: [
       "Le temps passé au volant, les péages, les amendes, le coût du crédit si le véhicule est financé. L’espace de stationnement chez vous, s’il a une valeur.",
@@ -99,6 +102,7 @@ export const FOND = {
     compte: [
       "Les sorties mensuelles, les entrées incertaines, et la réserve disponible. Le résultat est le nombre de mois avant épuisement, plafonné à cinq ans — au-delà, la question ne se pose plus dans ces termes.",
       "Le site calcule la probabilité de tenir l’objectif que vous fixez avec `seuil`, et le niveau de revenu à partir duquel vous passez du mauvais côté. C’est ce seuil-là qui sert : il se surveille, contrairement à une moyenne.",
+      "Dans le détail des calculs, les sorties se décomposent poste par poste : le loyer est le plus lourd, mais l’incertitude des sorties vient des `imprevus` et des `courses`. Le loyer, on le connaît ; c’est sur les deux autres que porte la fourchette, et c’est là que vos relevés servent.",
     ],
     ignore: [
       "Les dépenses annuelles qui tombent d’un coup — assurances, impôts, révision de la voiture. Si vous les oubliez, le modèle est optimiste ; ajoutez-en une douzième par mois.",

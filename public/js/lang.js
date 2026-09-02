@@ -73,6 +73,10 @@ const NOMBRES_MOTS = {
   twenty: 20, fifty: 50, hundred: 100,
 };
 
+// Dans « 2300 net par mois », « mois » est une unité même si une variable
+// porte ce nom : la préposition qui précède le dit.
+const PREPOSITIONS = new Set(['par', 'per', 'le', 'la', 'les', 'de', 'du', 'des', 'd', 'of', 'en']);
+
 const MESSAGE_DUREE = 'une durée s’écrit dans une seule unité : « 3,5 » (en années) ou « 42 » '
   + '(en mois), pas « 3 ans et 6 mois ». Le site ne convertit pas les unités, il calcule sur les nombres.';
 
@@ -390,7 +394,8 @@ class Parseur {
       }
       if (!mot) return;
       const bas = mot.valeur.toLowerCase();
-      if (this.estDeclare(mot)) {
+      const dernier = noeud.unites ? noeud.unites[noeud.unites.length - 1].split(/[ /]/).pop().toLowerCase() : '';
+      if (this.estDeclare(mot) && !PREPOSITIONS.has(dernier)) {
         const lu = noeud.k === 'nombre' ? String(noeud.v) : '…';
         throw new ErreurModele(
           `« ${lu} ${mot.valeur} » : la multiplication s’écrit « ${lu} * ${mot.valeur} »`, mot.ligne);
@@ -417,6 +422,14 @@ class Parseur {
       // « par mois » : les mots consécutifs forment une seule unité.
       if (noeud.unites) noeud.unites[noeud.unites.length - 1] += ' ' + mot.valeur;
       else noeud.unites = [mot.valeur];
+      // « 1 an et demi » : la moitié de l'unité en cours.
+      if ((this.estMC('et') || this.estMC('and')) && this.j[this.i + 1] && this.j[this.i + 1].type === 'ident'
+          && ['demi', 'demie', 'half'].includes(this.j[this.i + 1].valeur.toLowerCase())
+          && noeud.k === 'nombre' && !this.declares.has(this.j[this.i + 1].valeur)) {
+        this.avance(); this.avance();
+        noeud.v += 0.5;
+        continue;
+      }
       // « 3 ans 6 mois » : deux unités, donc une conversion que le site ne fait pas.
       if (this.estType('nombre')) throw new ErreurModele(MESSAGE_DUREE, mot.ligne);
     }
