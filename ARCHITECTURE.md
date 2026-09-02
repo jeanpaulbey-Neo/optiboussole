@@ -34,10 +34,11 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
+│   ├── fond.js             le texte de fond de chaque page (compte / ignore / chiffres)
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              161 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       100 vérifications dans un vrai Chrome + captures
+│   ├── run.js              192 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       124 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -90,6 +91,17 @@ des phrases en français
   `1fr` est la largeur *min-content* de son contenu : une seule ligne non
   sécable (l'échelle d'élargissement) suffisait à élargir la grille, donc la
   page entière, sur mobile.
+- **Une expression peut tenir sur plusieurs lignes.** Une ligne qui commence
+  par un opérateur binaire continue la précédente, et le lexer n'émet pas de
+  fin de ligne tant qu'une parenthèse est ouverte. Sans ça, le parseur tronquait
+  les formules longues **en silence** — c'est arrivé à un modèle de la
+  bibliothèque pendant deux sessions.
+- **Les avertissements valent les tests.** `avertissements()` signale les fautes
+  qui produisent un résultat plausible mais faux : `900-1150` lu comme une
+  soustraction, variable définie et jamais utilisée, branches homonymes. Le
+  second cas a trouvé le bug de troncature ci-dessus. Le test `run.js` vérifie
+  qu'aucun modèle de la bibliothèque ne déclenche d'avertissement : c'est un
+  filet gratuit, gardez-le.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
@@ -139,6 +151,13 @@ Les captures d'écran atterrissent dans `/tmp/boussole-captures/`.
 Configuration : `/etc/caddy/Caddyfile` (sauvegarde de l'originale en `.bak`).
 Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 `nosniff`, `no-referrer`, et un `Cache-Control` court sur les fichiers statiques.
+
+Chaque page porte, sous l'outil, un texte de fond en trois volets — ce que le
+modèle compte, ce qu'il ignore, où trouver les chiffres — rédigé dans
+`outils/fond.js` et rendu dans le HTML servi, donc lisible sans JavaScript.
+Le balisage accepté y est minimal : `` `code` ``, `**gras**`, et un bloc
+` ```…``` `. Toute clé de `MODELES` doit avoir son entrée dans `FOND` ; un test
+le vérifie.
 
 `try_files {path} {path}.html` donne les adresses sans extension. Il n'y a
 **volontairement pas** de repli sur `/index.html` : une adresse inconnue doit

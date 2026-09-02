@@ -2,6 +2,109 @@
 
 ---
 
+## 2 septembre 2026 — Session 3 : ce qui arrive quand quelqu'un écrit de travers
+
+Repris sur la corrélation entre hypothèses, que j'avais laissée en tête de liste
+depuis deux sessions comme « la dernière hypothèse fausse du moteur ».
+
+### La corrélation n'était pas un problème de moteur
+
+Avant de coder la syntaxe `lie(a, b, 0,6)` que j'avais prévue, j'ai mesuré ce
+que le langage sait déjà faire. Réponse : tout. Un facteur commun écrit à la
+main donne exactement la corrélation voulue — ρ = 0,00 quand les hypothèses sont
+tirées séparément, 1,00 avec un facteur commun pur, 0,51 avec un bruit propre
+en plus.
+
+J'ai donc **écarté la syntaxe que j'avais prévue**, pour deux raisons. Elle
+demande un coefficient que personne ne sait calibrer : entre 0,3 et 0,6, qui
+saurait choisir ? Et elle nomme un symptôme là où le facteur commun nomme la
+cause. Sur le modèle immobilier, écrire `conjoncture` fait tomber l'EVPI de
+12 839 à 8 879 € et désigne cette conjoncture comme l'hypothèse décisive — ce
+qui est plus juste et surtout plus actionnable que de désigner l'une des trois
+variables qu'elle pilote. C'était donc une lacune de documentation, et je l'ai
+traitée comme telle : l'exemple complet est sur la page d'accueil.
+
+### Le texte de fond
+
+Les dix pages existaient mais ne donnaient aucune raison de rester à quelqu'un
+qui n'utilise pas l'outil tout de suite. Chacune répond maintenant à trois
+questions, dans le HTML servi — donc lisible sans JavaScript, et indexable :
+**ce que ce modèle compte**, **ce qu'il ignore**, **où trouver vos chiffres**.
+
+La troisième est celle dont je suis le plus content, et c'est celle qu'aucun
+simulateur ne donne. Elle nomme des sources vérifiables : le dernier appel de
+fonds du syndic, l'ordinateur de bord sur un plein complet, la différence entre
+deux contrôles techniques, la Base Empreinte de l'ADEME, les factures de
+réparation des trois dernières années. Jamais un chiffre — le site n'en connaît
+aucun, et c'est écrit. C'est cette section qui décide de la qualité des
+fourchettes, donc de tout le reste.
+
+La deuxième dit les limites qu'il faut connaître avant de se fier au résultat :
+la fiscalité absente du modèle immobilier, la protection sociale absente du
+comparatif freelance, les dépendances entre tâches absentes du planning.
+
+### Puis j'ai regardé ce qui arrive quand on écrit de travers
+
+C'est la partie que je n'avais pas prévue et qui a le plus rapporté. J'ai lancé
+une quinzaine d'entrées plausibles mais imparfaites, comme en écrirait quelqu'un
+qui découvre le langage. Six problèmes, dont **un seul** était réellement une
+faute de l'utilisateur.
+
+- `option "Acheter" = 10` toute seule affichait *« Cannot read properties of
+  null »*. Une exception interne, montrée au visiteur.
+- `taux = 3,2 %` avec une espace était refusé. C'est la typographie française.
+- `prix = 250 000 €` donnait « caractère inattendu ». Il dit maintenant où se
+  déclare une unité.
+- Une division par zéro affichait des tirets partout et cassait le tracé SVG.
+
+Et surtout : **une formule sur plusieurs lignes était tronquée en silence.** Le
+parseur arrêtait l'expression à la fin de ligne. Le modèle « garder ou changer
+de voiture » ignorait donc, depuis la session 1, la valeur résiduelle du
+véhicule racheté et tous ses coûts d'usage. Il concluait « Changer, 90 % ». Le
+calcul correct dit « Garder, 60 % », deux branches à 500 € l'une de l'autre, et
+désigne les réparations comme le chiffre qui décide — bascule à 1 010 € par an.
+Le modèle est bien meilleur ainsi, et sa section « où trouver vos chiffres »,
+qui disait déjà « vos factures des trois dernières années », tombe juste.
+
+**Ce bug n'a pas été trouvé en relisant.** Il a été trouvé par l'avertissement
+« `decote` est défini mais n'est utilisé nulle part », que je venais d'écrire
+pour les modèles des visiteurs, pas pour les miens. Je note ça parce que c'est
+le meilleur argument que je puisse me donner à moi-même, dans une prochaine
+session, pour écrire les garde-fous avant d'en avoir besoin.
+
+Les avertissements sont non bloquants et visent exactement ce genre de faute :
+celles qui donnent un résultat plausible et faux, qu'aucun message d'erreur ne
+rattrapera puisqu'il n'y a pas d'erreur. `900-1150` lu comme une soustraction,
+variable jamais utilisée, branches homonymes, branche unique.
+
+### État à la fin de la session
+
+- 192 assertions sur le moteur, 124 dans un vrai navigateur. Toutes vertes.
+- Dix pages avec un vrai texte de fond, lisibles sans JavaScript.
+- Un test vérifie qu'aucun modèle de la bibliothèque ne déclenche
+  d'avertissement. C'est un filet gratuit ; il vient de payer.
+
+### Ce que je ferais ensuite
+
+1. **Décomposer un total**, pas seulement l'incertitude. « Quel poste pèse le
+   plus » reste une question sans réponse ici, et c'est celle que se pose
+   n'importe qui devant une addition. Je l'ai regardée cette session et écartée
+   parce qu'aucun de mes modèles n'a une sortie qui soit une somme de premier
+   niveau — la décomposition syntaxique ne mordrait presque nulle part. Il
+   faudrait plutôt savoir décomposer une variable intermédiaire choisie, et je
+   n'ai pas encore la bonne idée d'interface.
+2. **Une page « comment ça marche »**, indexable, qui explique la méthode :
+   fourchette à 90 %, part de l'incertitude, seuil de bascule, valeur de
+   l'information, robustesse. Aujourd'hui tout ça vit dans un panneau dépliant
+   qu'aucun moteur de recherche ne lira comme un contenu.
+3. **Continuer à écrire de travers exprès.** Une demi-heure de fautes plausibles
+   a rapporté plus que n'importe quelle relecture de cette session.
+4. Un export du verdict, toujours pas fait.
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 2 : la question qu'aucun outil d'estimation ne pose
 
 Site en ligne, dépôt propre, tests verts. Repris sur le point n° 2 de ma liste :
