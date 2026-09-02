@@ -400,6 +400,25 @@ await page.waitForFunction(() => location.hash.length > 2, { timeout: 8000 });
 const lien = await page.url();
 verifie('le lien contient le modèle', lien.includes('#') && lien.length > URL.length + 20);
 
+// Le verdict en texte : ce qui est à l'écran, dans le même ordre, plus le lien.
+await page.evaluate(() => {
+  window.__copie = null;
+  navigator.clipboard.writeText = async (t) => { window.__copie = t; };
+});
+await page.click('#copier-verdict');
+await new Promise((r) => setTimeout(r, 300));
+const copie = await page.evaluate(() => window.__copie);
+verifie('« Copier le verdict » produit un texte', typeof copie === 'string' && copie.length > 200, `→ ${(copie || '').length} caractères`);
+verifie('… qui contient le lien vers le modèle', !!copie && copie.split('\n')[1].startsWith(URL + '/') && copie.includes('#'),
+  `→ ${(copie || '').split('\n')[1]}`);
+verifie('… le résultat affiché', !!copie && /RESULTAT|RÉSULTAT|CE QUE DIT LE MODÈLE|TROP SERRÉ/.test(copie) && copie.includes('▶'),
+  `→ ${(copie || '').slice(0, 200).replace(/\n/g, ' ⏎ ')}`);
+verifie('… et les hypothèses à vérifier', !!copie && /D’OÙ VIENT L’INCERTITUDE|CE QU’IL FAUT ALLER VÉRIFIER/.test(copie) && copie.includes('• marge'),
+  `→ ${(copie || '').slice(0, 300).replace(/\n/g, ' ⏎ ')}`);
+verifie('… sans le détail des calculs', !!copie && !copie.includes('DÉTAIL DES CALCULS'));
+const etiquette = await page.$eval('#copier-verdict', (n) => n.textContent);
+verifie('le bouton confirme la copie', etiquette === 'Verdict copié', `→ « ${etiquette} »`);
+
 const page2 = await navigateur.newPage();
 const incidents2 = [];
 page2.on('pageerror', (e) => incidents2.push(e.message));

@@ -196,7 +196,8 @@ nav .exemples { margin-bottom: 0; }
   text-transform: uppercase;
 }
 
-.editeur-actions { display: flex; gap: 6px; text-transform: none; letter-spacing: 0; }
+.editeur-entete > span:first-child { white-space: nowrap; }
+.editeur-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; text-transform: none; letter-spacing: 0; }
 
 .editeur-actions button {
   font: inherit;

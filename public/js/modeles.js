@@ -275,6 +275,13 @@ travail = cadrage + maquettes + developpement + integration + recette + correcti
 # support, autres dossiers. C’est le poste le plus systématiquement omis.
 interruptions = 15% à 45%
 
+# Les six tâches sont tirées séparément, ce qui resserre leur somme : en
+# réalité, la même personne les a toutes estimées avec le même optimisme.
+# Pour le compter, décommentez ces deux lignes et remplacez « travail »
+# par « travail_lie » dans le calcul de la durée :
+# optimisme = 0,9 à 1,3
+# travail_lie = travail * optimisme
+
 # Et l’incident qui n’était pas au planning, par définition.
 gros_pepin = bernoulli(20%)
 retard_pepin = si gros_pepin alors 8 à 30 sinon 0

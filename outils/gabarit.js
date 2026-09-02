@@ -279,6 +279,7 @@ ${chips(modeles, modele.cle, defaut)}
       <span>Le modèle</span>
       <span class="editeur-actions">
         <button type="button" id="partager">Copier le lien</button>
+        <button type="button" id="copier-verdict" title="Le verdict en texte, à coller dans une discussion">Copier le verdict</button>
         <button type="button" id="reinit">Réinitialiser</button>
       </span>
     </div>

@@ -937,6 +937,66 @@ $('#reinit').addEventListener('click', () => {
   history.replaceState(null, '', location.pathname);
 });
 
+// --- Le verdict en texte ------------------------------------------------------
+//
+// Une décision se prend rarement seul. Le verdict en texte brut — ce que la
+// page affiche, dans le même ordre, avec le lien qui contient le modèle — se
+// colle dans un message ou une discussion. Rien d'autre que ce qui est à
+// l'écran : pas de résumé réécrit, pas de chiffre qui n'y serait pas.
+
+function texteVerdict() {
+  const lignes = [];
+  const m = MODELES.find((x) => x.cle === cleCourante);
+  lignes.push((m ? m.titre : 'Boussole').toUpperCase());
+  lignes.push(location.origin + location.pathname + '#' + encoder(zoneModele.value));
+  lignes.push('');
+
+  const texte = (n) => n.textContent.replace(/\s+/g, ' ').trim();
+  for (const section of zoneResultats.querySelectorAll('section.panneau')) {
+    if (section.hidden) continue;
+    const bloc = [];
+    for (const n of section.children) {
+      if (n.matches('.verdict-titre')) bloc.push('▶ ' + texte(n));
+      else if (n.matches('h2, .verdict-chapeau')) bloc.push(texte(n).toUpperCase());
+      else if (n.matches('p')) bloc.push(texte(n));
+      else if (n.matches('ul.options')) {
+        for (const li of n.children) {
+          const nom = li.querySelector('.option-nom').firstChild.textContent.trim();
+          const fanion = li.querySelector('.fanion');
+          bloc.push('• ' + nom + (fanion ? ' (' + texte(fanion) + ')' : '') + ' : ' + texte(li.querySelector('.option-valeur'))
+            + ' — ' + texte(li.querySelector('.option-detail')));
+        }
+      } else if (n.matches('ul.hypotheses')) {
+        for (const li of n.children) {
+          bloc.push('• ' + texte(li.querySelector('.hypothese-nom')) + ' — ' + texte(li.querySelector('.hypothese-chiffre')));
+          for (const p of li.querySelectorAll('p')) bloc.push('  ' + texte(p));
+        }
+      } else if (n.matches('ul.contre-liste')) {
+        for (const li of n.children) bloc.push('• ' + texte(li));
+      } else if (n.matches('figure')) {
+        const axe = n.querySelector('.axe');
+        if (axe) bloc.push(texte(axe));
+      }
+    }
+    if (bloc.length) { lignes.push(...bloc, ''); }
+  }
+  lignes.push('Calculé sur optiboussole.fr, dans le navigateur, avec les seuls chiffres du modèle — aucune donnée de marché. Le lien ci-dessus contient le modèle : ouvrez-le pour changer une hypothèse.');
+  return lignes.join('\n');
+}
+
+$('#copier-verdict').addEventListener('click', async (e) => {
+  const b = e.currentTarget;
+  const avant = b.textContent;
+  try {
+    await navigator.clipboard.writeText(texteVerdict());
+    b.textContent = 'Verdict copié';
+  } catch {
+    b.textContent = 'Copie impossible ici';
+  }
+  b.classList.add('copie-ok');
+  setTimeout(() => { b.textContent = avant; b.classList.remove('copie-ok'); }, 2200);
+});
+
 $('#partager').addEventListener('click', async (e) => {
   const lien = location.origin + location.pathname + '#' + encoder(zoneModele.value);
   history.replaceState(null, '', lien);
