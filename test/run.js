@@ -400,7 +400,7 @@ groupe('Ce que le visiteur écrit vraiment');
 
   const d = analyserModele('a = 1 à 2\nb = 3\nok = a > b', { N: 8000 });
   verifie('un résultat qui ne vaut que 0 ou 1 est signalé',
-    d.avertissements.some((a) => /0 ou 1/.test(a.texte)),
+    d.avertissements.some((a) => /deux valeurs/.test(a.texte)),
     `→ ${d.avertissements.map((a) => a.texte).join(' | ')}`);
 
   // Une condition ajoutée à une somme : l'écriture la plus naturelle du cas le
@@ -465,6 +465,109 @@ groupe('Ce que le visiteur écrit vraiment');
     try { analyserModele('a == 5'); } catch (e) { msg = e.message; }
     verifie('une ligne isolée remonte son erreur, pas « écrivez une ligne »',
       /n'est défini nulle part/.test(msg), `→ ${msg}`);
+  }
+}
+
+// --- Quatrième récolte : anglais, unités en toutes lettres, échelle d'une
+// fourchette. Trois lectures fausses en silence y ont été trouvées.
+groupe('Ce que le visiteur écrit vraiment (suite)');
+{
+  // L'échelle d'une borne vaut pour l'autre. « 15 à 30 % » se lisait
+  // « 15 à 0,3 », « 1 à 3 millions » « 1 à 3 000 000 » : plausible et faux.
+  proche('« 15 à 30 % » va de 15 % à 30 %',
+    analyserModele('x = 15 à 30 %', { N: 40000 }).sortie.p05, 0.15, 0.006);
+  proche('« 15 % à 30 » aussi',
+    analyserModele('x = 15 % à 30', { N: 40000 }).sortie.p95, 0.30, 0.012);
+  proche('« 1 à 3 millions » va d’un à trois millions',
+    analyserModele('x = 1 à 3 millions', { N: 40000 }).sortie.p05, 1e6, 4e4);
+  proche('« 100 à 150k » va de cent à cent cinquante mille',
+    analyserModele('x = 100 à 150k', { N: 40000 }).sortie.p05, 1e5, 4e3);
+  proche('… mais « 500 à 2k » va bien de 500 à 2 000',
+    analyserModele('x = 500 à 2k', { N: 40000 }).sortie.p05, 500, 20);
+  proche('« 0,5 à 2 M€ » : suffixe séparé par une espace, collé au symbole',
+    analyserModele('x = 0,5 à 2 M€', { N: 40000 }).sortie.p95, 2e6, 8e4);
+  proche('« 30 k€ » vaut 30 000', val('x = 30 k€'), 30000, 0);
+  {
+    const r = analyserModele('x = 1000 ± 10 %', { N: 40000 });
+    proche('« 1000 ± 10 % » : le pourcentage est relatif au centre', r.sortie.p05, 900, 8);
+    proche('… borne haute', r.sortie.p95, 1100, 8);
+    verifie('… et le résultat n’est pas affiché en pourcentage', r.sources[0].pourcent === false);
+  }
+  proche('« 10 % ± 2 % » reste absolu',
+    analyserModele('x = 10 % ± 2 %', { N: 40000 }).sortie.p05, 0.08, 0.002);
+
+  // Les mots après un nombre sont une unité : lus, ignorés, et dits.
+  {
+    const r = analyserModele('duree = 3 ans\nx = 10 * duree');
+    proche('« 3 ans » vaut 3', r.sortie.p50, 30, 0);
+    verifie('… et le site dit qu’il a ignoré « ans »',
+      r.avertissements.some((a) => /« ans » est lu comme une unité/.test(a.texte)),
+      `→ ${r.avertissements.map((a) => a.texte).join(' | ')}`);
+  }
+  proche('« 40 h/semaine » vaut 40', val('x = 40 h/semaine'), 40, 0);
+  proche('« 3 ans à 5 ans » est une fourchette',
+    analyserModele('x = 3 ans à 5 ans', { N: 40000 }).sortie.p50, Math.sqrt(15), 0.1);
+  proche('« 3 ans a 5 ans » aussi, avec un « a » sans accent',
+    analyserModele('x = 3 ans a 5 ans', { N: 40000 }).sortie.p50, Math.sqrt(15), 0.1);
+  verifie('« 10 à 20 par mois » garde une seule unité, « par mois »',
+    analyserModele('x = 10 à 20 par mois').avertissements.some((a) => /« par mois »/.test(a.texte)));
+  erreur('« 3 x » avec x défini est une multiplication oubliée',
+    'x = 2\ny = 3 x', 'la multiplication s’écrit « 3 \\* x »');
+  proche('« loyer x 12 » : la croix de l’école', val('loyer = 900\ny = loyer x 12'), 10800, 0);
+  proche('« 12 x 3 » aussi', val('y = 12 x 3'), 36, 0);
+  proche('un nom défini « entre » reste une variable', val('entre = 3\ny = entre * 2'), 6, 0);
+
+  // « environ » dit l'incertitude sans lui donner de largeur.
+  erreur('« environ 100 » renvoie à la fourchette', 'x = environ 100', '80 à 120');
+  erreur('« ~100 » aussi', 'x = ~100', '80 à 120');
+  erreur('« 100 environ » aussi', 'x = 100 environ', '80 à 120');
+
+  // En anglais.
+  proche('« 100 to 200 » est une fourchette',
+    analyserModele('x = 100 to 200', { N: 40000 }).sortie.p50, Math.sqrt(2e4), 4);
+  proche('« between 1 and 5 »',
+    analyserModele('x = between 1 and 5', { N: 40000 }).sortie.p50, Math.sqrt(5), 0.06);
+  verifie('« threshold: 12 » est un seuil', analyserModele('threshold: 12\nx = 10 à 20').seuil === 12);
+  verifie('« goal: >= 12 » aussi', analyserModele('goal: >= 12\nx = 10 à 20').seuilSens === 'min');
+  proche('« x ** 2 » est une puissance', val('x = 3 ** 2'), 9, 0);
+  proche('floor, ceil, pow', val('x = floor(2,7) + ceil(2,2) + pow(2, 3)'), 13, 0);
+  erreur('« a > b ? 1 : 0 » renvoie à si … alors … sinon', 'x = 3 > 2 ? 1 : 0', 'si a > b alors');
+
+  // Les fonctions vérifient ce qu'on leur donne.
+  erreur('« max() » sans argument le dit, sans exception interne', 'x = max()', 'au moins 1 argument');
+  erreur('« abs(1, 2) » aussi', 'x = abs(1, 2)', '1 argument, pas 2');
+  erreur('« bernoulli(120 %) » est refusé', 'x = bernoulli(120 %)', 'de 0 à 1');
+  erreur('« poisson(-2) » est refusé', 'x = poisson(-2)', 'négative');
+  erreur('« triangulaire(1, 5, 3) » rappelle l’ordre', 'x = triangulaire(1, 5, 3)', 'dans cet ordre');
+  erreur('« beta(0, 0) » est refusé', 'x = beta(0, 0)', 'strictement positifs');
+  erreur('« % » après un nom renvoie à mod()', 'x = 7\ny = x % 3', 'mod\\(a, b\\)');
+  erreur('« = » sans nom le dit', 'x = 1\n= x * 2', 'il manque un nom');
+  erreur('une branche dans un calcul le dit',
+    'option "A" = 1\noption "B" = 2\ngain = option "A" - option "B"', 'ne se réutilise pas');
+  erreur('« défini deux fois » propose un autre nom',
+    'r = 1\nr = r * 12', 'r_2');
+  erreur('la parenthèse fermante s’accorde', 'x = (1 + 2', 'parenthèse fermante attendue');
+
+  // Le résultat implicite est la dernière variable dont rien ne dépend.
+  proche('« total » écrit avant ses termes reste le résultat',
+    analyserModele('total = a + b\na = 10\nb = 5').sortie.p50, 15, 0);
+  verifie('… et il s’appelle bien « total »',
+    analyserModele('total = a + b\na = 10\nb = 5').nomSortie === 'total');
+  verifie('sans dépendance, la dernière ligne reste le résultat',
+    analyserModele('a = 10\nb = a * 2').nomSortie === 'b');
+  {
+    const r = analyserModele('a = 10 à 20\na * 2\na * 12');
+    verifie('deux lignes de résultat : la première est signalée',
+      r.avertissements.some((x) => x.ligne === 2 && /dernière ligne sans « = »/.test(x.texte)),
+      `→ ${r.avertissements.map((x) => x.texte).join(' | ')}`);
+  }
+
+  // Une branche à égalité avec la meilleure l'emporte aussi.
+  {
+    const r = analyserModele('x = 10 à 20\ny = 12 à 18\noption "A" = x\noption "B" = y\noption "C" = max(x, y)', { N: 8000 });
+    const c = r.options.liste.find((o) => o.nom === 'C');
+    verifie('« C = max(A, B) » est recommandée', r.options.liste[r.options.recommande].nom === 'C');
+    proche('… et l’emporte à tous les coups, pas 0 % du temps', c.pGagne, 1, 1e-9);
   }
 }
 

@@ -381,6 +381,37 @@ function avertissements(ast) {
     });
   }
 
+  // Les mots lus comme des unités et ignorés : « 3 ans », « 40 h/semaine ».
+  // Le dire, parce qu'un « 3 foo » où « foo » est une faute de frappe passe
+  // par le même chemin.
+  const unites = new Map();
+  const noterUnites = (n) => {
+    if (n.unites) for (const u of n.unites) if (!unites.has(u)) unites.set(u, n.ligne);
+  };
+  for (const d of ast.declarations) parcourir(d.expr, noterUnites);
+  for (const o of ast.options) parcourir(o.expr, noterUnites);
+  if (ast.sortie) parcourir(ast.sortie.expr, noterUnites);
+  if (ast.seuil) parcourir(ast.seuil.expr, noterUnites);
+  if (unites.size) {
+    const mots = [...unites.keys()].map((u) => `« ${u} »`).join(', ');
+    liste.push({
+      ligne: Math.min(...unites.values()),
+      texte: `${mots} ${unites.size > 1 ? 'sont lus comme des unités et ignorés' : 'est lu comme une unité et ignoré'}. `
+        + 'Le calcul ne porte que sur les nombres ; l’unité du résultat se déclare avec « unité: … ».',
+    });
+  }
+
+  // Plusieurs lignes de résultat : seule la dernière compte, autant le dire.
+  if (ast.sortiesIgnorees && ast.sortiesIgnorees.length) {
+    for (const l of ast.sortiesIgnorees) {
+      liste.push({
+        ligne: l,
+        texte: `Cette ligne calcule quelque chose, mais c’est la dernière ligne sans « = » `
+          + `(ligne ${ast.sortie.ligne}) qui sert de résultat. Pour garder celle-ci, donnez-lui un nom.`,
+      });
+    }
+  }
+
   if (ast.options.length === 1) {
     liste.push({
       ligne: ast.options[0].ligne,
@@ -459,14 +490,19 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     const nomsOptions = opts.map((o) => o.nom);
 
     // Fréquence à laquelle chaque option l'emporte, échantillon par échantillon.
+    // Une branche à égalité avec la meilleure l'emporte aussi : sans ça,
+    // « option C = max(a, b) » était recommandée en gagnant « 0 % du temps ».
     const compte = new Array(opts.length).fill(0);
     let sommeMax = 0;
     for (let i = 0; i < N; i++) {
-      let meilleur = 0, vMax = opts[0].valeurs[i];
+      let vMax = opts[0].valeurs[i];
       for (let k = 1; k < opts.length; k++) {
-        if (opts[k].valeurs[i] > vMax) { vMax = opts[k].valeurs[i]; meilleur = k; }
+        if (opts[k].valeurs[i] > vMax) vMax = opts[k].valeurs[i];
       }
-      compte[meilleur]++;
+      const tol = 1e-12 * Math.max(1, Math.abs(vMax));
+      for (let k = 0; k < opts.length; k++) {
+        if (opts[k].valeurs[i] >= vMax - tol) compte[k]++;
+      }
       sommeMax += vMax;
     }
     opts.forEach((o, k) => { o.pGagne = compte[k] / N; });
@@ -534,7 +570,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     if (!ast.objectifDeduit && seuil === null && estBinaire(st.tri)) {
       notes.push({
         ligne: ast.sortie.ligne,
-        texte: 'Le résultat ne vaut que 0 ou 1 : c’est une comparaison, pas une '
+        texte: 'Le résultat ne prend que deux valeurs : c’est un test, pas une '
           + 'quantité. Pour mesurer une probabilité, mettez la valeur elle-même en '
           + 'résultat et fixez l’objectif avec « seuil: … ».',
       });

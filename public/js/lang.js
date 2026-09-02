@@ -21,7 +21,7 @@ const MOTS_CLES = new Set([
 ]);
 
 // Réglages d'analyse, écrits « nom: valeur ».
-const SEUIL = new Set(['seuil', 'objectif', 'cible']);
+const SEUIL = new Set(['seuil', 'objectif', 'cible', 'threshold', 'target', 'goal']);
 
 // L'unité est un libellé libre (« € », « kg CO₂e », « h/semaine ») : elle est
 // extraite avant l'analyse lexicale, qui n'a pas à connaître ces symboles.
@@ -49,6 +49,15 @@ const MULTIPLICATEURS_MOTS = {
   'million': 1e6, 'millions': 1e6,
   'milliard': 1e9, 'milliards': 1e9,
 };
+
+// « environ 100 », « ~100 », « about 100 » : l'auteur dit qu'il ne sait pas,
+// sans dire à quel point. C'est précisément ce que le site lui demande.
+const APPROXIMATIFS = new Set(['environ', 'env', 'approx', 'approximativement',
+  'about', 'around', 'roughly', 'circa']);
+
+const MESSAGE_ENVIRON = '« environ » ne dit pas de combien vous pourriez vous tromper. '
+  + 'Écrivez la fourchette elle-même, celle qui a 9 chances sur 10 de contenir la vraie '
+  + 'valeur : « 80 à 120 » plutôt que « environ 100 ».';
 
 const EST_LETTRE = /\p{L}/u;
 const EST_IDENT = /[\p{L}\p{N}_]/u;
@@ -122,6 +131,7 @@ export function lexer(source) {
       }
       let valeur = parseFloat(brut);
       let pourcent = false;
+      let suffixe = 1;
 
       // « 3,2 % » avec une espace : c'est la typographie française, et c'est
       // ce que les gens écrivent. Il n'y a pas d'opérateur modulo dans le
@@ -135,7 +145,17 @@ export function lexer(source) {
         const cle = ['Mds', 'Md', 'md', 'k', 'K', 'M', 'm', 'G'].find(
           (s) => deux.startsWith(s) && !EST_IDENT.test(source[j + s.length] || '')
         );
-        if (cle) { valeur *= SUFFIXES[cle]; j += cle.length; }
+        if (cle) { valeur *= SUFFIXES[cle]; suffixe = SUFFIXES[cle]; j += cle.length; }
+        else {
+          // « 30 k€ », « 2 M€ » : le suffixe séparé du nombre par une espace.
+          // Accepté seulement s'il est collé à un symbole monétaire — « 5 M »
+          // tout seul pourrait être n'importe quoi, « 5 M€ » ne l'est pas.
+          let s = j;
+          while (s < n && (source[s] === ' ' || source[s] === '\u00a0' || source[s] === '\u202f')) s++;
+          const loin = ['Mds', 'Md', 'k', 'K', 'M', 'G'].find(
+            (x) => source.startsWith(x, s) && '€$£¥'.includes(source[s + x.length] || ''));
+          if (loin) { valeur *= SUFFIXES[loin]; suffixe = SUFFIXES[loin]; j = s + loin.length; }
+        }
       }
       // « 900 € », « 250 000 €», « 3 %/an » : le symbole qui suit un nombre est
       // décoratif — il n'y a pas d'arithmétique des symboles monétaires. Le
@@ -154,6 +174,7 @@ export function lexer(source) {
       }
       pousser('nombre', valeur);
       jetons[jetons.length - 1].pourcent = pourcent;
+      jetons[jetons.length - 1].suffixe = suffixe;
       i = j;
       continue;
     }
@@ -187,6 +208,8 @@ export function lexer(source) {
     if (trois === '...') { pousser('interv', '..'); i += 3; continue; }
     const deux = source.slice(i, i + 2);
     if (deux === '..') { pousser('interv', '..'); i += 2; continue; }
+    // « x ** 2 » : la puissance de Python et des tableurs.
+    if (deux === '**') { pousser('op', '^'); i += 2; continue; }
     if (['>=', '<=', '==', '!=', '<>', '≥', '≤', '≠'].includes(deux)) {
       pousser('op', deux === '<>' ? '!=' : deux); i += 2; continue;
     }
@@ -218,6 +241,15 @@ export function lexer(source) {
     }
     if (c === ':') { pousser(':'); i++; continue; }
 
+    if (c === '?') {
+      throw new ErreurModele(
+        'il n’y a pas de « ? : » ici — une condition s’écrit « si a > b alors 1 sinon 0 »', ligne);
+    }
+    if (c === '%') {
+      throw new ErreurModele(
+        '« % » ne s’écrit qu’après un nombre, comme dans « 3 % ». Il n’y a pas d’opérateur '
+        + 'modulo — pour un reste de division, écrivez « mod(a, b) »', ligne);
+    }
     if ('{}[]'.includes(c)) {
       throw new ErreurModele(
         `« ${c} » n’est pas reconnu — le langage n’utilise que des parenthèses`, ligne);
@@ -237,10 +269,38 @@ export function lexer(source) {
 
 // --- Analyse syntaxique -----------------------------------------------------
 
+// Une fourchette dont une seule borne porte l'échelle : « 15 à 30 % » veut
+// dire 15 % à 30 %, « 1 à 3 millions » veut dire un à trois millions, et
+// « 100 à 150k » va de cent à cent cinquante mille. Lire « 15 à 0,3 » ou
+// « 1 à 3 000 000 » était plausible de bout en bout et faux d'un facteur cent.
+// Le multiplicateur ne se propage que si l'ordre des chiffres écrits le permet :
+// « 500 à 2k » va bien de 500 à 2 000.
+function fourchette(g, d, ligne) {
+  const nu = (n) => n.k === 'nombre' && !n.pourcent && n.suffixe === 1;
+  const propage = (de, vers) => {
+    if (de.k === 'nombre' && de.pourcent && nu(vers)) {
+      vers.v /= 100; vers.pourcent = true;
+    } else if (de.k === 'nombre' && de.suffixe > 1 && nu(vers) && vers.v <= de.v / de.suffixe) {
+      vers.v *= de.suffixe; vers.suffixe = de.suffixe;
+    } else if (de.mult && nu(vers) && vers.v <= de.g.v) {
+      vers.v *= de.d.v; vers.suffixe = de.d.v;
+    }
+  };
+  propage(d, g);
+  propage(g, d);
+  // Si l'auteur a écrit « 1% à 4% », la grandeur est une proportion :
+  // on s'en souvient pour l'afficher en pourcentage plus tard.
+  const pourcent = (g.k === 'nombre' && g.pourcent) || (d.k === 'nombre' && d.pourcent);
+  return { k: 'intervalle', bas: g, haut: d, pourcent, ligne };
+}
+
 class Parseur {
-  constructor(jetons) {
+  constructor(jetons, declares = new Set()) {
     this.j = jetons;
     this.i = 0;
+    // Les noms définis quelque part dans le modèle. Sert à distinguer « 3 ans »
+    // (une unité, ignorée) de « 3 x » (une multiplication oubliée).
+    this.declares = declares;
   }
   cur() { return this.j[this.i]; }
   ligne() { return this.cur().ligne; }
@@ -248,11 +308,50 @@ class Parseur {
   estType(t) { return this.cur().type === t; }
   estMC(m) { return this.cur().type === 'mc' && this.cur().valeur === m; }
   estOp(...ops) { return this.cur().type === 'op' && ops.includes(this.cur().valeur); }
-  attendre(t, quoi) {
-    if (!this.estType(t)) {
-      throw new ErreurModele(`${quoi} attendu`, this.ligne());
-    }
+  attendre(t, message) {
+    if (!this.estType(t)) throw new ErreurModele(message, this.ligne());
     return this.avance();
+  }
+  estDeclare(t) { return t && t.type === 'ident' && this.declares.has(t.valeur); }
+
+  // « duree = 3 ans », « x = 40 h/semaine », « 10 à 20 par mois » : les mots
+  // qui suivent un nombre sont une unité, pas un calcul. On les ignore et on
+  // les garde sur le nœud pour le dire au visiteur. Un mot qui est un nom
+  // défini n'est pas une unité : « 3 x » est une multiplication mal écrite.
+  unites(noeud) {
+    for (;;) {
+      const t = this.cur(), suiv = this.j[this.i + 1];
+      let mot = null;
+      if (t.type === 'ident') mot = t;
+      else if (t.type === 'op' && t.valeur === '/' && suiv && suiv.type === 'ident'
+               && noeud.unites && !this.estDeclare(suiv)
+               && !(this.j[this.i + 2] && this.j[this.i + 2].type === '(')) {
+        this.avance(); mot = this.cur();
+        noeud.unites[noeud.unites.length - 1] += '/' + mot.valeur;
+        this.avance();
+        continue;
+      }
+      if (!mot) return;
+      const bas = mot.valeur.toLowerCase();
+      if (this.estDeclare(mot)) {
+        const lu = noeud.k === 'nombre' ? String(noeud.v) : '…';
+        throw new ErreurModele(
+          `« ${lu} ${mot.valeur} » : la multiplication s’écrit « ${lu} * ${mot.valeur} »`, mot.ligne);
+      }
+      if (APPROXIMATIFS.has(bas)) throw new ErreurModele(MESSAGE_ENVIRON, mot.ligne);
+      const apres = this.j[this.i + 1];
+      if (apres && (apres.type === '(' || apres.type === 'assign')) return;
+      // « 12 x 3 » : la croix de multiplication, pas une unité.
+      if ((bas === 'x') && apres && ['nombre', 'ident', '('].includes(apres.type)) return;
+      // « 3 ans a 5 ans » : ce « a » est la fourchette, pas un mot de plus.
+      if ((bas === 'a' || bas === 'to') && apres && apres.type === 'nombre') {
+        t.type = 'interv'; t.valeur = bas; return;
+      }
+      this.avance();
+      // « par mois » : les mots consécutifs forment une seule unité.
+      if (noeud.unites) noeud.unites[noeud.unites.length - 1] += ' ' + mot.valeur;
+      else noeud.unites = [mot.valeur];
+    }
   }
   sauterNL() { while (this.estType('nl')) this.avance(); }
 
@@ -331,16 +430,24 @@ class Parseur {
           'une fourchette a deux bornes, pas trois. Pour une estimation basse, '
           + 'probable et haute, écrivez « triangulaire(900, 1000, 1150) »', ligne);
       }
-      // Si l'auteur a écrit « 1% à 4% », la grandeur est une proportion :
-      // on s'en souvient pour l'afficher en pourcentage plus tard.
-      const pourcent = (g.k === 'nombre' && g.pourcent) || (d.k === 'nombre' && d.pourcent);
-      return { k: 'intervalle', bas: g, haut: d, pourcent, ligne };
+      return fourchette(g, d, ligne);
     }
     // « 1000 ± 100 » : la même fourchette, écrite comme tout le monde l'écrit.
     if (this.estType('pm')) {
       const ligne = this.ligne();
       this.avance();
       const d = this.somme();
+      // « 1000 ± 10 % » : le pourcentage est relatif au centre, pas un dixième.
+      if (d.k === 'nombre' && d.pourcent && !(g.k === 'nombre' && g.pourcent)) {
+        const un = { k: 'nombre', v: 1, ligne };
+        return {
+          k: 'intervalle',
+          bas: { k: 'bin', op: '*', g, d: { k: 'bin', op: '-', g: un, d, ligne }, ligne },
+          haut: { k: 'bin', op: '*', g, d: { k: 'bin', op: '+', g: un, d, ligne }, ligne },
+          pourcent: false,
+          ligne,
+        };
+      }
       return {
         k: 'intervalle',
         bas: { k: 'bin', op: '-', g, d, ligne },
@@ -374,7 +481,15 @@ class Parseur {
         // « 3 millions » : multiplicateur postfixe.
         const ligne = this.ligne();
         const m = this.avance().valeur;
-        g = { k: 'bin', op: '*', g, d: { k: 'nombre', v: m, ligne }, ligne };
+        g = { k: 'bin', op: '*', g, d: { k: 'nombre', v: m, ligne }, ligne, mult: g.k === 'nombre' };
+        this.unites(g);
+      } else if (this.estType('ident') && ['x', 'X'].includes(this.cur().valeur)
+                 && !this.estDeclare(this.cur()) && this.j[this.i + 1]
+                 && ['nombre', 'ident', '('].includes(this.j[this.i + 1].type)) {
+        // « loyer x 12 » : la croix de l'école, quand aucun « x » n'est défini.
+        const ligne = this.ligne();
+        this.avance();
+        g = { k: 'bin', op: '*', g, d: this.unaire(), ligne };
       } else break;
     }
     return g;
@@ -409,8 +524,9 @@ class Parseur {
     // — ajouter un aléa à une somme — était refusée.
     if (t.type === 'mc' && (t.valeur === 'si' || t.valeur === 'if')) return this.ternaire();
     // « entre 900 et 1150 » : la fourchette dite en français.
-    if (t.type === 'ident' && t.valeur.toLowerCase() === 'entre'
-        && this.j[this.i + 1] && this.j[this.i + 1].type !== '(') {
+    if (t.type === 'ident' && ['entre', 'between'].includes(t.valeur.toLowerCase())
+        && this.j[this.i + 1] && this.j[this.i + 1].type !== '('
+        && !this.declares.has(t.valeur)) {
       this.avance();
       const bas = this.somme();
       if (!this.estMC('et') && !this.estMC('and')) {
@@ -418,10 +534,19 @@ class Parseur {
       }
       this.avance();
       const haut = this.somme();
-      return {
-        k: 'intervalle', bas, haut, ligne: t.ligne,
-        pourcent: (bas.k === 'nombre' && bas.pourcent) || (haut.k === 'nombre' && haut.pourcent),
-      };
+      return fourchette(bas, haut, t.ligne);
+    }
+    // « environ 100 », « about 100 » : pas de largeur, donc pas de fourchette.
+    if ((t.type === 'ident' && APPROXIMATIFS.has(t.valeur.toLowerCase()) && !this.declares.has(t.valeur))
+        || (t.type === 'interv' && t.valeur === '~')) {
+      throw new ErreurModele(MESSAGE_ENVIRON, t.ligne);
+    }
+    // Une branche ne se réutilise pas dans un calcul.
+    if (t.type === 'mc' && (t.valeur === 'option' || t.valeur === 'choix')) {
+      throw new ErreurModele(
+        'une branche ne se réutilise pas dans un calcul. Donnez un nom à son contenu '
+        + '(« ouvrir = … »), servez-vous de ce nom, et écrivez « option "Ouvrir" = ouvrir »',
+        t.ligne);
     }
     if (t.type === 'texte') {
       throw new ErreurModele(
@@ -430,7 +555,9 @@ class Parseur {
     }
     if (t.type === 'nombre') {
       this.avance();
-      return { k: 'nombre', v: t.valeur, pourcent: t.pourcent, ligne: t.ligne };
+      const noeud = { k: 'nombre', v: t.valeur, pourcent: t.pourcent, suffixe: t.suffixe || 1, ligne: t.ligne };
+      this.unites(noeud);
+      return noeud;
     }
     if (t.type === 'mc' && (t.valeur === 'vrai' || t.valeur === 'true')) {
       this.avance(); return { k: 'nombre', v: 1, ligne: t.ligne };
@@ -447,7 +574,7 @@ class Parseur {
           args.push(this.expr());
           while (this.estType(',')) { this.avance(); args.push(this.expr()); }
         }
-        this.attendre(')', 'parenthèse fermante');
+        this.attendre(')', 'parenthèse fermante attendue');
         return { k: 'appel', nom: t.valeur, args, ligne: t.ligne };
       }
       return { k: 'var', nom: t.valeur, ligne: t.ligne };
@@ -455,7 +582,7 @@ class Parseur {
     if (t.type === '(') {
       this.avance();
       const e = this.expr();
-      this.attendre(')', 'parenthèse fermante');
+      this.attendre(')', 'parenthèse fermante attendue');
       return e;
     }
     if (t.type === 'nl' || t.type === 'fin') {
@@ -467,10 +594,19 @@ class Parseur {
 
 export function analyser(sourceBrute) {
   const { source, unite: uniteDeclaree } = extraireUnite(sourceBrute);
-  const p = new Parseur(lexer(source));
+  const jetons = lexer(source);
+  // Les noms définis quelque part, connus avant de lire la moindre ligne : une
+  // définition peut venir après son usage.
+  const declares = new Set();
+  for (let k = 0; k + 1 < jetons.length; k++) {
+    if (jetons[k].type === 'ident' && jetons[k + 1].type === 'assign'
+        && (k === 0 || jetons[k - 1].type === 'nl')) declares.add(jetons[k].valeur);
+  }
+  const p = new Parseur(jetons, declares);
   const declarations = [];
   const options = [];
   let sortie = null;
+  const sortiesIgnorees = [];
   const unite = uniteDeclaree;
   let seuil = null;
 
@@ -479,6 +615,10 @@ export function analyser(sourceBrute) {
     if (p.estType('fin')) break;
     const ligne = p.ligne();
     const iDebut = p.i;
+
+    if (p.estType('assign')) {
+      throw new ErreurModele('il manque un nom avant « = » : écrivez « nom = … »', ligne);
+    }
 
     // Directives « unité: € » et « seuil: 0 ».
     if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === ':') {
@@ -508,7 +648,7 @@ export function analyser(sourceBrute) {
       else if (p.estType('ident')) nom = p.avance().valeur;
       else throw new ErreurModele('nom d’option attendu après « option »', ligne);
       if (p.estType(':')) p.avance();
-      else p.attendre('assign', '« = » après le nom de l’option');
+      else p.attendre('assign', '« = » attendu après le nom de l’option');
       const e = p.expr();
       options.push({ nom, expr: e, ligne });
     } else if (p.estType('ident') && p.j[p.i + 1] && p.j[p.i + 1].type === 'assign') {
@@ -516,11 +656,14 @@ export function analyser(sourceBrute) {
       p.avance(); // =
       const e = p.expr();
       if (declarations.some((d) => d.nom === nom)) {
-        throw new ErreurModele(`« ${nom} » est défini deux fois`, ligne);
+        throw new ErreurModele(
+          `« ${nom} » est défini deux fois. Une valeur ne change pas en cours de route : `
+          + `donnez un autre nom à la seconde, par exemple « ${nom}_2 »`, ligne);
       }
       declarations.push({ nom, expr: e, ligne });
     } else {
       const e = p.expr();
+      if (sortie) sortiesIgnorees.push(sortie.ligne);
       sortie = { expr: e, ligne };
     }
 
@@ -581,10 +724,23 @@ export function analyser(sourceBrute) {
   }
 
   if (!sortie && options.length === 0 && declarations.length > 0) {
-    // Par défaut, la dernière variable définie est le résultat.
-    const derniere = declarations[declarations.length - 1];
+    // Par défaut, la dernière variable définie est le résultat — sauf si elle
+    // sert à en calculer une autre : alors c'est une étape, et le résultat est
+    // la dernière variable dont rien ne dépend. Quelqu'un qui écrit « total »
+    // en premier et ses termes ensuite obtient bien « total ».
+    const utilises = new Set();
+    const noter = (n) => {
+      if (!n || typeof n !== 'object') return;
+      if (n.k === 'var') utilises.add(n.nom);
+      for (const c of ['e', 'g', 'd', 'cond', 'oui', 'non', 'bas', 'haut']) noter(n[c]);
+      if (n.args) n.args.forEach(noter);
+    };
+    for (const d of declarations) noter(d.expr);
+    if (seuil) noter(seuil.expr);
+    const libres = declarations.filter((d) => !utilises.has(d.nom));
+    const derniere = libres.length ? libres[libres.length - 1] : declarations[declarations.length - 1];
     sortie = { expr: { k: 'var', nom: derniere.nom, ligne: derniere.ligne }, ligne: derniere.ligne, implicite: true };
   }
 
-  return { declarations, options, sortie, unite, seuil, objectifDeduit };
+  return { declarations, options, sortie, unite, seuil, objectifDeduit, sortiesIgnorees };
 }

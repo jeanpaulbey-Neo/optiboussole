@@ -74,9 +74,13 @@ const DETERMINISTES = {
   arrondi: (N, x) => unaireF(x, N, Math.round),
   round: (N, x) => unaireF(x, N, Math.round),
   plancher: (N, x) => unaireF(x, N, Math.floor),
+  floor: (N, x) => unaireF(x, N, Math.floor),
   plafond: (N, x) => unaireF(x, N, Math.ceil),
+  ceil: (N, x) => unaireF(x, N, Math.ceil),
   signe: (N, x) => unaireF(x, N, Math.sign),
   mod: (N, x, y) => binaire(x, y, N, (a, b) => a % b),
+  pow: (N, x, y) => binaire(x, y, N, Math.pow),
+  puissance: (N, x, y) => binaire(x, y, N, Math.pow),
   // Somme d'une série géométrique : capitalisation / actualisation.
   //   cumul(t, a) = 1 + (1+t) + … + (1+t)^(a-1)
   cumul: (N, taux, annees) => binaire(taux, annees, N, (t, a) =>
@@ -97,6 +101,17 @@ const DETERMINISTES = {
     return out;
   },
 };
+
+// Nombre d'arguments attendus. « max() » sans rien plantait sur une exception
+// interne, et « abs() » rendait NaN sans un mot.
+const ARITE = {
+  min: [1, Infinity], max: [1, Infinity], mod: [2, 2], pow: [2, 2], puissance: [2, 2],
+  cumul: [2, 2], serie: [3, 3],
+  unif: [2, 2], uniforme: [2, 2], normale: [2, 2], normal: [2, 2],
+  lognormale: [1, 2], lognormal: [1, 2], beta: [2, 2], bernoulli: [1, 1], pile: [1, 1],
+  poisson: [1, 1], triangulaire: [3, 3],
+};
+const arite = (nom) => ARITE[nom] || [1, 1];
 
 const ALEATOIRES = new Set([
   'unif', 'uniforme', 'normale', 'normal', 'lognormale', 'lognormal',
@@ -312,6 +327,16 @@ class Contexte {
     const N = this.N;
     const nom = n.nom.toLowerCase();
 
+    {
+      const [mini, maxi] = arite(nom);
+      if (n.args.length < mini || n.args.length > maxi) {
+        const attendu = mini === maxi ? `${mini} argument${mini > 1 ? 's' : ''}`
+          : maxi === Infinity ? `au moins ${mini} argument${mini > 1 ? 's' : ''}`
+          : `${mini} ou ${maxi} arguments`;
+        throw new ErreurModele(`« ${n.nom} » attend ${attendu}, pas ${n.args.length}`, n.ligne);
+      }
+    }
+
     if (AGREGATS.has(nom)) {
       const v = this.evaluer(n.args[0]);
       if (!estVec(v)) return nom === 'ecart_type' || nom === 'écart_type' ? 0 : v;
@@ -338,6 +363,31 @@ class Contexte {
       };
       const CONTINUES = new Set(['unif', 'uniforme', 'normale', 'normal',
         'lognormale', 'lognormal', 'triangulaire']);
+      // Un paramètre impossible donne un tirage plausible et faux : bernoulli(120 %)
+      // vaut toujours 1, triangulaire(1, 5, 3) sort de ses propres bornes.
+      const borne = (k, test, message) => {
+        const a = args[k];
+        const mauvais = estVec(a) ? a.some((x) => !test(x)) : !test(a);
+        if (mauvais) throw new ErreurModele(`« ${n.nom} » : ${message}`, n.ligne);
+      };
+      if (nom === 'bernoulli' || nom === 'pile') {
+        borne(0, (p) => p >= 0 && p <= 1, 'une probabilité va de 0 à 1 (ou de 0 % à 100 %)');
+      } else if (nom === 'poisson') {
+        borne(0, (l) => l >= 0, 'la moyenne ne peut pas être négative');
+      } else if (nom === 'triangulaire') {
+        const A = estVec(args[0]) ? args[0][0] : args[0];
+        const M = estVec(args[1]) ? args[1][0] : args[1];
+        const B = estVec(args[2]) ? args[2][0] : args[2];
+        if (!(A <= M && M <= B)) {
+          throw new ErreurModele(
+            `« ${n.nom} » s’écrit (minimum, valeur la plus probable, maximum), dans cet ordre`, n.ligne);
+        }
+      } else if (nom === 'beta') {
+        borne(0, (x) => x > 0, 'les deux paramètres doivent être strictement positifs');
+        borne(1, (x) => x > 0, 'les deux paramètres doivent être strictement positifs');
+      } else if (nom === 'normale' || nom === 'normal') {
+        borne(1, (s) => s >= 0, 'l’écart-type ne peut pas être négatif');
+      }
       return this.source(nom, n.ligne, () => {
         const out = new Float64Array(N);
         const r = this.rng;

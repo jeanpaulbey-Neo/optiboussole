@@ -60,9 +60,13 @@ const AIDE = `<details class="panneau aide">
     </table>
     <p class="aide-note">
       Le site accepte ce qu’on écrit vraiment : les symboles collés aux nombres
-      (<code>900 €</code>, <code>3 %/an</code>), l’espace insécable et l’espace des milliers,
-      le point-virgule comme séparateur d’arguments à la mode tableur (<code>max(1;2)</code>),
-      et les accents dans les noms. Un nom d’hypothèse, lui, s’écrit d’un seul tenant :
+      (<code>900 €</code>, <code>30 k€</code>, <code>3 %/an</code>), les mots d’unité après un nombre
+      (<code>3 ans</code>, <code>40 h/semaine</code> — lus, ignorés, et signalés), l’échelle donnée à une
+      seule borne (<code>15 à 30 %</code>, <code>1 à 3 millions</code>), <code>1000 ± 10 %</code>,
+      la croix de l’école (<code>loyer x 12</code>), l’espace insécable et l’espace des milliers,
+      le point-virgule à la mode tableur (<code>max(1;2)</code>), les accents dans les noms,
+      et les mots-clés en anglais (<code>to</code>, <code>if … then … else</code>, <code>unit:</code>,
+      <code>threshold:</code>). Un nom d’hypothèse, lui, s’écrit d’un seul tenant :
       <code>prix_du_kilo</code>, pas <code>prix du kilo</code>.
     </p>
 
