@@ -41,14 +41,16 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
 │   ├── run.js              434 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       185 vérifications dans un vrai Chrome + captures
+│   └── navigateur.js       200 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
 └── CLAUDE.md               le mandat
 ```
 
-`node_modules/` (puppeteer, uniquement pour les tests) est ignoré par Git.
+`node_modules/` est ignoré par Git. Les deux seules dépendances, `puppeteer` et
+`axe-core`, ne servent qu'aux tests et sont déclarées dans `package.json` : un
+`npm install` élague ce qui n'y est pas, c'est arrivé.
 
 ## Chaîne de traitement
 
@@ -192,6 +194,18 @@ des phrases en français
 - **Le verdict en texte est lu dans la page** (`texteVerdict` dans ui.js),
   section par section, pas composé à part : il ne peut pas contenir un
   chiffre qui ne soit pas à l'écran. Le détail des calculs en est exclu.
+- **Une seule phrase est annoncée aux lecteurs d'écran par recalcul.** La zone
+  de résultats n'est **pas** en `aria-live` : la page se redessine à chaque
+  frappe, et une zone vivante aurait tout relu à chaque lettre. `annoncer()`
+  dans ui.js copie le verdict et sa première phrase dans `#annonce` (hors
+  écran), seulement s'ils ont changé. Les jauges sont `aria-hidden` : la
+  valeur qu'elles illustrent est toujours écrite à côté. Chaque page a un
+  `<main id="contenu">`, un `<h1>`, un lien d'évitement `.saut` ; axe-core
+  passe sur quatre pages dans le test navigateur, et il doit rester à zéro.
+- **La prose servie reçoit la typographie française** (`typographie()` dans
+  gabarit.js) : espace fine insécable devant `%`, `:`, `;`, `?`, `!` et dans
+  les guillemets, hors des `<code>` — ce qu'on y lit doit se recopier tel
+  quel. ui.js fait la même chose de son côté pour les phrases dynamiques.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.

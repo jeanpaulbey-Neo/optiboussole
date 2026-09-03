@@ -8,6 +8,100 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 3 septembre 2026 — Session 10 : le poids et l'incertitude, et un visiteur qu'on n'avait jamais imaginé
+
+*Modèle : Claude Fable 5.1.*
+
+### Le huitième chapitre
+
+Le point 3 d'hier. Le détail des calculs et l'origine de l'incertitude d'une
+valeur intermédiaire existaient depuis les sessions 6 et 7, mais `/la-methode`
+n'en disait rien. Le chapitre s'appelle « Le poids et l'incertitude » et il
+tient sur un seul exemple, le prix du kilomètre : `fixe` vaut 4 240 € par an,
+la décote en fait 1 930 €, près de la moitié — et l'incertitude de `fixe` est
+portée par `reparations` à 39 % et `stationnement` à 28 %, la décote n'y
+étant pour presque rien. **Ce qui pèse et ce qu'on ignore ne coïncident
+pas** : c'était la phrase de la session 8, elle a maintenant une adresse
+indexable et douze assertions qui l'épinglent.
+
+En l'écrivant, j'ai tranché ce que quatre sessions reportaient sous « à
+peser » : **décomposer un produit**. La réponse est qu'il n'y a rien à
+décomposer. Dans `ca = tjm * jours`, chaque facteur pèse exactement autant
+que l'autre — doublez l'un ou l'autre, le résultat double — donc « quel
+facteur pèse le plus » n'a pas de réponse, et un poids affiché serait une
+invention. Ce qui distingue les facteurs d'un produit, c'est uniquement leur
+incertitude, et cette ligne-là s'affiche déjà sous chaque valeur. Vérifié sur
+`a = 1 à 3`, `b = 10 à 12`, `c = 100 à 110` : `c` est le plus grand facteur
+et `a` porte 96 % de l'incertitude. Le chapitre le dit, un test le tient, et
+l'item sort de la liste pour de bon. Je note la leçon de méthode : un point
+qui reste « à peser » quatre sessions de suite est un point dont on n'a pas
+encore écrit pourquoi il est vide.
+
+Une chose vue sur la capture mobile du chapitre : « 11 % » se coupait en fin
+de ligne, le signe seul au début de la suivante. Le rendu dynamique posait
+l'espace fine insécable depuis la session 1 ; la prose servie par le
+gabarit, jamais. C'est fait dans `riche()`, pour les pages de fond aussi,
+hors des blocs de code — ce qu'on y lit doit se recopier tel quel.
+
+### Un visiteur au clavier
+
+Neuf sessions à imaginer des visiteurs, et jamais un qui n'utilise pas la
+souris ni les yeux. J'ai passé axe-core sur trois pages. Résultat honnête
+pour mes prédécesseurs : aucune étiquette manquante, aucun contraste
+insuffisant, `aria-current` sur la pastille active, `role="status"` sur
+l'erreur. Deux manques mécaniques — pas de `<main>`, deux blocs hors
+landmark — et un problème que l'outil ne pouvait pas voir : **la zone de
+résultats entière était en `aria-live`**. La page se redessine à chaque
+frappe. Un lecteur d'écran aurait relu tout le verdict, toutes les
+hypothèses, tous les seuils, à chaque lettre tapée. C'est l'inverse exact de
+ce qu'on veut, et c'est la faute la plus courante avec cet attribut.
+
+Maintenant : une zone hors écran reçoit le verdict et sa première phrase,
+seulement s'ils ont changé — modifier un commentaire n'annonce rien,
+modifier une hypothèse annonce « Le vrai prix du kilomètre. 0,50 €/km. Neuf
+fois sur dix, entre… ». Les jauges, décoratives, sont masquées. Un lien
+« Aller au contenu » apparaît au premier Tab, et un contour de focus
+identique partout. Puis la page 404, écrite à la main en session 1, s'est
+révélée périmée : sept modèles sur dix, une apostrophe droite. Elle est
+générée par le gabarit désormais, comme tout le reste.
+
+axe tourne dans le test navigateur sur quatre pages, et le test vérifie à la
+main ce qu'axe ne sait pas : que l'annonce est une phrase courte, qu'elle ne
+bouge pas pour un commentaire, qu'elle bouge pour une hypothèse, que Tab
+puis Entrée mènent au contenu.
+
+### Un accident à ne pas répéter
+
+`npm i -D axe-core` a **supprimé puppeteer**. Il était dans le lock mais pas
+dans `package.json`, et npm élague ce qui n'est pas déclaré. Le test
+navigateur ne tournait plus. Les deux dépendances sont maintenant déclarées,
+et l'architecture le dit.
+
+### État à la fin de la session
+
+- Huit chapitres sur `/la-methode`. Douze pages, toutes générées.
+- 434 assertions sur le moteur, 200 dans un vrai navigateur, axe compris.
+  Toutes vertes.
+
+### Ce que je ferais ensuite
+
+1. **La bande de modèles a dix pastilles**, toujours. Sur bureau elle passe
+   sur deux lignes ; ça tient encore. Le jour où on en ajoute un, il faudra
+   grouper ou retirer.
+2. **Une récolte sur un texte que je n'aurai pas choisi.** La décision de la
+   session 9 tient : la prochaine fois que j'écris de travers, ce sera à
+   partir d'un fil que je n'ai pas cherché.
+3. **Relire les pages de fond avec le chapitre 8 en tête.** Quatre modèles
+   disent déjà ce que le détail montre ; les six autres pourraient avoir
+   une phrase de ce genre, quand elle est vraie et qu'elle apprend quelque
+   chose.
+
+Toujours pas de graphiques. Un lecteur d'écran est d'ailleurs le meilleur
+argument que j'aie trouvé pour cette règle : tout ce que le site dit, il le
+dit en phrases, et il n'y a rien à décrire à côté.
+
+---
+
 ## 3 septembre 2026 — Session 9 : le dixième modèle
 
 *Modèle : Claude Fable 5.1.*
