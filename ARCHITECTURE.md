@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 3 septembre 2026 (fin de session 10).
+État au 3 septembre 2026 (fin de session 11).
 
 ## En une phrase
 
@@ -30,7 +30,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── rng.js          xoshiro128** déterministe, lois de probabilité
 │       ├── lang.js         lexer + parseur du langage de modèle
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
-│       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info, détail des calculs
+│       ├── moteur.js       sensibilité, seuils, valeur de l'info, détail, asymétrie du pari
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
 │       ├── modeles.js      bibliothèque des dix modèles de départ (plus la page blanche)
 │       └── ui.js           rendu, phrases en français, partage par URL
@@ -40,8 +40,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              434 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       204 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              509 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       216 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -64,7 +64,7 @@ AST { declarations, options, sortie, unite, seuil, objectifDeduit }
 { sources[], variables, options[], sortie, details }   « source » = un tirage aléatoire
    │  moteur.js : indices, seuils, EVPPI
    ▼
-{ modeDecision, options{}, sortie{}, sources[{ part, valeurInfo, bascules }],
+{ modeDecision, options{ …, pari, desaccord }, sortie{}, sources[{ part, valeurInfo, … }],
   detail{ calculs[{ p50, p05, p95, termes, origines }], options[], sortie } }
    │  ui.js
    ▼
@@ -212,6 +212,46 @@ des phrases en français
   autre modèle écrasait ce que le visiteur avait écrit sur l'accueil. Et
   « Réinitialiser » efface le brouillon. Quatre vérifications navigateur
   tiennent le scénario.
+- **Deux règles de décision cohabitent, et il faut les nommer.** La branche
+  retenue (`options.recommande`) est celle de **meilleure espérance** ; la
+  phrase du verdict raconte celle qui **gagne le plus souvent**
+  (`options.frequent`). Sur tous les modèles de la bibliothèque c'est la même,
+  et un test le vérifie. Quand elles diffèrent — une branche qui gagne rarement
+  et gros — `options.desaccord` est vrai : le site affiche « Deux réponses »,
+  nomme les deux titres sur les branches, et cesse de trancher. Avant, il
+  affichait « À égalité », marquait « retenue » une branche perdant neuf fois
+  sur dix, et donnait sa fréquence de victoire comme si c'était celle du
+  vainqueur. **Ne remplacez pas l'espérance par la fréquence** pour faire
+  disparaître le cas : la fréquence ignore les montants et, comparée deux à
+  deux, elle peut tourner en rond sans désigner personne.
+- **`options.pari` lit les deux versants de l'écart** entre la branche retenue
+  et sa meilleure rivale : ce qu'on gagne quand on a raison, ce qu'on perd
+  quand on a tort, et la queue des pertes. Tout se calcule par quantiles sur
+  `options.ecart.tri`, déjà trié — coût nul. **La queue (`pertePire`) se lit
+  parmi les seules simulations perdantes**, pas sur l'ensemble des tirages :
+  prise sur l'ensemble, le cinquième centile tombait sur une perte minuscule
+  dès qu'on se trompe à peine plus d'une fois sur vingt, et le « pire cas »
+  s'affichait plus petit que le cas courant. Un test tient l'ordre.
+- **Les grandeurs composées à la française sont refusées, pas ignorées.**
+  `1m80`, `1km500`, `1m52` se lisaient « 1 » suivi d'une unité `m80` ignorée :
+  faux d'un facteur deux, en silence. Il faut **au moins deux chiffres** après
+  l'unité — sinon `60m2` (des mètres carrés, qui marche) serait pris pour une
+  grandeur composée — et les lettres qui ne sont que des multiplicateurs
+  d'échelle (`k`, `M`, `G`, `Md`) ou l'exposant scientifique en sont exclues.
+- **`m` collé à un nombre reste le suffixe des millions, et le site le dit.**
+  `2,4m` vaut 2 400 000 ; dans un texte français, c'est aussi la façon d'écrire
+  2,4 mètres, et rien dans la ligne ne permet de trancher. Même traitement que
+  `100.000` : on lit, et on avertit, en montrant `2,4 m` avec une espace.
+  Devant un symbole monétaire (`2,4m€`), aucune ambiguïté : pas d'avertissement.
+- **L'apostrophe entre deux lettres fait partie du mot.** `d’euros`, `l’an`,
+  `prix_d’achat` butaient sur « caractère inattendu « ’ » », le pire message
+  possible puisqu'on ne voit pas ce qu'il faut corriger. Entre chiffres, elle
+  reste le séparateur de milliers suisse (`1'000'000`), traité dans la branche
+  des nombres.
+- **« une vingtaine » est un « environ » qui ne dit pas son nom.**
+  `APPROXIMATIFS_NOMBRES` renvoie à la fourchette (« 16 à 24 ») au lieu de
+  valoir 1 — « une » lu comme le nombre, « vingtaine » ignoré comme une unité.
+  Un nom défini garde la priorité : `dizaine = 10` reste utilisable.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
@@ -264,7 +304,7 @@ Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
-y renvoie. Huit chapitres. **Ses chiffres sont épinglés par des tests** : quand
+y renvoie. Neuf chapitres. **Ses chiffres sont épinglés par des tests** : quand
 ils cassent, c'est la page qu'on corrige, pas le test qu'on assouplit. Ils ont
 déjà servi deux fois.
 

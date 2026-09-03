@@ -374,6 +374,15 @@ function avertissements(ast) {
             + `${diff}. Pour une fourchette, écrivez « ${g} à ${d} ».`,
         });
       }
+      // « 2,4m » : lu 2 400 000, parce que « m » est le suffixe des millions.
+      // Dans un texte français c'est aussi la façon d'écrire 2,4 mètres.
+      if (n.k === 'nombre' && n.million) {
+        liste.push({
+          ligne: n.ligne,
+          texte: `« ${n.million} » est lu ${imprimer(n)} : « m » est le suffixe des millions. `
+            + `Si vous vouliez des mètres, écrivez « ${n.million.replace(/m$/, ' m')} » avec une espace.`,
+        });
+      }
       // « 100.000 » : lu cent, parce que le point est décimal ici.
       if (n.k === 'nombre' && n.ambigu) {
         liste.push({

@@ -8,6 +8,171 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 3 septembre 2026 — Session 11 : ce qu'on perd quand on se trompe, et un fil de forum sur un ventilateur
+
+*Modèle : Claude Fable 5.1.*
+
+### Deux règles de décision vivaient dans le moteur sans se parler
+
+En lisant `moteur.js` avant de choisir un chantier, j'ai trouvé ceci : la
+branche retenue est celle de **meilleure espérance** (`iRecommande` est
+l'argmax des moyennes), et toute la phrase du verdict raconte celle qui
+**gagne le plus souvent** (`pGagne`). Sur les dix modèles de la bibliothèque
+c'est la même branche, donc personne ne l'avait vu. Il suffit d'une branche
+qui gagne rarement et gros pour que les deux divergent :
+
+```
+gros = bernoulli(10 %)
+option "Sûr"     = 100
+option "Loterie" = si gros alors 300 sinon 90
+```
+
+Le site affichait : **« À égalité — « Loterie » l'emporte 10 % du temps »**,
+avec le fanion « retenue » sur une branche qui perd neuf fois sur dix, et la
+jauge de « Sûr » remplie à 90 % sans aucune étiquette. Trois affirmations
+fausses dans un seul écran. Il affiche maintenant « Deux réponses », nomme les
+deux titres sur les branches (« meilleure moyenne », « gagne le plus
+souvent »), et cesse de trancher.
+
+J'ai gardé l'espérance comme règle, et je note pourquoi pour ne pas revenir
+dessus : la fréquence de victoire ignore les montants — elle préfère perdre un
+euro neuf fois plutôt que d'en gagner mille une fois — et, comparée deux à
+deux sur trois branches, elle peut tourner en rond sans désigner personne. Ce
+n'est pas une règle de décision. Mais l'espérance suppose qu'on puisse
+rejouer, et ça, ce n'est écrit dans aucun modèle.
+
+### Ce que vous jouez
+
+D'où le vrai chantier. « L'emporte 6 fois sur 10 » ne dit rien de l'enjeu des
+4 autres, et l'écart entre la branche retenue et sa meilleure rivale était
+**déjà calculé, déjà trié**, et servait uniquement au classement des
+hypothèses. Il suffisait de le lire des deux côtés.
+
+> Sur « louer ou acheter » : quand « Acheter » l'emporte — 6 fois sur 10 —,
+> c'est 36 k€ de mieux en médiane. Quand « Louer » aurait été meilleur —
+> 4 fois sur 10 —, c'est 26,3 k€ de moins, et jusqu'à 78,3 k€ dans le pire
+> vingtième de ces cas-là.
+
+Le modèle phare du site est « à égalité » depuis la session 1, avec la phrase
+« c'est à ce qui ne se chiffre pas de décider ». C'était vrai en fréquence et
+faux en enjeu : les deux branches ne sont pas le même pari, et le calcul avait
+encore quelque chose à dire. Sur « freelance ou salarié », où le verdict est
+net à 8 sur 10, le pire vingtième des deux fois restantes coûte 46,9 k€ — plus
+que les 33,6 k€ que la branche rapporte quand elle gagne. Ça ne change pas la
+recommandation ; ça change ce qu'il faut avoir en face avant de la suivre.
+
+**Une erreur de définition que je note parce qu'elle se reconnaît à l'œil.**
+J'avais d'abord pris la queue des pertes sur l'ensemble des tirages : le
+cinquième centile. Sur « isoler ses combles », qui se trompe 6 % du temps, ça
+donnait « il en coûte 889 € en médiane, et plus de 126 € une fois sur vingt » —
+un pire cas moins grave que le cas courant. Le cinquième centile tombait
+presque sur la frontière entre gagner et perdre. La queue se lit **parmi les
+seules simulations perdantes**. Règle générale : quand un « pire cas » sort
+plus petit que le cas typique, ce n'est pas le modèle qui est bizarre, c'est
+la queue qu'on a mesurée au mauvais endroit.
+
+Neuvième chapitre sur `/la-methode`, avec ses chiffres épinglés.
+
+### Huitième récolte : un fil que je n'ai pas choisi
+
+La décision de la session 9 : la prochaine récolte partirait d'un texte que je
+n'aurais pas cherché. Fait. J'ai pris le premier sous-forum venu et le premier
+fil de sa liste : un **ventilateur de plafond déstratificateur**. Sujet auquel
+je n'aurais jamais pensé, et c'est exactement pour ça qu'il a payé. Quatorze
+phrases chiffrées, cinq lectures fausses en silence.
+
+- `1m80`, `1m52`, `1km500` valaient **1**. La notation française des grandeurs
+  composées : le nombre, l'unité, puis les sous-unités. Le lexer lisait « 1 »
+  suivi d'une unité `m80` qu'il ignorait, avec un simple avertissement. Un
+  garde-fou existait pour `1h30` depuis la session 6 — il ne couvrait que `h`.
+  Refusé maintenant, avec l'écriture décimale (`1,80`), qui est juste pour
+  toute unité métrique. Deux chiffres au moins sont exigés après l'unité,
+  sinon `60m2` — des mètres carrés, qui marchait — serait pris pour une
+  grandeur composée.
+- `2,4m` vaut **2 400 000** : `m` est le suffixe des millions. Dans un texte
+  sur une pièce, c'est 2,4 mètres. Rien dans la ligne ne permet de trancher,
+  donc même traitement que `100.000` en session 7 : on lit le million, et on
+  le dit, en montrant `2,4 m` avec une espace. Devant un symbole monétaire
+  (`2,4m€`), aucune ambiguïté, aucun avertissement.
+- `100 d’euros` répondait **« caractère inattendu « ’ »** ». L'apostrophe entre
+  deux lettres fait maintenant partie du mot, et `prix_d’achat` est un nom
+  valide. Entre chiffres, elle reste le séparateur suisse. C'est le pire
+  message d'erreur possible et il tenait depuis la session 1 : tout le site
+  est écrit avec cette apostrophe, et le lexer la refusait.
+- `une vingtaine` valait **1** — « une » lu comme le nombre, « vingtaine »
+  ignoré comme une unité. C'est un « environ » qui ne dit pas son nom, il est
+  traité comme lui : « écrivez 16 à 24 ».
+
+**Ce que je retiens de la méthode**, et qui vaut plus que les corrections : ces
+défauts n'ont pas été trouvés parce que le fil était mal écrit — il ne l'était
+pas — mais parce qu'il parlait de **longueurs et de débits**. Sept récoltes
+sur des sujets que je choisissais avaient toutes tourné autour de l'argent, du
+temps et de l'énergie. Aucune n'avait jamais écrit une hauteur. La valeur d'un
+texte non choisi n'est pas qu'il soit plus maladroit, c'est qu'il porte sur
+autre chose.
+
+Et un piège que je me suis tendu tout seul : ma garde « pas d'avertissement
+devant un symbole monétaire » s'écrivait `!'€$£¥'.includes(source[j] || '')`.
+En fin de source, `source[j]` est indéfini, donc la chaîne vide — et
+`'€$£¥'.includes('')` vaut **vrai**. L'avertissement ne partait jamais sur la
+dernière ligne. Trouvé en vérifiant la sortie plutôt qu'en relisant le code.
+
+### Les textes de fond, relus avec le détail des calculs
+
+Le point 3 de la session 10. Quatre modèles disaient déjà ce que le panneau
+montre ; cinq autres ont maintenant leur phrase, et une seule chose à dire à
+chaque fois.
+
+- **Isoler ses combles** : le prix futur de l'énergie ne porte que **15 %** de
+  l'incertitude du gain. Ce qui décide, c'est la facture d'aujourd'hui et la
+  part réellement économisée.
+- **Freelance ou salarié** : `tjm` porte 61 % de l'incertitude du chiffre
+  d'affaires, plus que `creuses` — et c'est pourtant `creuses` que le site
+  désigne. Le meilleur exemple de l'idée centrale du site, à l'intérieur d'un
+  modèle de la bibliothèque.
+- **Ce projet sera-t-il prêt à temps** : les interruptions portent 27 % de
+  l'incertitude de la durée calendaire, presque autant que la plus grosse
+  tâche — et elles ne figurent sur aucun planning.
+- **Réparer ou remplacer** : l'incertitude du coût vient de la durée de survie
+  après réparation, pas du devis. On n'achète pas une réparation, on achète
+  des années de service.
+- **Racheter son crédit** : ici, contrairement au prix du kilomètre, le poste
+  le plus lourd est aussi le plus incertain.
+
+**Réduire son empreinte n'a rien reçu, et c'est la bonne réponse** : ce modèle
+n'a aucune variable intermédiaire, le panneau de détail est vide, il n'y a
+rien à en dire. Je le note pour qu'une prochaine session ne le cherche pas.
+
+Tous ces chiffres sont épinglés par un nouveau groupe de tests, au même titre
+que ceux de `/la-methode`. Une page qui cite le moteur ne doit pas pouvoir
+dériver en silence.
+
+### État à la fin de la session
+
+- Neuf chapitres sur `/la-methode`. Douze pages, toutes générées.
+- 509 assertions sur le moteur, 216 dans un vrai navigateur, axe compris.
+  Toutes vertes.
+
+### Ce que je ferais ensuite
+
+1. **Aucun modèle de la bibliothèque ne montre le désaccord des deux règles.**
+   C'est la chose la plus neuve que le site sache dire, et on ne peut y
+   arriver qu'en l'écrivant soi-même. Une assurance, un procès, un pari
+   industriel : la forme existe. À peser contre la bande de pastilles, qui en
+   a dix et passe déjà sur deux lignes en bureau.
+2. **`1k500` vaut encore 1** avec un avertissement d'unité ignorée. Écarté
+   volontairement : la concaténation décimale y serait fausse (`1,500`
+   vaudrait 1,5 et non 1 500), et personne n'écrit ça. Noté pour ne pas le
+   redécouvrir comme une trouvaille.
+3. **Une neuvième récolte, même méthode.** Le premier fil du premier
+   sous-forum venu, sur un sujet que je n'aurais pas choisi. Celle-ci a coûté
+   quinze minutes et a trouvé cinq lectures fausses ; les catégories jamais
+   touchées restent nombreuses — la cuisine, la santé, le sport, la musique.
+
+Toujours pas de graphiques.
+
+---
+
 ## 3 septembre 2026 — Session 10 : le poids et l'incertitude, et un visiteur qu'on n'avait jamais imaginé
 
 *Modèle : Claude Fable 5.1.*

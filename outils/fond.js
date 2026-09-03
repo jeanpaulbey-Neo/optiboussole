@@ -37,6 +37,7 @@ export const FOND = {
   combles: {
     compte: [
       "Le devis, aides déduites, comparé à l’économie de chauffage cumulée sur l’horizon, avec une dérive annuelle du prix de l’énergie. Les deux branches sont actualisées au taux de placement : l’argent du devis aurait pu rapporter ailleurs, et c’est compté.",
+      "Le détail des calculs, sous les résultats, sépare les deux côtés. Le coût tient à `prix_m2` pour les deux tiers de son incertitude et à `aide` pour un peu moins d’un tiers. Le gain cumulé tient à `economie` pour la moitié et à `chauffage_actuel` pour près d’un tiers — et **le prix futur de l’énergie, qui est ce qui inquiète, n’en porte que 15 %**. Ce qui décide, c’est ce que vous dépensez aujourd’hui et la part que vous économiserez vraiment.",
     ],
     ignore: [
       "Le confort d’été, qui est souvent la vraie raison d’isoler des combles, et qui ne se chiffre pas ici. La valeur ajoutée au logement à la revente. Le risque de malfaçon, qui n’est pas nul sur ce type de chantier.",
@@ -53,6 +54,7 @@ export const FOND = {
   freelance: {
     compte: [
       "Le net perçu de chaque côté sur trois ans. Côté freelance : chiffre d’affaires facturé, moins les cotisations et l’impôt exprimés en part du CA, moins les frais fixes. Le modèle ajoute une chose que les comparaisons oublient : le nombre d’années creuses, où les missions ne s’enchaînent pas. Chaque année a sa propre chance d’être creuse — et c’est ce compte-là, pas le taux journalier, qui décide.",
+      "Le détail des calculs le montre autrement. Le chiffre d’affaires tient à `tjm` pour 61 % de son incertitude et à `jours_facturables` pour 37 % : dans un produit, les deux facteurs pèsent exactement autant, et seule leur incertitude les distingue. Pourtant le site désigne `creuses`, qui en porte moins que `tjm`. **Ce qui fait varier le revenu et ce qui fait changer de camp sont deux questions différentes** — le tarif déplace le résultat, le nombre d’années creuses renverse le choix.",
     ],
     ignore: [
       "La protection sociale, et c’est majeur : assurance chômage, retraite, indemnités d’arrêt maladie, congés payés. L’écart réel entre les deux statuts se joue souvent là plutôt que sur le revenu, et rien de tout cela n’est dans le modèle.",
@@ -118,6 +120,7 @@ export const FOND = {
     compte: [
       "La somme des tâches, puis deux choses que les plannings omettent presque toujours : la part du temps mangée par le reste — réunions, support, autres dossiers — et l’incident qui n’était pas au planning, par définition.",
       "C’est le second point qui fait basculer la plupart des projets. Additionner des estimations de tâches donne le temps de travail, pas le temps calendaire.",
+      "Le détail des calculs chiffre l’écart entre les deux. Le temps de travail tient à `developpement` pour 59 % de son incertitude ; la durée calendaire, elle, se partage entre `developpement` (37 %) et `interruptions` (27 %). **Le temps que le projet ne vous appartient pas porte presque autant d’incertitude que la plus grosse tâche du planning**, et il ne figure sur aucun planning.",
     ],
     ignore: [
       "Les dépendances entre tâches : ici elles s’additionnent comme si l’ordre n’avait pas d’importance. Un vrai chemin critique, où une tâche en retard bloque les suivantes, donne une distribution plus étalée encore.",
@@ -149,6 +152,7 @@ export const FOND = {
     compte: [
       "Le coût par **année de service obtenue**, des deux côtés. C’est la seule comparaison honnête entre un appareil réparé qui tiendra peut-être trois ans et un appareil neuf qui en tiendra neuf : comparer le devis au prix du neuf ne veut rien dire.",
       "L’écart de consommation électrique est compté sur toute la période, ainsi que le risque que la réparation ne suffise pas.",
+      "Le détail des calculs dit ce que le devis ne dit pas : l’incertitude du coût de la réparation vient de `survie_reparee` à 46 % et de `rechute` à 33 %. **Le montant du devis n’en porte presque rien.** Vous n’achetez pas une réparation, vous achetez des années de service : c’est leur nombre qu’il faut estimer, pas leur prix.",
     ],
     ignore: [
       "L’impact environnemental de la fabrication d’un appareil neuf, qui pèse lourd et qui penche systématiquement du côté de la réparation.",
@@ -165,6 +169,7 @@ export const FOND = {
     compte: [
       "Les intérêts qu’il reste à payer sur la durée restante, au taux actuel et au taux proposé, à durée égale. En face du gain d’intérêts, tout ce que l’opération coûte : les frais de dossier, la nouvelle garantie — hypothèque ou caution — et l’indemnité de remboursement anticipé, plafonnée par la loi à six mois d’intérêts ou 3 % du capital, le plus bas des deux.",
       "La question utile n’est pas « combien je gagne à 3,2 % » : c’est **à partir de quel taux il n’y a plus rien à gagner**, frais compris. C’est le seuil de bascule sur `nouveau_taux`, et le site le calcule avec vos frais à vous, pas ceux d’une publicité.",
+      "Le détail des calculs décompose les frais : les frais de dossier valent environ 860 € au centre, la garantie et l’indemnité réunies trois fois plus. Ici, contrairement au prix du kilomètre, le poste le plus lourd est aussi le plus incertain — `ira` porte 42 % de l’incertitude des frais, `garantie` 33 %. Les deux se lisent dans des documents que vous pouvez demander aujourd’hui.",
     ],
     ignore: [
       "L’assurance emprunteur, qui est souvent le vrai gisement : un rachat est l’occasion d’une délégation d’assurance, et l’économie peut dépasser celle du taux. Ajoutez-la en ligne à part si c’est votre cas.",

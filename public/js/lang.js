@@ -55,6 +55,21 @@ const MULTIPLICATEURS_MOTS = {
 const APPROXIMATIFS = new Set(['environ', 'env', 'approx', 'approximativement',
   'about', 'around', 'roughly', 'circa']);
 
+// « une vingtaine », « une dizaine de … », « deux douzaines » : c'est un
+// « environ » qui ne dit pas son nom. Sans ça, « une vingtaine » valait 1 —
+// « une » lu comme le nombre, « vingtaine » ignoré comme une unité.
+const APPROXIMATIFS_NOMBRES = {
+  dizaine: 10, dizaines: 10, douzaine: 12, douzaines: 12, quinzaine: 15,
+  quinzaines: 15, vingtaine: 20, vingtaines: 20, trentaine: 30, trentaines: 30,
+  quarantaine: 40, cinquantaine: 50, soixantaine: 60,
+  centaine: 100, centaines: 100,
+};
+
+const messageAPeuPres = (mot, n) =>
+  `« ${mot} » ne dit pas de combien vous pourriez vous tromper. Écrivez la fourchette `
+  + `elle-même, celle qui a 9 chances sur 10 de contenir la vraie valeur : `
+  + `« ${Math.round(n * 0.8)} à ${Math.round(n * 1.2)} » plutôt que « ${mot} ».`;
+
 const MESSAGE_ENVIRON = '« environ » ne dit pas de combien vous pourriez vous tromper. '
   + 'Écrivez la fourchette elle-même, celle qui a 9 chances sur 10 de contenir la vraie '
   + 'valeur : « 80 à 120 » plutôt que « environ 100 ».';
@@ -139,17 +154,31 @@ export function lexer(source) {
           'le site ne lit pas les dates. Écrivez une durée — « 18 » (mois) ou « 1,5 » (années) — '
           + 'ou un écart entre deux années, comme « 2030 - 2026 »', ligne);
       }
-      // « 1h30 » se lisait « 1 » suivi d'une unité « h30 ».
+      // Les grandeurs composées à la française : « 1h30 » se lisait « 1 » suivi
+      // d'une unité « h30 », et « 1m80 », « 1km500 », « 1m52 » de même — un
+      // simple avertissement d'unité ignorée, et une valeur fausse d'un facteur
+      // deux en silence. Il faut **au moins deux chiffres** après l'unité,
+      // sinon « 60m2 » (des mètres carrés, qui marche) serait pris pour une
+      // grandeur composée. Les lettres qui ne sont que des multiplicateurs
+      // d'échelle (« 1k500 ») ou l'exposant scientifique en sont exclues :
+      // l'écriture décimale n'y voudrait pas dire la même chose.
       {
-        const h = source.slice(i).match(/^(\d+)h(\d{2})(?![\p{L}\p{N}_])/u);
-        if (h) {
+        const comp = source.slice(i).match(/^(\d+)(\p{L}{1,3})(\d{2,})(?![\p{L}\p{N}_])/u);
+        if (comp && !/^(k|K|M|G|Md|md|e|E)$/.test(comp[2])) {
+          const [tout, a, unite, b] = comp;
+          const enTemps = /^(h|H|min|mn)$/.test(unite);
+          const heure = unite === 'h' || unite === 'H';
           throw new ErreurModele(
-            `« ${h[0]} » : écrivez ${(+h[1] + h[2] / 60).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} `
-            + `(en heures) ou ${+h[1] * 60 + +h[2]} (en minutes)`, ligne);
+            enTemps
+              ? `« ${tout} » : écrivez ${(+a + b / 60).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} `
+                + `(en ${heure ? 'heures' : 'minutes'}) ou ${+a * 60 + +b} (en ${heure ? 'minutes' : 'secondes'})`
+              : `« ${tout} » : écrivez ${a},${b} — le site ne lit pas une unité `
+                + 'placée au milieu d’un nombre', ligne);
         }
       }
       let j = i, brut = '';
       let ambigu = false;
+      let million = '';
       // Les quatre espaces qui séparent les milliers en français : l'ordinaire,
       // l'insécable, la fine insécable — celle que produit `toLocaleString('fr-FR')`,
       // donc tout copier-coller d'une page web — et la fine.
@@ -194,7 +223,15 @@ export function lexer(source) {
         const cle = ['Mds', 'Md', 'md', 'k', 'K', 'M', 'm', 'G'].find(
           (s) => deux.startsWith(s) && !EST_IDENT.test(source[j + s.length] || '')
         );
-        if (cle) { valeur *= SUFFIXES[cle]; suffixe = SUFFIXES[cle]; j += cle.length; }
+        if (cle) {
+          valeur *= SUFFIXES[cle]; suffixe = SUFFIXES[cle]; j += cle.length;
+          // « 2,4m » vaut 2 400 000 : « m » est le suffixe des millions. Dans un
+          // texte français c'est aussi la façon d'écrire 2,4 mètres, et rien
+          // ici ne permet de trancher. On lit le million et on le dit, comme
+          // pour « 100.000 ». Devant un symbole monétaire — « 2,4m€ » — il n'y
+          // a pas d'ambiguïté : on se tait.
+          if (cle === 'm' && !'€$£¥'.includes(source[j] || ' ')) million = source.slice(i, j).trim();
+        }
         else {
           // « 30 k€ », « 2 M€ » : le suffixe séparé du nombre par une espace.
           // Accepté seulement s'il est collé à un symbole monétaire — « 5 M »
@@ -225,6 +262,7 @@ export function lexer(source) {
       jetons[jetons.length - 1].pourcent = pourcent;
       jetons[jetons.length - 1].suffixe = suffixe;
       if (ambigu) jetons[jetons.length - 1].ambigu = source.slice(i, j).trim();
+      if (million) jetons[jetons.length - 1].million = million;
       i = j;
       continue;
     }
@@ -232,7 +270,14 @@ export function lexer(source) {
     // Identifiant / mot-clé.
     if (EST_LETTRE.test(c) || c === '_') {
       let j = i, mot = '';
-      while (j < n && EST_IDENT.test(source[j])) { mot += source[j]; j++; }
+      // « d’euros », « prix_d’achat », « l’an » : l'apostrophe entre deux
+      // lettres fait partie du mot. Sans ça, le moindre texte français collé
+      // butait sur « caractère inattendu « ’ » » — le pire message possible,
+      // puisqu'on ne voit pas ce qu'il faut corriger. Entre chiffres, elle
+      // reste le séparateur de milliers suisse, traité plus haut.
+      while (j < n && (EST_IDENT.test(source[j])
+        || (/['’]/.test(source[j]) && EST_LETTRE.test(source[j - 1] || '')
+            && EST_LETTRE.test(source[j + 1] || '')))) { mot += source[j]; j++; }
       const bas = mot.toLowerCase();
       // « 10 pour cent », « 3 pour mille » : le nombre qui précède est une proportion.
       if (bas === 'pour') {
@@ -401,6 +446,9 @@ class Parseur {
           `« ${lu} ${mot.valeur} » : la multiplication s’écrit « ${lu} * ${mot.valeur} »`, mot.ligne);
       }
       if (APPROXIMATIFS.has(bas)) throw new ErreurModele(MESSAGE_ENVIRON, mot.ligne);
+      if (APPROXIMATIFS_NOMBRES[bas] !== undefined && !this.estDeclare(mot)) {
+        throw new ErreurModele(messageAPeuPres(mot.valeur, APPROXIMATIFS_NOMBRES[bas]), mot.ligne);
+      }
       const apres = this.j[this.i + 1];
       if (apres && (apres.type === '(' || apres.type === 'assign')) return;
       // « 100 k à 200 k », « 2 M » : le suffixe d'échelle, séparé par une espace.
@@ -654,6 +702,11 @@ class Parseur {
         || (t.type === 'interv' && t.valeur === '~')) {
       throw new ErreurModele(MESSAGE_ENVIRON, t.ligne);
     }
+    if (t.type === 'ident' && APPROXIMATIFS_NOMBRES[t.valeur.toLowerCase()] !== undefined
+        && !this.declares.has(t.valeur)) {
+      throw new ErreurModele(
+        messageAPeuPres(t.valeur, APPROXIMATIFS_NOMBRES[t.valeur.toLowerCase()]), t.ligne);
+    }
     // Une branche ne se réutilise pas dans un calcul.
     if (t.type === 'mc' && (t.valeur === 'option' || t.valeur === 'choix')) {
       throw new ErreurModele(
@@ -670,6 +723,7 @@ class Parseur {
       this.avance();
       const noeud = { k: 'nombre', v: t.valeur, pourcent: t.pourcent, suffixe: t.suffixe || 1, ligne: t.ligne };
       if (t.ambigu) noeud.ambigu = t.ambigu;
+      if (t.million) noeud.million = t.million;
       this.unites(noeud);
       return noeud;
     }

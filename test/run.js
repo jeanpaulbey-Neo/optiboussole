@@ -992,6 +992,140 @@ option "B" = 100
   verifie('« Louer ou acheter » : le choix ne l\'est pas', parModele.logement === false);
 }
 
+// --- Chiffres cités par les textes de fond -----------------------------------
+//
+// Même règle que pour /la-methode : une page qui cite un chiffre du moteur ne
+// doit pas pouvoir dériver en silence. Quand ce groupe casse, c'est le texte
+// qu'on corrige, pas le test qu'on assouplit.
+groupe('Chiffres cités par les textes de fond');
+{
+  const orig = (cle, calcul) => {
+    const r = analyserModele(MODELES.find((m) => m.cle === cle).source);
+    const c = r.detail.calculs.find((x) => x.nom === calcul);
+    return Object.fromEntries((c.origines || []).map((o) => [o.nom, o.part]));
+  };
+
+  const cout = orig('combles', 'cout');
+  proche('combles : le coût tient à « prix_m2 » aux deux tiers', cout.prix_m2, 0.66, 0.07);
+  proche('… et à « aide » pour près d\'un tiers', cout.aide, 0.29, 0.07);
+  const gain = orig('combles', 'gain_total');
+  proche('… le gain tient à « economie » pour la moitié', gain.economie, 0.50, 0.07);
+  proche('… à « chauffage_actuel » pour près d\'un tiers', gain.chauffage_actuel, 0.29, 0.07);
+  proche('… et le prix futur de l\'énergie n\'en porte que 15 %', gain.prix_energie, 0.15, 0.05);
+
+  const ca = orig('freelance', 'ca');
+  proche('freelance : le CA tient à « tjm » à 61 %', ca.tjm, 0.61, 0.06);
+  proche('… et à « jours_facturables » à 37 %', ca.jours_facturables, 0.37, 0.06);
+  {
+    // Et pourtant c'est « creuses » que le site désigne : la plus grande part
+    // d'incertitude et la plus grande valeur d'information ne sont pas la même
+    // hypothèse. C'est toute la phrase du texte de fond.
+    const r = analyserModele(MODELES.find((m) => m.cle === 'freelance').source);
+    const parts = Object.fromEntries(r.sources.map((x) => [x.nom, x]));
+    verifie('… mais c\'est « creuses » qui vaut le plus d\'être levé',
+      r.sources[0].nom === 'creuses', `→ ${r.sources[0].nom}`);
+    verifie('… alors que « tjm » porte plus d\'incertitude que lui',
+      parts.tjm.part > parts.creuses.part,
+      `→ tjm ${parts.tjm.part.toFixed(2)} / creuses ${parts.creuses.part.toFixed(2)}`);
+  }
+
+  const travail = orig('projet', 'travail');
+  proche('projet : le temps de travail tient à « developpement » à 59 %', travail.developpement, 0.59, 0.07);
+  const duree = orig('projet', 'duree');
+  proche('… mais la durée calendaire à 37 % seulement', duree.developpement, 0.37, 0.06);
+  proche('… les interruptions en portant 27 %', duree.interruptions, 0.27, 0.06);
+
+  const rep = orig('reparer', 'cout_reparer');
+  proche('réparer : le coût tient à « survie_reparee » à 46 %', rep.survie_reparee, 0.46, 0.07);
+  proche('… et à « rechute » à 33 %', rep.rechute, 0.33, 0.07);
+  verifie('… le devis n\'y est pour presque rien', !('devis' in rep), `→ ${Object.keys(rep).join(', ')}`);
+
+  const frais = orig('rachat', 'frais');
+  proche('rachat : l\'incertitude des frais tient à « ira » à 42 %', frais.ira, 0.42, 0.07);
+  proche('… puis à « garantie » à 33 %', frais.garantie, 0.33, 0.07);
+  {
+    // « Le poste le plus lourd est aussi le plus incertain » : ici les deux
+    // coïncident, contrairement au prix du kilomètre. Le texte le dit ainsi.
+    const r = analyserModele(MODELES.find((m) => m.cle === 'rachat').source);
+    const t = r.detail.calculs.find((x) => x.nom === 'frais').termes;
+    const dossier = t.find((x) => /frais_dossier/.test(x.etiquette));
+    const reste = t.find((x) => /garantie/.test(x.etiquette));
+    proche('… les frais de dossier valent environ 860 €', dossier.p50, 860, 60);
+    verifie('… et la garantie plus l\'indemnité, trois fois plus',
+      reste.p50 > 2.5 * dossier.p50 && reste.p50 < 3.6 * dossier.p50,
+      `→ ${reste.p50.toFixed(0)} contre ${dossier.p50.toFixed(0)}`);
+  }
+}
+
+// --- Huitième récolte : un fil que je n'ai pas choisi -------------------------
+//
+// Les sept premières récoltes partaient de saisies que j'imaginais. Celle-ci
+// vient d'un fil de forum pris dans l'ordre d'arrivée, sur un sujet que je
+// n'aurais pas choisi (un ventilateur de plafond) : hauteurs, débits, surfaces.
+// Cinq lectures fausses en silence.
+groupe('Un fil que je n\'ai pas choisi');
+{
+  const err = (src) => { try { analyser(src); return null; } catch (e) { return e.message; } };
+  const val = (src) => {
+    const r = evaluerModele(analyser(src));
+    const v = r.variables.get([...r.variables.keys()].pop());
+    return ArrayBuffer.isView(v) ? v[0] : v;
+  };
+  const avert = (src) => (analyserModele(src).avertissements || []).map((a) => a.texte).join(' ');
+
+  // « 1m80 », « 1m52 » : la notation française des grandeurs composées. Elles
+  // valaient 1, avec un simple avertissement d'unité ignorée.
+  verifie('« 1m80 » ne vaut plus 1', /écrivez 1,80/.test(err('h = 1m80') || ''), `→ ${err('h = 1m80')}`);
+  verifie('« 1m52 » non plus', /écrivez 1,52/.test(err('e = 1m52') || ''));
+  verifie('« 1km500 » non plus', /écrivez 1,500/.test(err('d = 1km500') || ''));
+  verifie('… mais « 1h30 » garde son message d\'heures',
+    /en heures/.test(err('t = 1h30') || ''), `→ ${err('t = 1h30')}`);
+  verifie('… et « 1min30 » parle en minutes',
+    /en minutes/.test(err('t = 1min30') || ''), `→ ${err('t = 1min30')}`);
+  // Un seul chiffre après l'unité, c'est un exposant, pas une grandeur composée.
+  proche('« 60m2 » vaut toujours 60', val('s = 60m2'), 60, 0);
+  proche('« 45m2 + 12 » vaut toujours 57', val('s = 45m2 + 12'), 57, 0);
+  proche('« 150m² » vaut toujours 150', val('s = 150m²'), 150, 0);
+  proche('la notation scientifique survit', val('x = 1e60'), 1e60, 0);
+
+  // « m » collé à un nombre est le suffixe des millions ; dans un texte
+  // français, c'est aussi la façon d'écrire des mètres. On lit le million,
+  // et on le dit — comme pour « 100.000 ».
+  proche('« 2,4m » vaut 2 400 000', val('x = 2,4m'), 2.4e6, 0);
+  verifie('… et le site le signale',
+    /suffixe des millions/.test(avert('x = 2,4m')), `→ ${avert('x = 2,4m')}`);
+  verifie('… en montrant l\'écriture des mètres',
+    /« 2,4 m »/.test(avert('x = 2,4m')), `→ ${avert('x = 2,4m')}`);
+  verifie('… mais se tait devant un symbole monétaire', avert('ca = 2,4m€') === '');
+  proche('« 2,4 m » avec une espace vaut 2,4', val('x = 2,4 m'), 2.4, 0);
+
+  // L'apostrophe typographique dans un mot : « caractère inattendu « ’ » »
+  // était le pire message possible, on ne voit pas ce qu'il faut corriger.
+  proche('« 100 d’euros » passe', val('x = 100 d’euros'), 100, 0);
+  proche("« 100 d'euros » aussi", val("x = 100 d'euros"), 100, 0);
+  proche('un nom de variable peut porter une apostrophe', val('prix_d’achat = 100'), 100, 0);
+  proche('… et l\'apostrophe suisse reste un séparateur de milliers',
+    val("x = 1'000'000"), 1e6, 0);
+
+  // « une vingtaine » valait 1 : « une » lu comme le nombre, « vingtaine »
+  // ignoré comme une unité. C'est un « environ » qui ne dit pas son nom.
+  verifie('« une vingtaine » renvoie à la fourchette',
+    /« 16 à 24 »/.test(err('n = une vingtaine') || ''), `→ ${err('n = une vingtaine')}`);
+  verifie('« une dizaine » aussi', /« 8 à 12 »/.test(err('n = une dizaine') || ''));
+  verifie('« deux douzaines » aussi', /« 10 à 14 »/.test(err('n = deux douzaines') || ''));
+  verifie('« une vingtaine de ventilateurs » aussi',
+    /9 chances sur 10/.test(err('n = une vingtaine de ventilateurs') || ''));
+  proche('… mais « dizaine » reste utilisable comme nom',
+    val('dizaine = 10\ntotal = dizaine * 3'), 30, 0);
+
+  // Ce qui passait déjà et doit continuer de passer.
+  proche('« 152cm »', val('p = 152cm'), 152, 0);
+  proche('« 5 à 30W »', analyserModele('c = 5 à 30W').sortie.p50, Math.sqrt(150), 0.6);
+  proche('« 28 à 45 dB »', analyserModele('b = 28 à 45 dB').sortie.p50, Math.sqrt(28 * 45), 0.8);
+  proche('« 1,3m3/seconde »', val('f = 1,3m3/seconde'), 1.3, 0);
+  proche('« 3 x 2,4 » : la croix de multiplication', val('v = 3 x 2,4'), 7.2, 1e-9);
+}
+
 // --- Ce qu'on gagne, ce qu'on perd -------------------------------------------
 groupe('Ce que vous jouez');
 {
