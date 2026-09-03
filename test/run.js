@@ -679,6 +679,23 @@ option "Gaz" = -cout_gaz - facture_gaz * duree`;
     analyserModele('x = 2 à 5%/an', { N: 40000 }).sortie.p05, 0.02, 0.001);
 }
 
+// --- « Racheter son crédit ? » : le modèle existe pour son seuil de bascule ---
+groupe('Racheter son crédit');
+{
+  const r = analyserModele(MODELES.find((m) => m.cle === 'rachat').source, { N: 20000 });
+  verifie('« Racheter » l’emporte, mais pas à tous les coups',
+    r.options.liste[r.options.recommande].nom === 'Racheter' && r.options.liste[r.options.recommande].pGagne > 0.7
+    && r.options.liste[r.options.recommande].pGagne < 0.95, `→ ${r.options.liste[r.options.recommande].pGagne}`);
+  const t = r.sources.find((s) => s.nom === 'nouveau_taux');
+  verifie('le nouveau taux est l’hypothèse décisive', r.sources[0] === t && t.part > 0.8, `→ ${r.sources[0].nom} ${t.part}`);
+  verifie('… avec un seuil de bascule dans la fourchette proposée',
+    t.bascules.length === 1 && t.bascules[0].valeur > 0.03 && t.bascules[0].valeur < 0.033 && t.bascules[0].vers === 'Garder le crédit',
+    `→ ${JSON.stringify(t.bascules)}`);
+  proche('la mensualité actuelle (180 k€ à 3,4 % sur 18 ans)', r.detail.calculs.find((c) => c.nom === 'mensualite_actuelle').p50, 1115, 2);
+  verifie('les frais tiennent d’abord à l’indemnité de remboursement anticipé',
+    r.detail.calculs.find((c) => c.nom === 'frais').origines[0].nom === 'ira');
+}
+
 // --- Le détail des calculs --------------------------------------------------
 // Chaque variable calculée avec sa médiane, et chaque somme décomposée en
 // termes : ce qu'un tableur montre et que le site ne montrait pas.

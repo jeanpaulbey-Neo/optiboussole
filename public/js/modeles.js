@@ -364,6 +364,46 @@ option "Remplacer" = -cout_remplacer`,
   },
 
   {
+    cle: 'rachat',
+    slug: 'racheter-son-credit',
+    question:
+      "Faire racheter son crédit immobilier par une autre banque : à partir de quel taux, et avec quels frais, l’opération rapporte-t-elle vraiment ? Le calcul qui manque à tous les simulateurs de courtier n’est pas le gain à un taux donné, c’est le taux à partir duquel il n’y a plus rien à gagner.",
+    titre: 'Racheter son crédit ?',
+    resume: 'À partir de quel taux, et avec quels frais.',
+    source: `unité: €
+# Faire racheter son crédit immobilier par une autre banque ?
+# On compare ce qu'il reste à payer d'intérêts, avec et sans, sur la
+# durée restante — même mensualité de principe, même durée.
+
+# --- Ce que vous savez (tableau d'amortissement) --------------------------
+capital_restant = 180k
+taux_actuel = 3,4%
+duree_restante = 18            # années
+
+# --- Ce qu'on vous propose --------------------------------------------------
+nouveau_taux = 2,9% à 3,3%
+
+# --- Ce que ça coûte --------------------------------------------------------
+frais_dossier = 500 à 1500
+garantie = 0,8% à 1,5%         # nouvelle hypothèque ou caution, part du capital
+ira = 0 à 0,85%                # indemnité de remboursement anticipé : au plus
+                               # six mois d'intérêts, souvent négociée à zéro
+
+# --- Le calcul --------------------------------------------------------------
+n = duree_restante * 12
+i1 = taux_actuel / 12
+i2 = nouveau_taux / 12
+mensualite_actuelle = capital_restant * i1 / (1 - (1 + i1)^(-n))
+mensualite_nouvelle = capital_restant * i2 / (1 - (1 + i2)^(-n))
+interets_actuels = mensualite_actuelle * n - capital_restant
+interets_nouveaux = mensualite_nouvelle * n - capital_restant
+frais = frais_dossier + (garantie + ira) * capital_restant
+
+option "Garder le crédit" = -interets_actuels
+option "Racheter" = -(interets_nouveaux + frais)`,
+  },
+
+  {
     cle: 'vierge',
     slug: 'nouveau-modele',
     question:

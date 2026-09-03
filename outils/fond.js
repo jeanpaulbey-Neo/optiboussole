@@ -161,6 +161,22 @@ export const FOND = {
     ],
   },
 
+  rachat: {
+    compte: [
+      "Les intérêts qu’il reste à payer sur la durée restante, au taux actuel et au taux proposé, à durée égale. En face du gain d’intérêts, tout ce que l’opération coûte : les frais de dossier, la nouvelle garantie — hypothèque ou caution — et l’indemnité de remboursement anticipé, plafonnée par la loi à six mois d’intérêts ou 3 % du capital, le plus bas des deux.",
+      "La question utile n’est pas « combien je gagne à 3,2 % » : c’est **à partir de quel taux il n’y a plus rien à gagner**, frais compris. C’est le seuil de bascule sur `nouveau_taux`, et le site le calcule avec vos frais à vous, pas ceux d’une publicité.",
+    ],
+    ignore: [
+      "L’assurance emprunteur, qui est souvent le vrai gisement : un rachat est l’occasion d’une délégation d’assurance, et l’économie peut dépasser celle du taux. Ajoutez-la en ligne à part si c’est votre cas.",
+      "Le changement de durée. Beaucoup de rachats raccourcissent le prêt à mensualité égale ; le gain se compte alors en mois gagnés plutôt qu’en euros, et ce modèle ne le fait pas. Le coût du temps passé, les jours de congé pour les rendez-vous, et la renégociation avec votre propre banque, qui coûte moins et rapporte parfois autant.",
+    ],
+    chiffres: [
+      "**Le capital restant dû et la durée restante** : le tableau d’amortissement de votre prêt, que votre banque fournit sur demande — ou votre espace client. Ne les estimez pas de tête : la mensualité dépend de chaque euro.",
+      "**Le nouveau taux** : une offre écrite, pas le taux d’appel d’un site. Gardez une fourchette entre le taux affiché et celui que vous obtiendrez vraiment avec votre dossier.",
+      "**L’indemnité de remboursement anticipé** : la clause est dans votre contrat de prêt, et elle est parfois négociée à zéro. **La garantie** : le devis du notaire pour une hypothèque, le barème de l’organisme de caution sinon.",
+    ],
+  },
+
   vierge: {
     compte: [
       "Rien : cette page est vide, à vous d’écrire. Trois lignes suffisent pour commencer — une valeur que vous connaissez, une fourchette pour ce que vous ne connaissez pas, et le calcul qui les relie.",
