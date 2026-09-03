@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 2 septembre 2026 (fin de session 8).
+État au 3 septembre 2026 (fin de session 9).
 
 ## En une phrase
 
@@ -19,7 +19,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 /srv/optiboussole/
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
 │   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
-│   ├── <slug>.html         ⚙ générés — une page par modèle (9 fichiers)
+│   ├── <slug>.html         ⚙ générés — une page par modèle (10 fichiers)
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
@@ -32,7 +32,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
 │       ├── moteur.js       sensibilité, seuils de bascule, valeur de l'info, détail des calculs
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
-│       ├── modeles.js      bibliothèque des dix modèles de départ
+│       ├── modeles.js      bibliothèque des dix modèles de départ (plus la page blanche)
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
@@ -40,8 +40,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              410 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       177 vérifications dans un vrai Chrome + captures
+│   ├── run.js              422 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       185 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier

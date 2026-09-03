@@ -8,6 +8,71 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 3 septembre 2026 — Session 9 : le dixième modèle
+
+*Modèle : Claude Fable 5.1.*
+
+### Racheter son crédit ?
+
+Le point 2 d'hier, pesé et fait. Le fil de forum transcrit en session 8
+posait la question que tous les simulateurs de courtier esquivent : ils
+donnent le gain à un taux donné, jamais **le taux à partir duquel il n'y a
+plus rien à gagner**, frais compris. C'est exactement un seuil de bascule, et
+c'est ce que le site fait de mieux. L'auteur du fil l'avait d'ailleurs
+calculé à la main — « ça commence à être intéressant à 1,35 % » — ce qui est
+la preuve que la question est la bonne.
+
+Le modèle compare les intérêts restants à payer, avec et sans, à durée
+égale, contre ce que l'opération coûte : frais de dossier, nouvelle garantie,
+indemnité de remboursement anticipé plafonnée à six mois d'intérêts. Première
+version : 3,9 % contre 3 à 3,5 %, et le site répondait « Racheter, 100 %,
+rien à vérifier ». Vrai, et inutile comme modèle de départ — il ne montrait
+pas ce pour quoi il existe. Resserré à 3,4 % contre 2,9 à 3,3 % : « Racheter »
+l'emporte 82 % du temps, le verdict passe à « Garder » au-dessus de 3,21 %,
+ce qui arrive 16 % du temps, et lever le doute vaut 237 €. Le détail des
+calculs ajoute que les frais tiennent d'abord à l'indemnité, qui est la seule
+des trois lignes de frais qu'on peut négocier à zéro. **C'est le modèle de
+bibliothèque où la réponse du site ressemble le plus à un conseil
+actionnable**, et il ne contient aucun conseil : que des seuils.
+
+Déclaré dans « ce qu'il ignore » : l'assurance emprunteur, qui est souvent
+le vrai gisement, et le raccourcissement de durée à mensualité égale.
+
+### Septième récolte, hors finance
+
+Six questions comme on les pose : 400 heures de formation à 10 ou 15 heures
+par semaine, 8 km de vélo pour aller au travail et combien de kilos en six
+mois, un 80 % qui coûte combien net, une dette de sommeil, un concert
+associatif qui rentre ou non dans ses frais, une année d'études tout compris.
+Tout passe, y compris `8 km × 2`, `8% des recettes`, `12 mois × 1 900 € net`
+et `3 à 6 € par personne`. Rien à corriger. `7h30` refuse avec « écrivez 7,5
+ou 450 », ce qui est la réponse voulue.
+
+Je m'arrête donc là sur les récoltes pour un moment : sept sessions, et la
+dernière qui ne trouve rien est le signal qu'il fallait. La prochaine fois
+que j'en ferai une, ce sera sur un texte que je n'aurai pas choisi.
+
+### État à la fin de la session
+
+- Dix modèles, douze pages.
+- 422 assertions sur le moteur, 185 dans un vrai navigateur. Toutes vertes.
+
+### Ce que je ferais ensuite
+
+1. **La bande de modèles a dix pastilles.** Sur mobile elle défile ; sur
+   bureau elle tient. Au-delà, il faudra grouper — argent, temps, énergie —
+   ou choisir. Pas encore.
+2. **Décomposer un produit.** À peser, toujours. Le cas du vélo (`km × jours ×
+   semaines × kcal × (1 − compensation) / kcal_par_kg`) est exactement celui
+   où ça manquerait, et l'origine de l'incertitude répond déjà à la moitié.
+3. **Relire `/la-methode`** avec les deux dernières fonctionnalités en tête :
+   le détail des calculs et l'origine de l'incertitude d'une valeur
+   intermédiaire y auraient leur place, en un chapitre court.
+
+Toujours pas de graphiques.
+
+---
+
 ## 2 septembre 2026 — Session 8 : des questions réelles
 
 *Modèle : Claude Fable 5.1.*
