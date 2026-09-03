@@ -148,6 +148,74 @@ await new Promise((r) => setTimeout(r, 700));
 const msg2 = await page.$eval('#erreur', (n) => (n.hidden ? '' : n.textContent));
 verifie('une variable inconnue est signalée', /inconnue/.test(msg2), `→ « ${msg2} »`);
 
+// --- Ce que vous jouez ----------------------------------------------------------
+// « L'emporte 6 fois sur 10 » ne dit rien de l'enjeu des 4 autres. Deux
+// vérifications : la phrase est là sur un modèle de la bibliothèque, et le
+// désaccord entre les deux règles de décision est dit au lieu d'être caché
+// derrière un titre « À égalité » qui ne voulait rien dire.
+console.log('\n\x1b[1mCe que vous jouez\x1b[0m');
+{
+  const pj = await navigateur.newPage();
+  const incj = [];
+  pj.on('pageerror', (e) => incj.push(e.message));
+  await pj.setViewport({ width: 1280, height: 1000 });
+  // Les tests de fautes de frappe laissent un brouillon dans le navigateur, et
+  // l'accueil le restitue : on repart du modèle de la page.
+  await pj.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pj.evaluate(() => localStorage.clear());
+  await pj.reload({ waitUntil: 'networkidle0' });
+  await pj.waitForSelector('.verdict-titre');
+
+  const tape = async (src) => {
+    await pj.evaluate((m) => {
+      const t = document.querySelector('#modele');
+      t.value = m;
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    }, src);
+    await new Promise((r) => setTimeout(r, 900));
+  };
+
+  const lire = () => pj.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+
+  const accueil = await lire();
+  verifie('la phrase « ce que vous jouez » est au verdict', /Ce que vous jouez\./.test(accueil),
+    '→ ' + accueil.slice(0, 90));
+  verifie('… elle donne le gain et la perte',
+    /de mieux en médiane/.test(accueil) && /de moins/.test(accueil), '→ ' + accueil.slice(0, 200));
+  verifie('… et la queue des pertes', /pire vingtième/.test(accueil));
+
+  // Une branche qui gagne rarement et gros : les deux règles divergent.
+  await tape('unite: €\ngros = bernoulli(10%)\noption "Sûr" = 100\n'
+    + 'option "Loterie" = si gros alors 300 sinon 90');
+  const desac = await lire();
+  const titre = await pj.$eval('.verdict-titre', (n) => n.textContent.trim());
+  verifie('un désaccord ne s’affiche plus « À égalité »', titre === 'Deux réponses', `→ ${titre}`);
+  verifie('… la meilleure moyenne est nommée', /Loterie[\s\S]*rapporte le plus en moyenne/.test(desac));
+  verifie('… la plus fréquente aussi', /Sûr[\s\S]*l’emporte le plus souvent/.test(desac));
+  verifie('… et le site dit qu’aucun calcul ne départage',
+    /Aucun calcul ne départage/.test(desac), '→ ' + desac.slice(0, 200));
+  const fanions = await pj.$$eval('.option-ligne .fanion', (ns) => ns.map((n) => n.textContent));
+  verifie('… les deux branches portent chacune son titre',
+    fanions.length === 2 && fanions.includes('meilleure moyenne')
+      && fanions.includes('gagne le plus souvent'), `→ ${fanions.join(' / ')}`);
+
+  // Deux branches identiques : rien n'est joué, la phrase disparaît.
+  await tape('a = 1 à 10\noption "A" = a\noption "B" = a');
+  const nul = await lire();
+  verifie('rien à jouer, rien à dire', !/Ce que vous jouez/.test(nul), '→ ' + nul.slice(0, 120));
+
+  // « Copier le verdict » recopie les <p> enfants directs de la section : la
+  // phrase doit en être un, sinon elle sortirait du texte copié sans qu'on
+  // le voie. C'est la condition exacte que texteVerdict() applique.
+  await tape('unite: €\nx = 0 à 200\noption "A" = x\noption "B" = 100');
+  const copiable = await pj.evaluate(() => [...document.querySelectorAll('section.verdict > p')]
+    .some((n) => /^Ce que vous jouez\./.test(n.textContent)));
+  verifie('la phrase est reprise par « Copier le verdict »', copiable);
+
+  verifie('aucune erreur pendant ces recalculs', incj.length === 0, '→ ' + incj.join(' | '));
+  await pj.close();
+}
+
 // --- Écran étroit ---------------------------------------------------------------
 console.log('\n\x1b[1mÉcran étroit\x1b[0m');
 {
@@ -572,7 +640,9 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
   verifie('titre et canonique corrects',
     info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
     `→ ${info.titre} / ${info.canonique}`);
-  verifie('les huit chapitres sont là', info.h2.length === 8, `→ ${info.h2.length}`);
+  verifie('les neuf chapitres sont là', info.h2.length === 9, `→ ${info.h2.length}`);
+  verifie('ce qu’on perd quand on se trompe a son chapitre',
+    info.h2.some((t) => /ce que vous jouez/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('le contre-argument a son chapitre',
     info.h2.some((t) => /contre-argument/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('la valeur de l’information a son chapitre',

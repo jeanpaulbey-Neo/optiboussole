@@ -249,6 +249,37 @@ function uniteDe(s) {
 
 // --- Verdict ----------------------------------------------------------------
 
+// « 4 fois sur 10 » est l'idiome du site pour une fréquence, mais il dit
+// « quasiment jamais » sous 5 % : aux extrêmes, le pourcentage est plus juste.
+const frequence = (p) => (p >= 0.05 && p <= 0.95) ? foisSur10(p) : pourcent(p) + ' du temps';
+
+// Ce qu'on gagne quand on a raison, ce qu'on perd quand on a tort.
+//
+// « L'emporte 6 fois sur 10 » ne dit rien de l'enjeu des 4 autres. Sur « louer
+// ou acheter », acheter rapporte 36 000 € quand il gagne, coûte 26 000 € quand
+// il perd, et 78 000 € dans le pire vingtième de ces cas-là. Deux branches
+// peuvent se valoir en fréquence sans être le même pari.
+function phrasePari(r) {
+  const P = r.options.pari;
+  if (!P || P.pPerte === 0 || P.pGain === 0) return null;
+  const unite = r.unite;
+  const rec = r.options.liste[r.options.recommande];
+  const autre = r.options.liste.length > 2 ? 'une autre branche' : 'l’autre branche';
+  // La queue ne s'annonce que si elle apprend quelque chose de plus que la
+  // médiane des pertes : sinon on répète le même chiffre avec plus de mots.
+  const pire = P.pertePire > P.perteMediane * 1.2
+    ? [', et jusqu’à ', el('b', { text: valeur(P.pertePire, unite) }),
+       ' dans le pire vingtième de ces cas-là']
+    : [];
+  return phrase(
+    el('b', { text: 'Ce que vous jouez. ' }),
+    'Quand \u00ab\u202f', rec.nom, '\u202f\u00bb l’emporte — ', frequence(P.pGain),
+    ' —, c’est ', el('b', { text: valeur(P.gainMedian, unite) }), ' de mieux en médiane. Quand ',
+    autre, ' aurait été meilleure — ', frequence(P.pPerte), ' —, c’est ',
+    el('b', { text: valeur(P.perteMediane, unite) }), ' de moins',
+    ...pire, '.');
+}
+
 function blocDecision(r) {
   const unite = r.unite;
   const o = r.options.liste;
@@ -257,16 +288,34 @@ function blocDecision(r) {
   const decisif = r.sources.filter((s) => notable(s, r));
   const tete = decisif[0];
 
-  const serre = p < 0.62;
-  const verdict = el('section', { class: 'panneau bloc verdict' + (serre ? ' serre' : '') });
-  verdict.appendChild(el('p', { class: 'verdict-chapeau', text: serre ? 'Trop serré pour trancher' : 'Ce que dit le modèle' }));
-  verdict.appendChild(el('h2', { class: 'verdict-titre', text: serre ? 'À égalité' : rec.nom }));
+  // Deux règles de décision cohabitent ici : la branche retenue est celle de
+  // meilleure espérance, la phrase raconte celle qui gagne le plus souvent.
+  // Quand elles désignent la même branche — tous les modèles de la
+  // bibliothèque — la question ne se pose pas. Quand elles diffèrent, il ne
+  // faut ni trancher ni parler d'égalité : « à égalité, l'emporte 10 % du
+  // temps » était la phrase que le site affichait, et elle ne veut rien dire.
+  const desaccord = r.options.desaccord;
+  const freq = o[r.options.frequent];
 
-  if (serre) {
+  const serre = !desaccord && p < 0.62;
+  const verdict = el('section', { class: 'panneau bloc verdict' + (serre || desaccord ? ' serre' : '') });
+  verdict.appendChild(el('p', { class: 'verdict-chapeau',
+    text: desaccord ? 'Le modèle ne tranche pas' : serre ? 'Trop serré pour trancher' : 'Ce que dit le modèle' }));
+  verdict.appendChild(el('h2', { class: 'verdict-titre',
+    text: desaccord ? 'Deux réponses' : serre ? 'À égalité' : rec.nom }));
+
+  if (desaccord) {
+    verdict.appendChild(phrase(
+      '\u00ab\u202f', rec.nom, '\u202f\u00bb rapporte le plus en moyenne — ',
+      valeur(rec.stats.moyenne, unite), ' contre ', valeur(freq.stats.moyenne, unite),
+      ' —, mais c’est \u00ab\u202f', freq.nom, '\u202f\u00bb qui l’emporte le plus souvent, ',
+      frequence(freq.pGagne), '. Les deux sont vrais en même temps : \u00ab\u202f', rec.nom,
+      '\u202f\u00bb gagne rarement et gros.'));
+  } else if (serre) {
     verdict.appendChild(phrase(
       'Les deux branches se valent : \u00ab\u202f', rec.nom, '\u202f\u00bb l’emporte ',
       pourcent(p), ' du temps, ce qui n’est pas un écart sur lequel on engage quoi que ce soit. ',
-      'Dans un cas pareil, le calcul a fini son travail — c’est à ce qui ne se chiffre pas de décider.'));
+      'Aucun chiffre ne désigne la branche — mais les deux ne vous engagent pas de la même façon.'));
   } else if (p >= 0.9) {
     verdict.appendChild(phrase(
       '\u00ab\u202f', rec.nom, '\u202f\u00bb l’emporte dans ', pourcent(p),
@@ -275,6 +324,16 @@ function blocDecision(r) {
     verdict.appendChild(phrase(
       '\u00ab\u202f', rec.nom, '\u202f\u00bb l’emporte, mais ce n’est pas acquis : ',
       foisSur10(r.options.pRegret), ', l’autre branche aurait été meilleure.'));
+  }
+
+  const pari = phrasePari(r);
+  if (pari) verdict.appendChild(pari);
+
+  if (desaccord) {
+    verdict.appendChild(phrase(
+      'Aucun calcul ne départage ces deux lectures : elles répondent à deux questions ',
+      'différentes. Ce qui les départage, c’est le nombre de fois où vous jouerez ce ',
+      'coup-là, et ce que devient le reste si le mauvais cas tombe.'));
   }
 
   if (tete) {
@@ -302,10 +361,17 @@ function blocDecision(r) {
   const options = el('section', { class: 'panneau bloc' }, el('h2', { text: 'Les branches' }));
   const liste = el('ul', { class: 'options' });
   for (const opt of o) {
-    const gagnante = opt === rec;
+    // La jauge montre la fréquence de victoire, le chiffre montre la moyenne.
+    // Quand les deux ne désignent pas la même branche, un seul fanion
+    // « retenue » sur une jauge à 10 % rejouerait à l'écran la contradiction
+    // que le texte vient d'expliquer : on nomme alors les deux titres.
+    const gagnante = desaccord ? (opt === rec || opt === freq) : opt === rec;
+    const fanion = !gagnante ? null
+      : desaccord ? (opt === rec ? 'meilleure moyenne' : 'gagne le plus souvent')
+      : serre ? 'en tête' : 'retenue';
     liste.appendChild(el('li', { class: 'option-ligne' + (gagnante ? ' gagnante' : '') }, [
       el('span', { class: 'option-nom' },
-        [opt.nom, gagnante ? el('span', { class: 'fanion', text: serre ? 'en tête' : 'retenue' }) : null]),
+        [opt.nom, fanion ? el('span', { class: 'fanion', text: fanion }) : null]),
       el('span', { class: 'option-valeur', text: valeur(opt.stats.moyenne, unite) }),
       el('div', { class: 'option-jauge' },
         el('i', { style: { width: (opt.pGagne * 100).toFixed(1) + '%' } })),

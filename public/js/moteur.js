@@ -152,6 +152,37 @@ function statistiques(v) {
   };
 }
 
+// Ce qu'on gagne quand on a raison, ce qu'on perd quand on a tort.
+//
+// « L'emporte 7 fois sur 10 » ne dit rien de l'enjeu de ces 3 fois-là. Une
+// branche peut gagner souvent et petit, perdre rarement et gros : c'est
+// exactement le cas qu'une fréquence de victoire cache. On lit donc les deux
+// versants de l'écart entre la branche retenue et sa meilleure rivale.
+//
+// `tri` est déjà trié par `statistiques` : tout se lit par quantiles, sans
+// second tri. Les tirages à écart nul sont des égalités, ni gain ni perte.
+function asymetrie(tri) {
+  const n = tri.length;
+  let nPertes = 0;
+  while (nPertes < n && tri[nPertes] < 0) nPertes++;
+  let nNuls = 0;
+  while (nPertes + nNuls < n && tri[nPertes + nNuls] === 0) nNuls++;
+  const pertes = tri.subarray(0, nPertes);
+  const gains = tri.subarray(nPertes + nNuls);
+  const pPerte = nPertes / n;
+  return {
+    pPerte,
+    pGain: gains.length / n,
+    perteMediane: nPertes ? -quantile(pertes, 0.5) : 0,
+    gainMedian: gains.length ? quantile(gains, 0.5) : 0,
+    // La queue des pertes, lue parmi les seules simulations perdantes. Prise
+    // sur l'ensemble des tirages, elle donnait un chiffre plus petit que la
+    // médiane des pertes dès que l'on se trompe à peine plus d'une fois sur
+    // vingt : le cinquième centile tombait alors sur une perte minuscule.
+    pertePire: nPertes ? -quantile(pertes, 0.05) : 0,
+  };
+}
+
 // Histogramme lissé pour l'affichage.
 export function histogramme(tri, nBarres = 56, bas = null, haut = null) {
   const a = bas === null ? quantile(tri, 0.005) : bas;
@@ -520,6 +551,15 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     for (let k = 1; k < opts.length; k++) {
       if (opts[k].stats.moyenne > opts[iRecommande].stats.moyenne) iRecommande = k;
     }
+
+    // La branche retenue est celle de meilleure espérance ; celle qui gagne le
+    // plus souvent n'est pas forcément la même. Quand les deux diffèrent, une
+    // branche gagne rarement et gros, et le dire est plus utile que de
+    // trancher : le site affichait « à égalité » avec une fréquence de 10 %.
+    let iFrequent = 0;
+    for (let k = 1; k < opts.length; k++) {
+      if (opts[k].pGagne > opts[iFrequent].pGagne) iFrequent = k;
+    }
     const valeurSansInfo = opts[iRecommande].stats.moyenne;
     const evpiTotal = Math.max(0, sommeMax / N - valeurSansInfo);
 
@@ -554,7 +594,10 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       acquise: enjeu > 0 && evpiTotal < 0.02 * enjeu,
       ecart: statistiques(ecarts),
       pRegret: 1 - opts[iRecommande].pGagne,
+      frequent: iFrequent,
+      desaccord: iFrequent !== iRecommande,
     };
+    resultat.options.pari = asymetrie(resultat.options.ecart.tri);
 
     for (const s of sources) {
       const idx = ordres.get(s.id);

@@ -865,6 +865,29 @@ groupe('Chiffres cités par /la-methode');
   proche('produit : « a » porte 96 % de l\'incertitude', pr.sources.find((s) => s.nom === 'a').part, 0.96, 0.03);
   verifie('… et un produit n\'est pas décomposé en postes',
     pr.detail.calculs.every((c) => !c.termes));
+
+  // Chapitre « ce que vous jouez ».
+  const jeu = analyserModele(src('logement'));
+  proche('« Acheter » l\'emporte 59 % du temps',
+    jeu.options.liste[jeu.options.recommande].pGagne, 0.59, 0.02);
+  proche('… gagne 36 k€ quand il gagne', jeu.options.pari.gainMedian, 36000, 700);
+  proche('… coûte 26,3 k€ quand il perd', jeu.options.pari.perteMediane, 26300, 700);
+  proche('… et 78,3 k€ dans le pire vingtième', jeu.options.pari.pertePire, 78300, 1200);
+
+  const fr = analyserModele(src('freelance'));
+  proche('« Passer freelance » l\'emporte 8 fois sur 10',
+    fr.options.liste[fr.options.recommande].pGagne, 0.78, 0.03);
+  proche('… rapporte 33,6 k€ quand il gagne', fr.options.pari.gainMedian, 33600, 900);
+  proche('… le pire vingtième des pertes coûte 46,9 k€', fr.options.pari.pertePire, 46900, 1500);
+  verifie('… soit plus que ce que la branche rapporte quand elle gagne',
+    fr.options.pari.pertePire > fr.options.pari.gainMedian);
+
+  const lot = analyserModele('gros = bernoulli(10 %)\noption "Sûr" = 100\n'
+    + 'option "Loterie" = si gros alors 300 sinon 90', { N: 40000 });
+  proche('« Loterie » rapporte 111 € en moyenne',
+    lot.options.liste[lot.options.recommande].stats.moyenne, 111, 1.5);
+  proche('« Sûr » en rapporte 100', lot.options.liste[lot.options.frequent].stats.moyenne, 100, 0.001);
+  proche('… et l\'emporte 9 fois sur 10', lot.options.liste[lot.options.frequent].pGagne, 0.90, 0.02);
 }
 
 // --- Formules sur plusieurs lignes ------------------------------------------
@@ -967,6 +990,68 @@ option "B" = 100
   }
   verifie('« Réduire son empreinte » : le choix est acquis', parModele.carbone === true);
   verifie('« Louer ou acheter » : le choix ne l\'est pas', parModele.logement === false);
+}
+
+// --- Ce qu'on gagne, ce qu'on perd -------------------------------------------
+groupe('Ce que vous jouez');
+{
+  // Une branche qui gagne rarement et gros : la meilleure espérance et la
+  // meilleure fréquence ne désignent pas la même branche. Le site affichait
+  // « À égalité — « Loterie » l'emporte 10 % du temps », ce qui ne veut rien
+  // dire : la branche marquée « retenue » perdait neuf fois sur dix.
+  const r = analyserModele(`unite: €
+gros = bernoulli(10%)
+option "Sûr" = 100
+option "Loterie" = si gros alors 300 sinon 90`, { N: 20000 });
+  verifie('la branche retenue reste celle de meilleure espérance',
+    r.options.liste[r.options.recommande].nom === 'Loterie');
+  verifie('la branche qui gagne le plus souvent est nommée à part',
+    r.options.liste[r.options.frequent].nom === 'Sûr');
+  verifie('le désaccord entre les deux règles est signalé', r.options.desaccord === true);
+  const P = r.options.pari;
+  proche('elle l\'emporte une fois sur dix', P.pGain, 0.10, 0.02);
+  proche('quand elle l\'emporte, c\'est 200 € de mieux', P.gainMedian, 200, 1);
+  proche('quand elle perd, c\'est 10 € de moins', P.perteMediane, 10, 1);
+}
+{
+  // Rien à jouer : une branche domine partout, l'autre est à égalité partout.
+  const dom = analyserModele('a = 1 à 10\noption "A" = a + 100\noption "B" = a', { N: 5000 });
+  verifie('une branche dominante ne perd jamais', dom.options.pari.pPerte === 0);
+  verifie('elle ne fait pas parler de désaccord', dom.options.desaccord === false);
+  const ega = analyserModele('a = 1 à 10\noption "A" = a\noption "B" = a', { N: 5000 });
+  verifie('deux branches identiques ne gagnent ni ne perdent rien',
+    ega.options.pari.pGain === 0 && ega.options.pari.pPerte === 0);
+}
+{
+  // Trois invariants qui tiennent la phrase « ce que vous jouez » : la
+  // fréquence de perte y est présentée comme le regret déjà annoncé deux
+  // lignes plus haut, et la queue comme pire que la médiane des pertes.
+  let regret = 0, ordre = 0, somme = 0, desaccords = [];
+  for (const m of MODELES) {
+    const r = analyserModele(m.source);
+    if (!r.modeDecision) continue;
+    const P = r.options.pari;
+    if (Math.abs(P.pPerte - r.options.pRegret) > 1e-9) regret++;
+    if (P.pertePire < P.perteMediane) ordre++;
+    if (Math.abs(P.pGain + P.pPerte - 1) > 1e-9) somme++;
+    if (r.options.desaccord) desaccords.push(m.cle);
+  }
+  verifie('la fréquence de perte est exactement le regret annoncé', regret === 0);
+  verifie('la pire perte n\'est jamais moindre que la perte médiane', ordre === 0);
+  verifie('gains et pertes couvrent tous les tirages', somme === 0);
+  verifie('aucun modèle de la bibliothèque ne fait diverger les deux règles',
+    desaccords.length === 0, '→ ' + desaccords.join(', '));
+}
+{
+  // Les chiffres que le verdict de l'accueil affiche désormais. Ils viennent
+  // de la même passe que le reste : si le modèle bouge, ils bougent.
+  const r = analyserModele(MODELES.find((m) => m.cle === 'logement').source);
+  const P = r.options.pari;
+  proche('« Acheter » gagne 36 k€ quand il gagne', P.gainMedian, 35974, 400);
+  proche('et coûte 26,3 k€ quand il perd', P.perteMediane, 26333, 400);
+  proche('78,3 k€ dans le pire vingtième de ces cas-là', P.pertePire, 78318, 900);
+  verifie('le pire cas pèse trois fois la perte médiane',
+    P.pertePire > 2.5 * P.perteMediane);
 }
 
 // --- Élargissement des fourchettes ------------------------------------------

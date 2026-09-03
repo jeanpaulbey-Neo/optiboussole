@@ -11,7 +11,7 @@
 export const METHODE = {
   titre: 'La méthode',
   question:
-    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.",
+    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.",
   intro: [
     "Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire **ce qu’il faut aller vérifier** — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.",
     "Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.",
@@ -91,6 +91,22 @@ export const METHODE = {
         "Le renversement que produit ce calcul est le suivant : **une hypothèse peut être massivement incertaine et totalement sans intérêt.** Elle fait beaucoup bouger le résultat, mais jamais assez pour renverser le choix. Y consacrer une semaine ne changerait rien à ce que vous ferez.",
         "L’inverse existe aussi. Sur « garder ou changer de voiture », les réparations à venir portent 54 % de l’incertitude *et* décident : le verdict bascule au-delà de 1 110 € par an, ce qui arrive 3 fois sur 10, et lever ce doute vaut environ 630 €. Aller chercher ses factures des trois dernières années est, littéralement, l’heure la mieux payée de la décision.",
         "Et quand la valeur de l’information est faible devant l’enjeu — moins de 2 % de l’écart entre la meilleure et la pire branche — le site vous dit d’arrêter d’enquêter. Sur « isoler ses combles », aucune hypothèse ne renverse le choix : la question est tranchée, quelle que soit votre ignorance.",
+      ],
+    },
+    {
+      titre: 'Ce que vous jouez',
+      blocs: [
+        "Le verdict commence toujours par une fréquence — \u00ab\u202fAcheter\u202f\u00bb l’emporte 59 % du temps. C’est une réponse à « laquelle des deux branches ? », et c’est une réponse incomplète : **elle ne dit rien des 41 % restants**. Gagner six fois sur dix en risquant peu et gagner six fois sur dix en risquant gros sont deux décisions différentes, et une probabilité de victoire les affiche à l’identique.",
+        "Le site donne donc les deux versants de l’écart entre la branche retenue et sa meilleure rivale, tirage par tirage : ce qu’on gagne quand on a raison, ce qu’on perd quand on a tort.",
+        "> Sur « louer ou acheter » : quand « Acheter » l’emporte — 6 fois sur 10 —, c’est **36 k€** de mieux en médiane. Quand « Louer » aurait été meilleur — 4 fois sur 10 —, c’est **26,3 k€** de moins, et jusqu’à **78,3 k€** dans le pire vingtième de ces cas-là.",
+        "Le verdict de ce modèle est « à égalité ». Il l’est en fréquence ; il ne l’est pas du tout en enjeu. L’inverse se voit aussi bien : sur « freelance ou salarié », où le verdict est net — 8 fois sur 10 —, le pire vingtième des 2 fois restantes coûte 46,9 k€, soit plus que les 33,6 k€ que la branche rapporte quand elle gagne. Ce chiffre-là ne change pas la recommandation. Il change ce qu’il faut avoir en face avant de la suivre.",
+        "La queue est lue **parmi les seules simulations perdantes**, et non sur l’ensemble des tirages. Prise sur l’ensemble, elle tombait sous la médiane des pertes dès qu’on se trompe à peine plus d’une fois sur vingt : un « pire cas » moins grave que le cas courant, ce qui n’a aucun sens.",
+        "**Deux règles de décision, et elles peuvent se contredire.** La branche que le site retient est celle de meilleure espérance ; celle que la phrase annonce comme gagnante est celle qui l’emporte le plus souvent. Rien ne garantit que ce soit la même.",
+        "```\ngros = bernoulli(10 %)\noption \"Sûr\"     = 100\noption \"Loterie\" = si gros alors 300 sinon 90\n```",
+        "> « Loterie » rapporte le plus en moyenne — 111 € contre 100 € — mais c’est « Sûr » qui l’emporte, 9 fois sur 10. Quand « Loterie » gagne, c’est 200 € de mieux ; quand elle perd, 10 € de moins.",
+        "Le site affichait ici le titre « À égalité », en marquant « retenue » une branche qui perd neuf fois sur dix et en donnant sa fréquence de victoire, 10 %, comme si c’était celle du vainqueur. Il montre maintenant les deux titres, et il cesse de trancher.",
+        "**Pourquoi ne pas retenir simplement celle qui gagne le plus souvent ?** Parce que ce n’est pas une règle de décision. Elle ignore les montants, donc elle préfère perdre un euro neuf fois plutôt que d’en gagner mille une fois. Et comparée deux à deux sur trois branches ou plus, elle peut tourner en rond — A l’emporte sur B, B sur C, C sur A — sans désigner personne. L’espérance n’a pas ce défaut : c’est pourquoi c’est elle qui décide ici.",
+        "**Mais l’espérance suppose que vous puissiez rejouer.** Elle est la bonne règle quand le coup se répète assez pour que les moyennes se réalisent, et quand le mauvais cas vous laisse en état de continuer. Aucune de ces deux conditions n’est écrite dans votre modèle, et aucun calcul ne les devinera. C’est pour cela que le site montre l’enjeu des deux côtés au lieu de le résumer : le chiffre qui décide vraiment est celui que vous seul pouvez mettre en face de « 78,3 k€ ».",
       ],
     },
     {
