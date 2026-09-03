@@ -1,7 +1,7 @@
 // modeles.js — bibliothèque de départ.
 //
 // Un visiteur qui arrive n’a pas de modèle à écrire : il a une question.
-// Ces six modèles sont là pour qu’il remplace des chiffres plutôt que d’en
+// Ces modèles sont là pour qu’il remplace des chiffres plutôt que d’en
 // inventer. Chacun est écrit pour que la question du site ait une réponse
 // intéressante : il y a une hypothèse qui décide, et elle n’est pas toujours
 // celle qu’on croit.
@@ -401,6 +401,42 @@ frais = frais_dossier + (garantie + ira) * capital_restant
 
 option "Garder le crédit" = -interets_actuels
 option "Racheter" = -(interets_nouveaux + frais)`,
+  },
+
+  {
+    cle: 'offres',
+    slug: 'repondre-a-un-appel-d-offres',
+    question:
+      "Répondre à un appel d’offres coûte des jours certains pour un gain rare et gros. La question n’est pas « est-ce que je peux le gagner » mais « à partir de quel taux de réussite ce travail-là se paie ». Ce modèle compare ce que la réponse coûte à ce qu’elle rapporte en moyenne, et dit à partir de quelles chances la balance s’inverse.",
+    titre: 'Répondre à un appel d’offres ?',
+    resume: 'Une mise certaine contre un gain rare et gros.',
+    source: `unité: €
+# Répondre à un appel d’offres — une mise certaine, un gain rare et gros.
+# C’est la forme de tout pari professionnel : un concours, un dossier de
+# subvention, une candidature qui demande des jours de travail.
+
+# --- Ce que répondre coûte, que vous gagniez ou non -------------------
+jours_reponse = 4 à 12      # rédaction, chiffrage, pièces à réunir
+cout_jour = 400 à 700       # votre journée à son coût réel, pas votre prix de vente
+frais_dossier = 0 à 800     # déplacements, plans, certificats
+mise = jours_reponse * cout_jour + frais_dossier
+
+# --- Ce que gagner rapporte ------------------------------------------
+montant_marche = 100k à 250k
+marge = 10% à 20%           # ce qu’il vous reste une fois le marché exécuté
+
+# --- Vos chances, honnêtement ----------------------------------------
+# Comptez vos dossiers déposés et vos dossiers gagnés, sur deux ans.
+chances = 15% à 35%
+
+remporte = bernoulli(chances)
+gain = si remporte alors montant_marche * marge sinon 0
+
+# Passer son tour, c’est garder ces journées : la mise est déjà comptée
+# à leur coût réel, donc l’autre branche vaut zéro.
+option "Répondre" = gain - mise
+option "Passer son tour" = 0
+`,
   },
 
   {

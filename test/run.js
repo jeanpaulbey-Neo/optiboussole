@@ -992,6 +992,93 @@ option "B" = 100
   verifie('« Louer ou acheter » : le choix ne l\'est pas', parModele.logement === false);
 }
 
+// --- Une pièce ne se fige pas à sa médiane -----------------------------------
+groupe('Les tirages tout ou rien pendant un balayage');
+{
+  // La médiane d'une pièce à 30 %, c'est « pile ne tombe jamais ». Balayer la
+  // prime avec elle, c'est chercher le seuil en supposant le sinistre écarté :
+  // « Ne rien faire » valait 0 partout, et aucune prime ne basculait.
+  const src = `sinistre = bernoulli(30%)
+option "Assurer" = -prime
+option "Ne rien faire" = si sinistre alors -200 sinon 0
+prime = 40 à 90`;
+  const r = analyserModele(src, { N: 20000 });
+  const b = r.sources.find((x) => x.nom === 'prime').bascules;
+  verifie('la prime a un seuil de bascule', b.length === 1,
+    `→ ${JSON.stringify(b.map((x) => x.valeur))}`);
+  proche('… à l\'espérance du sinistre, 60 €', b[0] ? b[0].valeur : NaN, 60, 2);
+  verifie('… au-delà duquel il vaut mieux ne rien faire',
+    b[0] && b[0].vers === 'Ne rien faire' && b[0].sens === 'hausse',
+    `→ ${b[0] && b[0].vers} / ${b[0] && b[0].sens}`);
+
+  // Et le balayage reste exact là où il n'y a pas de pièce : le seuil épinglé
+  // de « garder ou changer de voiture » ne doit pas avoir bougé d'un cheveu.
+  const v = analyserModele(MODELES.find((m) => m.cle === 'voiture').source);
+  const rep = v.sources.find((x) => x.nom === 'reparations');
+  proche('un modèle sans pièce garde son seuil au même endroit',
+    rep.bascules[0].valeur, 1110, 40);
+}
+{
+  // « bernoulli(120 %) » doit continuer de refuser : c'est le visiteur qui
+  // écrit, et le tirage valait 1 à tous les coups sans un mot. Le ramené aux
+  // bornes ne vaut que sous élargissement, où c'est nous qui étirons.
+  let refus = null;
+  try { analyserModele('x = bernoulli(120%)'); } catch (e) { refus = e.message; }
+  verifie('une probabilité au-delà de 100 % refuse toujours',
+    /probabilité va de 0 à 1/.test(refus || ''), `→ ${refus}`);
+  // Mais la passe de robustesse, qui élargit « 15 % à 35 % » jusqu'à sortir
+  // de [0, 1], ne doit pas planter : elle plantait.
+  const r = analyserModele(MODELES.find((m) => m.cle === 'offres').source);
+  let rob = null, erreur = null;
+  try { rob = analyserRobustesse(r); } catch (e) { erreur = e.message; }
+  verifie('la robustesse tourne sur un modèle à probabilité tirée',
+    erreur === null && rob && rob.applicable, `→ ${erreur}`);
+}
+
+// --- Répondre à un appel d'offres -------------------------------------------
+groupe('Répondre à un appel d\'offres');
+{
+  const r = analyserModele(MODELES.find((m) => m.cle === 'offres').source);
+  const o = r.options.liste;
+  verifie('« Répondre » a la meilleure espérance',
+    o[r.options.recommande].nom === 'Répondre');
+  verifie('« Passer son tour » l\'emporte le plus souvent',
+    o[r.options.frequent].nom === 'Passer son tour');
+  verifie('c\'est le modèle qui montre le désaccord', r.options.desaccord === true);
+  proche('« Répondre » gagne 2 fois sur 10', o[r.options.recommande].pGagne, 0.24, 0.04);
+  const P = r.options.pari;
+  proche('… 18 k€ de mieux quand il l\'emporte', P.gainMedian, 18000, 900);
+  proche('… la mise perdue sinon, 4 088 €', P.perteMediane, 4088, 200);
+  proche('… et 7 225 € dans le pire vingtième', P.pertePire, 7225, 400);
+
+  // L'issue de la consultation domine et n'est pas une enquête à mener :
+  // c'est ce que le verdict doit dire au lieu d'y envoyer le visiteur.
+  verifie('l\'issue de la consultation domine la valeur de l\'information',
+    r.sources[0].nom === 'remporte' && r.sources[0].binaire === true,
+    `→ ${r.sources[0].nom}`);
+  const verifiable = r.sources.find((x) => !x.binaire && x.valeurInfo > 0);
+  verifie('… et la meilleure hypothèse vérifiable est le temps passé',
+    verifiable.nom === 'jours_reponse', `→ ${verifiable.nom}`);
+  proche('… dont le seuil tombe vers 8,8 jours', verifiable.bascules[0].valeur, 8.8, 0.6);
+  const ch = r.sources.find((x) => x.nom === 'chances');
+  proche('le taux de réussite bascule vers 18 %', ch.bascules[0].valeur, 0.18, 0.02);
+  verifie('… vers « Répondre » en montant', ch.bascules[0].vers === 'Répondre');
+}
+{
+  // Ce que « ce qu'il ignore » affirme : lier les chances au temps passé fait
+  // presque disparaître la valeur d'aller vérifier ce temps.
+  const src = MODELES.find((m) => m.cle === 'offres').source;
+  const lie = src.replace('chances = 15% à 35%',
+    'base = 8% à 18%\nchances = base + 1,5% * jours_reponse');
+  const a = analyserModele(src);
+  const b = analyserModele(lie);
+  const info = (r) => r.sources.find((x) => x.nom === 'jours_reponse').valeurInfo;
+  proche('sans lien, vérifier le temps passé vaut 219 €', info(a), 219, 40);
+  verifie('avec le lien, il ne vaut presque plus rien', info(b) < 30, `→ ${info(b).toFixed(0)} €`);
+  verifie('… et son seuil recule au-delà de 11 jours',
+    b.sources.find((x) => x.nom === 'jours_reponse').bascules[0].valeur > 11);
+}
+
 // --- Chiffres cités par les textes de fond -----------------------------------
 //
 // Même règle que pour /la-methode : une page qui cite un chiffre du moteur ne
@@ -1173,8 +1260,8 @@ option "Loterie" = si gros alors 300 sinon 90`, { N: 20000 });
   verifie('la fréquence de perte est exactement le regret annoncé', regret === 0);
   verifie('la pire perte n\'est jamais moindre que la perte médiane', ordre === 0);
   verifie('gains et pertes couvrent tous les tirages', somme === 0);
-  verifie('aucun modèle de la bibliothèque ne fait diverger les deux règles',
-    desaccords.length === 0, '→ ' + desaccords.join(', '));
+  verifie('un seul modèle de la bibliothèque fait diverger les deux règles',
+    desaccords.length === 1 && desaccords[0] === 'offres', '→ ' + desaccords.join(', '));
 }
 {
   // Les chiffres que le verdict de l'accueil affiche désormais. Ils viennent

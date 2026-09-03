@@ -163,10 +163,18 @@ function plusProche(nom, candidats) {
 // --- Contexte d'évaluation --------------------------------------------------
 
 class Contexte {
-  constructor(ast, { N, graine, remplacements, elargissement }) {
+  constructor(ast, { N, graine, remplacements, elargissement, uniformeBernoulli }) {
     this.ast = ast;
     this.N = N;
     this.rng = new RNG(graine);
+    // Pendant un balayage de seuil, les tirages tout ou rien ne sont pas figés
+    // à leur médiane — ce serait balayer en supposant que le sinistre n'arrive
+    // jamais. Ils sont retirés sur une suite stratifiée déterministe, et le
+    // résultat est moyenné : voir `balayer` dans moteur.js. Décalage en
+    // nombre d'or d'une pièce à l'autre, sinon deux pièces tomberaient
+    // toujours du même côté ensemble.
+    this.uniformeBernoulli = uniformeBernoulli || null;
+    this.compteurPiece = 0;
     this.remplacements = remplacements || null;
     this.elargissement = elargissement || 1;
     this.decls = new Map();
@@ -380,9 +388,34 @@ class Contexte {
         const mauvais = estVec(a) ? a.some((x) => !test(x)) : !test(a);
         if (mauvais) throw new ErreurModele(`« ${n.nom} » : ${message}`, n.ligne);
       };
+      // Sous élargissement, ce n'est plus le visiteur qui écrit le paramètre :
+      // c'est nous qui étirons ses fourchettes pour demander « et si elles
+      // étaient trop étroites ? ». Une probabilité écrite « 15 % à 35 % » et
+      // élargie six fois sort de [0, 1], et « bernoulli » refusait — la passe
+      // de robustesse plantait sur le modèle d'appel d'offres. On la ramène
+      // dans ses bornes : au-delà, « plus large » veut dire « certain ».
+      // Hors élargissement, le refus reste, et il est utile : « bernoulli(120 %) »
+      // valait 1 à tous les coups, sans un mot.
+      // On copie plutôt qu'on n'écrase : `args[k]` est le vecteur en cache de
+      // la variable, donc aussi celui que la source a enregistré.
+      const ramener = (k, bas, haut) => {
+        if (this.elargissement === 1) return;
+        const a = args[k];
+        if (estVec(a)) {
+          const copie = new Float64Array(a.length);
+          for (let i = 0; i < a.length; i++) {
+            copie[i] = a[i] < bas ? bas : a[i] > haut ? haut : a[i];
+          }
+          args[k] = copie;
+        } else if (a !== undefined) {
+          args[k] = a < bas ? bas : a > haut ? haut : a;
+        }
+      };
       if (nom === 'bernoulli' || nom === 'pile') {
+        ramener(0, 0, 1);
         borne(0, (p) => p >= 0 && p <= 1, 'une probabilité va de 0 à 1 (ou de 0 % à 100 %)');
       } else if (nom === 'poisson') {
+        ramener(0, 0, Infinity);
         borne(0, (l) => l >= 0, 'la moyenne ne peut pas être négative');
       } else if (nom === 'triangulaire') {
         const A = estVec(args[0]) ? args[0][0] : args[0];
@@ -428,7 +461,15 @@ class Contexte {
           }
           case 'bernoulli': case 'pile': {
             const P = lire(0);
-            for (let i = 0; i < N; i++) out[i] = r.next() < P(i) ? 1 : 0;
+            if (this.uniformeBernoulli) {
+              const decalage = (this.compteurPiece++ * 0.6180339887498949) % 1;
+              for (let i = 0; i < N; i++) {
+                const u = (this.uniformeBernoulli(i) + decalage) % 1;
+                out[i] = u < P(i) ? 1 : 0;
+              }
+            } else {
+              for (let i = 0; i < N; i++) out[i] = r.next() < P(i) ? 1 : 0;
+            }
             break;
           }
           case 'poisson': {
@@ -529,8 +570,9 @@ function estSource(expr) {
 const estLitteral = (expr) => expr.k === 'nombre' || (expr.k === 'neg' && expr.e.k === 'nombre');
 
 export function evaluerModele(ast,
-  { N = 20000, graine = 20260901, remplacements = null, elargissement = 1, detail = false } = {}) {
-  const ctx = new Contexte(ast, { N, graine, remplacements, elargissement });
+  { N = 20000, graine = 20260901, remplacements = null, elargissement = 1, detail = false,
+    uniformeBernoulli = null } = {}) {
+  const ctx = new Contexte(ast, { N, graine, remplacements, elargissement, uniformeBernoulli });
 
   // Ordre stable : on force l'évaluation dans l'ordre d'écriture pour que les
   // identifiants de source ne dépendent pas du chemin d'accès.

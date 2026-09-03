@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 3 septembre 2026 (fin de session 11).
+État au 3 septembre 2026 (fin de session 12).
 
 ## En une phrase
 
@@ -19,7 +19,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 /srv/optiboussole/
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
 │   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
-│   ├── <slug>.html         ⚙ générés — une page par modèle (10 fichiers)
+│   ├── <slug>.html         ⚙ générés — une page par modèle (11 fichiers)
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
@@ -32,7 +32,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
 │       ├── moteur.js       sensibilité, seuils, valeur de l'info, détail, asymétrie du pari
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
-│       ├── modeles.js      bibliothèque des dix modèles de départ (plus la page blanche)
+│       ├── modeles.js      bibliothèque des onze modèles de départ (plus la page blanche)
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
@@ -40,8 +40,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              509 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       216 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              537 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       236 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -252,9 +252,62 @@ des phrases en français
   `APPROXIMATIFS_NOMBRES` renvoie à la fourchette (« 16 à 24 ») au lieu de
   valoir 1 — « une » lu comme le nombre, « vingtaine » ignoré comme une unité.
   Un nom défini garde la priorité : `dizaine = 10` reste utilisable.
+- **Une pièce ne se fige pas à sa médiane.** Pendant un balayage de seuil, les
+  autres hypothèses sont figées à leur médiane. Pour un tirage **tout ou rien**,
+  cette médiane vaut « l'événement n'arrive pas » : les seuils de « ce projet
+  sera-t-il prêt à temps ? » étaient calculés sans l'incident hors planning, et
+  ceux de « réparer ou remplacer ? » en supposant la réparation acquise — dans
+  deux modèles dont c'est le sujet. `balayer()` ne les fige donc plus : chaque
+  point de la grille est répliqué `REPLIQUES_PIECE` fois, la pièce est rejouée
+  sur une suite stratifiée déterministe (`uniformeBernoulli` dans evaluer.js,
+  décalée en nombre d'or d'une pièce à l'autre pour ne pas les corréler), et
+  les branches sont moyennées par bloc. Le seuil porte alors sur l'espérance,
+  qui est la grandeur que le verdict compare. **128 répliques** : les seuils
+  sont stables à partir de là (mesuré à 32, 64, 128, 256), pour 18 ms de plus
+  sur les deux modèles concernés. Les modèles sans pièce ne paient rien —
+  `R = 1` et le code d'avant.
+- **Les paramètres de loi sont ramenés dans leurs bornes sous élargissement,
+  et seulement là.** `chances = 15 % à 35 %` élargi six fois sort de [0, 1] et
+  `bernoulli` refusait : la passe de robustesse plantait sur le modèle d'appel
+  d'offres. Sous élargissement, ce n'est plus le visiteur qui écrit le
+  paramètre, c'est nous qui étirons ses fourchettes — on ramène, et « plus
+  large » veut dire « certain ». Hors élargissement le refus reste, et il est
+  utile : `bernoulli(120 %)` valait 1 à tous les coups, sans un mot. Le
+  ramené **copie** le vecteur au lieu de l'écraser : c'est celui du cache de la
+  variable, donc aussi celui que la source a enregistré.
+- **Une hypothèse tout ou rien n'est pas une enquête à mener.** Elle peut
+  dominer la valeur de l'information — sur « répondre à un appel d'offres ? »,
+  `remporte` vaut quinze fois le reste — sans qu'on puisse rien y faire avant
+  de décider. Envoyer le visiteur « passer son temps » dessus serait un mauvais
+  conseil. `blocDecision` la nomme pour ce qu'elle est, puis désigne la
+  meilleure hypothèse **non binaire** qui reste (`verifiable`). C'est la
+  distinction entre incertitude réductible et irréductible, et elle est écrite
+  sur `/la-methode`.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
+
+## La bande de modèles
+
+Douze pastilles (onze modèles plus la page blanche), mesurées sur la page
+`/repondre-a-un-appel-d-offres` :
+
+| largeur | lignes | le verdict commence à |
+|---|---|---|
+| 1440 px | 2 | 323 px |
+| 1280 px | 2 | 323 px |
+| 1100 px | 3 | 363 px |
+| 760 px | 4 | 403 px |
+| 390 px | 1 (défilante) | 291 px |
+
+Chaque ligne supplémentaire coûte 40 px. Deux sessions de suite ont noté qu'il
+« faudrait grouper » ; la mesure dit que non, pas encore : le verdict reste
+au-dessus de la ligne de flottaison à toutes les largeurs, et **grouper
+ajouterait des étiquettes, donc de la hauteur** — l'inverse du but. Réduire la
+taille des pastilles ne change pas le nombre de lignes non plus : les points de
+retour sont fixés par les titres longs, pas par la taille du texte (vérifié).
+Le repère pour une prochaine session : regrouper le jour où le verdict passe
+sous 500 px à 1100 px de large, soit vers seize pastilles.
 
 ## Une adresse par modèle
 

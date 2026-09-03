@@ -287,6 +287,13 @@ function blocDecision(r) {
   const p = rec.pGagne;
   const decisif = r.sources.filter((s) => notable(s, r));
   const tete = decisif[0];
+  // Une hypothèse « tout ou rien » peut dominer la valeur de l'information
+  // sans qu'on puisse rien y faire : gagner ou non cet appel d'offres, tomber
+  // ou non sur l'incident. C'est le hasard du modèle, pas une enquête à mener,
+  // et « c'est là qu'il faut passer votre temps » serait un mauvais conseil.
+  // On nomme le hasard, puis on désigne ce qui reste vérifiable.
+  const hasard = tete && tete.binaire ? tete : null;
+  const verifiable = hasard ? decisif.find((x) => !x.binaire) : tete;
 
   // Deux règles de décision cohabitent ici : la branche retenue est celle de
   // meilleure espérance, la phrase raconte celle qui gagne le plus souvent.
@@ -336,17 +343,40 @@ function blocDecision(r) {
       'coup-là, et ce que devient le reste si le mauvais cas tombe.'));
   }
 
-  if (tete) {
-    const b = tete.bascules[0];
+  if (hasard) {
+    // Le hasard d'abord, nommé pour ce qu'il est, puis ce qui reste à vérifier
+    // — dans la même phrase, sinon la seconde moitié part en paragraphe seul.
+    const segments = [
+      'Ce qui décide le plus ici est ', ['code', hasard.nom],
+      ', et c’est un tirage tout ou rien : il se produit ', foisSur10(hasard.stats.moyenne),
+      '. Aucune enquête ne le lèvera avant que vous ayez à choisir — c’est le hasard du ',
+      'modèle, pas une information à aller chercher.',
+    ];
+    if (verifiable) {
+      const b = verifiable.bascules[0];
+      segments.push(' Parmi ce que vous pouvez encore vérifier, c’est ', ['code', verifiable.nom],
+        ' qui compte le plus. ');
+      if (b) {
+        segments.push(`Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb `
+          + `${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} `
+          + `${valeur(b.valeur, uniteDe(verifiable))}, ce qui arrive ${foisSur10(b.proba)}. `);
+      }
+      segments.push(`Lever le doute dessus vaut environ ${valeur(verifiable.valeurInfo, unite)}.`);
+    } else {
+      segments.push(' Et rien de ce que vous pouvez vérifier ne déplace ce choix.');
+    }
+    verdict.appendChild(phrase(...segments));
+  } else if (verifiable) {
+    const b = verifiable.bascules[0];
     verdict.appendChild(phrase(
       decisif.length === 1
         ? 'Une seule hypothèse peut renverser ce choix : '
         : 'L’hypothèse qui pèse le plus sur ce choix est ',
-      ['code', tete.nom], '. ',
+      ['code', verifiable.nom], '. ',
       b
-        ? `Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb ${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} ${valeur(b.valeur, uniteDe(tete))}, ce qui arrive ${foisSur10(b.proba)}. `
+        ? `Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb ${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} ${valeur(b.valeur, uniteDe(verifiable))}, ce qui arrive ${foisSur10(b.proba)}. `
         : '',
-      `Lever le doute dessus vaut environ ${valeur(tete.valeurInfo, unite)} — c’est là qu’il faut passer votre temps, pas ailleurs.`));
+      `Lever le doute dessus vaut environ ${valeur(verifiable.valeurInfo, unite)} — c’est là qu’il faut passer votre temps, pas ailleurs.`));
   } else {
     verdict.appendChild(phrase(
       'Aucune de vos hypothèses ne renverse ce choix sur sa plage plausible',

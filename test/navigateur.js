@@ -216,6 +216,44 @@ console.log('\n\x1b[1mCe que vous jouez\x1b[0m');
   await pj.close();
 }
 
+// --- Répondre à un appel d'offres -------------------------------------------
+// Le seul modèle de la bibliothèque où les deux règles de décision divergent,
+// et le seul où l'hypothèse dominante est un tirage qu'aucune enquête ne lève.
+// Le verdict doit dire les deux, sur la page servie, sans qu'on tape quoi que
+// ce soit.
+console.log('\n\x1b[1mRépondre à un appel d’offres\x1b[0m');
+{
+  const po = await navigateur.newPage();
+  const inco = [];
+  po.on('pageerror', (e) => inco.push(e.message));
+  await po.setViewport({ width: 1280, height: 1000 });
+  await po.goto(URL + '/repondre-a-un-appel-d-offres', { waitUntil: 'networkidle0' });
+  await po.waitForSelector('.verdict-titre');
+
+  const titre = await po.$eval('.verdict-titre', (n) => n.textContent.trim());
+  verifie('le verdict de la bibliothèque montre le désaccord', titre === 'Deux réponses', `→ ${titre}`);
+  const v = await po.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('… « Répondre » est donné comme la meilleure moyenne',
+    /Répondre[\s\S]*rapporte le plus en moyenne/.test(v));
+  verifie('… « Passer son tour » comme le plus fréquent',
+    /Passer son tour[\s\S]*l’emporte le plus souvent/.test(v));
+  verifie('… la mise perdue est chiffrée', /Ce que vous jouez\./.test(v) && /de moins/.test(v));
+  verifie('… le tirage tout ou rien est nommé pour ce qu’il est',
+    /tirage tout ou rien/.test(v) && /Aucune enquête ne le lèvera/.test(v), '→ ' + v.slice(0, 160));
+  verifie('… et le site désigne ce qui reste vérifiable',
+    /Parmi ce que vous pouvez encore vérifier/.test(v) && /jours_reponse/.test(v));
+  verifie('… avec son seuil', /Le verdict passe à/.test(v));
+
+  // Le texte de fond, servi dans le HTML, sans JavaScript.
+  const fond = await po.evaluate(() => document.body.innerText);
+  verifie('le texte de fond dit pourquoi ce modèle ne tranche pas',
+    /les deux règles de décision ne disent pas la même chose/.test(fond));
+  verifie('… et donne la variante liée', /chances = base \+ 1,5% \* jours_reponse/.test(fond));
+
+  verifie('aucune erreur sur cette page', inco.length === 0, '→ ' + inco.join(' | '));
+  await po.close();
+}
+
 // --- Écran étroit ---------------------------------------------------------------
 console.log('\n\x1b[1mÉcran étroit\x1b[0m');
 {
@@ -686,9 +724,12 @@ console.log('\n\x1b[1mAccessibilité\x1b[0m');
   const pa = await navigateur.newPage();
   await pa.setViewport({ width: 1200, height: 900 });
   await pa.setBypassCSP(true);   // pour injecter axe ; le site, lui, garde sa CSP
-  for (const chemin of ['/', '/la-methode', '/prix-du-kilometre', '/une-adresse-qui-n-existe-pas']) {
+  for (const chemin of ['/', '/la-methode', '/prix-du-kilometre',
+    '/repondre-a-un-appel-d-offres', '/une-adresse-qui-n-existe-pas']) {
     await pa.goto(URL + chemin, { waitUntil: 'networkidle0' });
-    if (chemin === '/' || chemin.startsWith('/prix')) await pa.waitForSelector('.verdict-titre');
+    if (chemin === '/' || chemin.startsWith('/prix') || chemin.startsWith('/repondre')) {
+      await pa.waitForSelector('.verdict-titre');
+    }
     await pa.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
     await pa.evaluate(axeSource);
     const res = await pa.evaluate(async () => {

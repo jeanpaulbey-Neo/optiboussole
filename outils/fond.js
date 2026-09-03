@@ -182,6 +182,27 @@ export const FOND = {
     ],
   },
 
+  offres: {
+    compte: [
+      "La mise et le gain, séparément. La mise, ce sont les jours passés à répondre — à leur **coût réel**, pas à votre prix de vente — plus les frais de dossier. Vous la payez que vous gagniez ou non. Le gain, c’est le montant du marché multiplié par votre marge, et il n’arrive que si vous l’emportez. « Passer son tour » vaut zéro parce que ces journées-là, vous les gardez : leur coût est déjà dans la mise.",
+      "**Ce modèle est le seul de la bibliothèque où les deux règles de décision ne disent pas la même chose.** « Répondre » rapporte le plus en moyenne ; « Passer son tour » l’emporte trois fois sur quatre. Les deux sont vrais, et c’est la forme même d’une mise certaine contre un gain rare : vous perdez la mise trois fois pour la récupérer largement la quatrième. Le site affiche les deux et ne tranche pas, parce que ce qui tranche n’est pas dans le modèle — c’est le nombre de dossiers que vous déposerez, et votre capacité à encaisser la mise perdue plusieurs fois de suite.",
+      "Le détail des calculs décompose la mise : les journées en font l’essentiel, les frais de dossier une petite part, et l’incertitude de la mise vient de `jours_reponse` aux trois quarts. C’est la seule ligne du modèle sur laquelle vous ayez la main avant de décider.",
+    ],
+    ignore: [
+      "**La relation commerciale**, et c’est la limite la plus sérieuse. Répondre vous fait connaître : perdre trois consultations puis gagner la quatrième chez le même acheteur est une trajectoire ordinaire, et ce modèle traite chaque dossier isolément. Si c’est votre cas, la valeur d’une réponse perdue n’est pas nulle et le modèle vous dessert.",
+      "**Le risque d’exécution.** Un marché gagné trop bas coûte de l’argent. Ici `marge` est une fourchette a priori, pas le résultat d’un chantier ; elle ne descend jamais sous zéro alors que dans la réalité, si.",
+      "**Et une hypothèse qu’il faut connaître** : le modèle tire `jours_reponse` et `chances` indépendamment, comme si un dossier bâclé en deux jours gagnait aussi souvent qu’un dossier travaillé en douze. C’est faux, et ça s’écrit :",
+      "```\nbase = 8% à 18%\nchances = base + 1,5% * jours_reponse\n```",
+      "Le résultat est instructif : la valeur d’aller vérifier `jours_reponse` tombe de 219 € à 8 €, et son seuil recule de 9,2 à plus de 11 jours. Autrement dit, **écourter la réponse cesse d’être le levier qu’il semblait être** dès qu’on admet que le temps passé achète des chances. Le raccourci ne fait pas d’économie, il déplace le pari.",
+    ],
+    chiffres: [
+      "**Votre taux de réussite** : comptez vos dossiers déposés et vos dossiers gagnés sur deux ans. C’est le chiffre que presque personne ne tient, et c’est celui qui décide. À défaut, restez large — le site vous dira si cette ignorance change quelque chose.",
+      "**Les jours de réponse** : votre dernier dossier, minuté honnêtement, relectures et pièces administratives comprises. La plupart des gens divisent par deux de mémoire.",
+      "**Le coût de votre journée** : votre coût complet — salaire chargé, ou pour un indépendant ce que vous auriez facturé ailleurs. Pas votre prix de vente, qui contient la marge.",
+      "**Le montant et la marge** : le montant est au cahier des charges. La marge, elle, se lit sur vos chantiers comparables **terminés**, pas sur ceux que vous étiez en train de chiffrer.",
+    ],
+  },
+
   vierge: {
     compte: [
       "Rien : cette page est vide, à vous d’écrire. Trois lignes suffisent pour commencer — une valeur que vous connaissez, une fourchette pour ce que vous ne connaissez pas, et le calcul qui les relie.",

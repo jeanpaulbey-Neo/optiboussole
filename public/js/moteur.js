@@ -205,20 +205,62 @@ export function histogramme(tri, nBarres = 56, bas = null, haut = null) {
 
 const PAS_BALAYAGE = 161;
 
+// Une source « tout ou rien » n'a pas de médiane qui veuille dire quelque
+// chose. La figer à 0 — ce que faisait le balayage — revient à chercher le
+// seuil **en supposant que le sinistre n'arrive jamais** : les seuils de
+// « ce projet sera-t-il prêt à temps ? » étaient calculés sans l'incident
+// hors planning, et ceux de « réparer ou remplacer ? » en supposant que la
+// réparation tient toujours. Dans les deux cas, c'est exactement ce que le
+// modèle prétend traiter.
+//
+// On les laisse donc se retirer, sur une suite stratifiée déterministe, et on
+// moyenne : le seuil porte alors sur l'espérance de chaque branche, ce qui est
+// la grandeur que le verdict compare. Le coût n'est payé que par les modèles
+// qui contiennent une pièce.
+const REPLIQUES_PIECE = 128;
+
 function balayer(ast, sources, cible) {
+  const aPiece = sources.some((s) => s.binaire && s.id !== cible.id);
+  const R = aPiece ? REPLIQUES_PIECE : 1;
+
   const remplacements = {};
   for (const s of sources) {
-    if (s.id === cible.id) continue;
+    if (s.id === cible.id || s.binaire) continue;
     remplacements[s.id] = s.stats ? s.stats.p50 : moyenne(s.valeurs);
   }
   const bas = cible.stats.p05, haut = cible.stats.p95;
   const grille = new Float64Array(PAS_BALAYAGE);
+  const etendue = R === 1 ? grille : new Float64Array(PAS_BALAYAGE * R);
   for (let i = 0; i < PAS_BALAYAGE; i++) {
     grille[i] = bas + ((haut - bas) * i) / (PAS_BALAYAGE - 1);
+    if (R > 1) for (let k = 0; k < R; k++) etendue[i * R + k] = grille[i];
   }
-  remplacements[cible.id] = grille;
-  const r = evaluerModele(ast, { N: PAS_BALAYAGE, remplacements });
-  return { grille, res: r };
+  remplacements[cible.id] = etendue;
+  const r = evaluerModele(ast, {
+    N: PAS_BALAYAGE * R,
+    remplacements,
+    uniformeBernoulli: R > 1 ? (i) => ((i % R) + 0.5) / R : null,
+  });
+  if (R === 1) return { grille, res: r };
+
+  // Chaque point de la grille porte R répliques contiguës : on les moyenne.
+  const moyennerBlocs = (v) => {
+    const out = new Float64Array(PAS_BALAYAGE);
+    for (let i = 0; i < PAS_BALAYAGE; i++) {
+      let somme = 0;
+      for (let k = 0; k < R; k++) somme += v[i * R + k];
+      out[i] = somme / R;
+    }
+    return out;
+  };
+  return {
+    grille,
+    res: {
+      ...r,
+      options: r.options.map((o) => ({ ...o, valeurs: moyennerBlocs(o.valeurs) })),
+      sortie: r.sortie ? moyennerBlocs(r.sortie) : null,
+    },
+  };
 }
 
 function seuilsDecision(ast, sources, cible, nomsOptions) {
