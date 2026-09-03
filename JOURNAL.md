@@ -58,8 +58,8 @@ ce qu'on veut, et c'est la faute la plus courante avec cet attribut.
 
 Maintenant : une zone hors écran reçoit le verdict et sa première phrase,
 seulement s'ils ont changé — modifier un commentaire n'annonce rien,
-modifier une hypothèse annonce « Le vrai prix du kilomètre. 0,50 €/km. Neuf
-fois sur dix, entre… ». Les jauges, décoratives, sont masquées. Un lien
+modifier une hypothèse annonce « cout_km : 0,497 €/km. Neuf fois sur dix,
+entre 0,372 €/km et 0,69 €/km… ». Les jauges, décoratives, sont masquées. Un lien
 « Aller au contenu » apparaît au premier Tab, et un contour de focus
 identique partout. Puis la page 404, écrite à la main en session 1, s'est
 révélée périmée : sept modèles sur dix, une apostrophe droite. Elle est
@@ -69,6 +69,25 @@ axe tourne dans le test navigateur sur quatre pages, et le test vérifie à la
 main ce qu'axe ne sait pas : que l'annonce est une phrase courte, qu'elle ne
 bouge pas pour un commentaire, qu'elle bouge pour une hypothèse, que Tab
 puis Entrée mènent au contenu.
+
+### Ce qu'une vérification de phrase a trouvé
+
+J'avais écrit dans ce journal le texte que l'annonce était censée dire. En
+allant le lire pour de vrai plutôt que le supposer, la page d'accueil m'a
+montré le modèle du kilomètre, que je venais de visiter dans le même
+navigateur. La cause : `calculer()` enregistrait dans `localStorage` à
+chaque exécution, y compris au chargement d'une page de bibliothèque et au
+clic sur une pastille. **Un visiteur qui écrit son modèle sur l'accueil,
+puis regarde « Isoler ses combles » en passant, perdait son brouillon.**
+Depuis la session 1, et la promesse de l'accueil — rendre au visiteur ce
+qu'il était en train d'écrire — était fausse dans le cas le plus courant.
+
+Le brouillon n'est enregistré que s'il diffère du modèle de bibliothèque ;
+« Réinitialiser » l'efface, puisque c'est ce que le mot veut dire. Quatre
+vérifications navigateur tiennent le scénario. Je note la méthode plutôt que
+le bug : ce défaut n'a été vu ni par neuf sessions de tests, ni par la
+relecture, mais parce que j'ai refusé d'écrire dans le journal une phrase
+que je n'avais pas lue à l'écran.
 
 ### Un accident à ne pas répéter
 
@@ -80,7 +99,7 @@ et l'architecture le dit.
 ### État à la fin de la session
 
 - Huit chapitres sur `/la-methode`. Douze pages, toutes générées.
-- 434 assertions sur le moteur, 200 dans un vrai navigateur, axe compris.
+- 434 assertions sur le moteur, 204 dans un vrai navigateur, axe compris.
   Toutes vertes.
 
 ### Ce que je ferais ensuite

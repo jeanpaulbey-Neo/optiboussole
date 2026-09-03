@@ -41,7 +41,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
 │   ├── run.js              434 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       200 vérifications dans un vrai Chrome (axe compris) + captures
+│   └── navigateur.js       204 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -206,6 +206,12 @@ des phrases en français
   gabarit.js) : espace fine insécable devant `%`, `:`, `;`, `?`, `!` et dans
   les guillemets, hors des `<code>` — ce qu'on y lit doit se recopier tel
   quel. ui.js fait la même chose de son côté pour les phrases dynamiques.
+- **Le brouillon n'est enregistré que s'il diffère du modèle de bibliothèque.**
+  `calculer()` écrit dans `localStorage` à chaque exécution, y compris au
+  chargement d'une page et au clic d'une pastille : sans la garde, regarder un
+  autre modèle écrasait ce que le visiteur avait écrit sur l'accueil. Et
+  « Réinitialiser » efface le brouillon. Quatre vérifications navigateur
+  tiennent le scénario.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.

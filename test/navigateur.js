@@ -672,6 +672,47 @@ console.log('\n\x1b[1mAccessibilité\x1b[0m');
   await pa.close();
 }
 
+// --- Le brouillon du visiteur ---------------------------------------------------
+// L'accueil rend au visiteur ce qu'il était en train d'écrire. Regarder un
+// autre modèle en passant ne doit pas l'effacer ; « Réinitialiser », si.
+console.log('\n\x1b[1mBrouillon\x1b[0m');
+{
+  const pb = await navigateur.newPage();
+  await pb.setViewport({ width: 1200, height: 900 });
+  const lireModele = () => pb.$eval('#modele', (n) => n.value);
+  const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pb.evaluate(() => localStorage.clear());
+  await pb.goto(URL + '/prix-du-kilometre', { waitUntil: 'networkidle0' });
+  await attendre(400);
+  await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  const defaut = await lireModele();
+  verifie('visiter un modèle sans y toucher ne change pas l’accueil',
+    defaut.includes('Louer ou acheter'), `→ « ${defaut.slice(0, 40)} »`);
+
+  await pb.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value.replace('unité: €', 'unité: €\n# mon brouillon');
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await attendre(500);
+  await pb.click('#exemples a[data-cle="combles"]');
+  await attendre(500);
+  verifie('la pastille a bien chargé l’autre modèle', (await lireModele()).includes('combles'));
+  await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  verifie('le brouillon survit à la visite d’un autre modèle',
+    (await lireModele()).includes('# mon brouillon'));
+
+  await pb.click('#reinit');
+  await attendre(400);
+  await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  verifie('« Réinitialiser » efface le brouillon pour de bon',
+    !(await lireModele()).includes('# mon brouillon'));
+  await pb.evaluate(() => localStorage.clear());
+  await pb.close();
+}
+
 // --- Plan du site et 404 --------------------------------------------------------
 console.log('\n\x1b[1mIndexation\x1b[0m');
 {

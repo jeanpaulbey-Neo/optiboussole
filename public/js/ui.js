@@ -701,7 +701,8 @@ function annoncer() {
   if (!titre) return;
   const chapeau = titre.previousElementSibling;
   const suite = titre.nextElementSibling;
-  const texte = [chapeau && chapeau.textContent, titre.textContent + '.', suite && suite.tagName === 'P' && suite.textContent]
+  const tete = (chapeau ? chapeau.textContent + '\u202f: ' : '') + titre.textContent + '.';
+  const texte = [tete, suite && suite.tagName === 'P' && suite.textContent]
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   if (texte === derniereAnnonce) return;
   derniereAnnonce = texte;
@@ -844,6 +845,11 @@ function calculer() {
     rendreAvertissements(null);
   }
   // Le travail en cours reste dans le navigateur du visiteur, nulle part ailleurs.
+  // Et seulement le travail : un modèle de bibliothèque tel quel n'est pas un
+  // brouillon. Sans cette garde, cliquer une pastille pour regarder un autre
+  // modèle écrasait ce que le visiteur avait écrit sur l'accueil.
+  const original = MODELES.find((m) => m.cle === cleCourante);
+  if (original && original.source === source) return;
   try {
     localStorage.setItem(CLE_STOCKAGE, JSON.stringify({ cle: cleCourante, source }));
   } catch { /* navigation privée, quota plein : sans importance */ }
@@ -966,6 +972,9 @@ zoneModele.addEventListener('keydown', (e) => {
 });
 
 $('#reinit').addEventListener('click', () => {
+  // Réinitialiser, c'est renoncer au brouillon : il ne doit pas revenir au
+  // prochain passage sur l'accueil.
+  try { localStorage.removeItem(CLE_STOCKAGE); } catch { /* sans importance */ }
   chargerModele(cleCourante || document.body.dataset.modele || MODELE_PAR_DEFAUT);
   history.replaceState(null, '', location.pathname);
 });
