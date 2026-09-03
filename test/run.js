@@ -839,6 +839,32 @@ groupe('Chiffres cités par /la-methode');
   verifie('combles : la conclusion tient jusqu\'à 6×', rc.kBascule === null, `→ ${rc.kBascule}`);
   verifie('combles : et rien ne vaut d\'être vérifié',
     analyserModele(src('combles'), { N: 20000 }).options.acquise === true);
+
+  // Le chapitre « Le poids et l'incertitude » : sur le prix du kilomètre, la
+  // décote est le poste le plus lourd de « fixe », mais l'incertitude vient
+  // des réparations et du stationnement. Et sur un produit, rien à peser.
+  const km = analyserModele(src('kilometre'), { N: 20000 });
+  const fixe = km.detail.calculs.find((c) => c.nom === 'fixe');
+  const poids = Object.fromEntries(fixe.termes.map((t) => [t.etiquette, t.p50]));
+  proche('kilomètre : « fixe » vaut 4 240 €', fixe.p50, 4240, 80);
+  proche('… la décote 1 930 €, près de la moitié', poids.decote_an, 1930, 40);
+  verifie('… soit entre 45 et 50 % de « fixe »',
+    poids.decote_an / fixe.p50 > 0.45 && poids.decote_an / fixe.p50 < 0.50, `→ ${(poids.decote_an / fixe.p50).toFixed(3)}`);
+  proche('… l\'assurance 670 €', poids.assurance, 670, 20);
+  proche('… les réparations 350 €', poids.reparations, 350, 20);
+  const orig = Object.fromEntries(fixe.origines.map((o) => [o.nom, o.part]));
+  verifie('… mais l\'incertitude de « fixe » vient d\'abord des réparations',
+    fixe.origines[0].nom === 'reparations', `→ ${fixe.origines.map((o) => o.nom).join(', ')}`);
+  proche('… à 39 %', orig.reparations, 0.39, 0.06);
+  proche('… puis du stationnement à 28 %', orig.stationnement, 0.28, 0.06);
+  verifie('… et la décote n\'y est pour presque rien',
+    !('valeur_residuelle' in orig), `→ ${Object.keys(orig).join(', ')}`);
+  proche('… le stationnement pèse 11 % au centre', poids.stationnement / fixe.p50, 0.11, 0.015);
+
+  const pr = analyserModele('a = 1 à 3\nb = 10 à 12\nc = 100 à 110\ny = a * b * c', { N: 20000 });
+  proche('produit : « a » porte 96 % de l\'incertitude', pr.sources.find((s) => s.nom === 'a').part, 0.96, 0.03);
+  verifie('… et un produit n\'est pas décomposé en postes',
+    pr.detail.calculs.every((c) => !c.termes));
 }
 
 // --- Formules sur plusieurs lignes ------------------------------------------

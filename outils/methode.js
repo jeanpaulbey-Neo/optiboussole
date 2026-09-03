@@ -1,6 +1,6 @@
 // methode.js — le contenu de /la-methode.
 //
-// Les cinq idées sur lesquelles le site est construit vivaient dans un panneau
+// Les idées sur lesquelles le site est construit vivaient dans un panneau
 // dépliant. Elles méritent une page : ce sont des outils classiques de théorie
 // de la décision, et il n’existe presque rien en français qui les mette à
 // portée de quelqu’un qui n’en a pas fait.
@@ -11,7 +11,7 @@
 export const METHODE = {
   titre: 'La méthode',
   question:
-    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.",
+    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.",
   intro: [
     "Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire **ce qu’il faut aller vérifier** — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.",
     "Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.",
@@ -41,7 +41,21 @@ export const METHODE = {
         "```\na = 1 à 1000\ny = a\n```",
         "> Ici `y` **est** `a` : la part devrait valoir 1. Calculée sur les valeurs, elle donne 0,27. Calculée sur les rangs, 0,998.",
         "On perd l’interprétation « décomposition de la variance en unités d’origine » ; on gagne un chiffre juste. L’échange est bon.",
-        "Attention à ce que cette part ne dit pas : elle mesure l’incertitude, **pas la masse**. Dans un budget, le poste le plus gros et le poste le plus incertain sont rarement le même, et c’est le second que le site désigne.",
+        "Attention à ce que cette part ne dit pas : elle mesure l’incertitude, **pas la masse**. Dans un budget, le poste le plus gros et le poste le plus incertain sont rarement le même, et c’est le second que le site désigne. Le chapitre suivant montre les deux côte à côte.",
+      ],
+    },
+    {
+      titre: 'Le poids et l’incertitude',
+      blocs: [
+        "La part d’incertitude répond à « de quoi dépend le résultat ? ». Devant une addition, on se pose une autre question, plus simple : **quel poste pèse le plus ?** Ce sont deux questions distinctes, et le site répond aux deux, côte à côte, dans le panneau *Le détail des calculs* sous les résultats.",
+        "Chaque valeur calculée y est donnée avec sa médiane et sa fourchette à 90 % — ce qu’un tableur montre dans chaque cellule, et qu’un modèle écrit en quelques lignes cache. Les sommes y sont décomposées en postes, avec le poids de chacun **à sa valeur médiane**. Sur « le vrai prix du kilomètre » :",
+        "```\nfixe = decote_an + assurance + entretien + reparations\n     + pneus + controle + stationnement\n```",
+        "> `fixe` vaut 4 240 € par an. La décote en fait 1 930 €, près de la moitié ; l’assurance 670 € ; les réparations 350 €. Mais l’incertitude de `fixe` est portée par `reparations` à 39 % et par `stationnement` à 28 % — et la décote n’y est pour presque rien.",
+        "**Ce qui pèse et ce qu’on ignore ne coïncident pas.** La décote est le poste le plus lourd de loin, et c’est le mieux connu : un prix d’achat, une durée, une valeur de revente qu’on lit dans les annonces. Les réparations pèsent près de six fois moins, et elles sont ce qu’on ne sait pas. Un tableur donnerait la première colonne. C’est la seconde qui dit où passer son temps, et on ne la voit qu’en tirant les fourchettes au sort.",
+        "Le poids est pris à la médiane de chaque poste, parce que c’est la seule définition qu’on puisse défendre : un poste à `0 à 900` ne pèse pas une fraction fixe du total, il pèse 11 % dans le scénario central et bien plus dans un mauvais. Le site le dit tel quel, sans prétendre à une décomposition qui vaudrait dans tous les tirages.",
+        "**Un produit ne se décompose pas, et ce n’est pas un manque.** Dans `ca = tjm * jours`, chaque facteur pèse exactement autant que l’autre : doublez l’un ou l’autre, le résultat double. La question « quel facteur pèse le plus » n’a pas de réponse, et un poids affiché serait une invention. Ce qui distingue les facteurs d’un produit, c’est uniquement leur incertitude :",
+        "```\na = 1 à 3\nb = 10 à 12\nc = 100 à 110\ny = a * b * c\n```",
+        "> `c` est le plus grand facteur, et `a` porte 96 % de l’incertitude de `y`. C’est la seule chose utile à dire sur ce produit, et c’est celle que le site dit.",
       ],
     },
     {

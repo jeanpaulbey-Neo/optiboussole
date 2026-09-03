@@ -25,7 +25,20 @@ function riche(bloc) {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  return reponse ? `<p class="reponse">${t}</p>` : `<p>${t}</p>`;
+  return reponse ? `<p class="reponse">${typographie(t)}</p>` : `<p>${typographie(t)}</p>`;
+}
+
+// La typographie française met une espace fine insécable devant « % », « : »,
+// « ; », « ? », « ! » et à l’intérieur des guillemets. Sans elle, « 11 % » se
+// coupe en fin de ligne sur mobile, le « % » seul en début de ligne suivante.
+// Le rendu dynamique (ui.js) le fait déjà ; ici c’est la prose servie. On ne
+// touche pas au contenu des <code> : ce qu’on y lit doit se recopier tel quel.
+function typographie(html) {
+  return html.split(/(<code>[^<]*<\/code>)/).map((part, i) => i % 2 ? part : part
+    .replace(/(\d) %/g, '$1\u202f%')
+    .replace(/ ([:;?!])/g, '\u202f$1')
+    .replace(/« /g, '«\u202f')
+    .replace(/ »/g, '\u202f»')).join('');
 }
 
 // Le texte de fond est dans le HTML servi : il se lit sans JavaScript, et
@@ -175,7 +188,7 @@ const pied = () => `<footer>
 export function pageMethode() {
   const m = METHODE;
   const corps = m.sections.map((sec) => `  <section class="chapitre">
-    <h2>${echappe(sec.titre)}</h2>
+    <h2>${typographie(echappe(sec.titre))}</h2>
 ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
   </section>`).join('\n\n');
 

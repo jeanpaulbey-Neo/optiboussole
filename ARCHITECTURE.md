@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 3 septembre 2026 (fin de session 9).
+État au 3 septembre 2026 (fin de session 10).
 
 ## En une phrase
 
@@ -40,7 +40,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              422 assertions sur le moteur (Node, sans dépendance)
+│   ├── run.js              434 assertions sur le moteur (Node, sans dépendance)
 │   └── navigateur.js       185 vérifications dans un vrai Chrome + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
@@ -244,7 +244,7 @@ Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
-y renvoie. Sept chapitres. **Ses chiffres sont épinglés par des tests** : quand
+y renvoie. Huit chapitres. **Ses chiffres sont épinglés par des tests** : quand
 ils cassent, c'est la page qu'on corrige, pas le test qu'on assouplit. Ils ont
 déjà servi deux fois.
 

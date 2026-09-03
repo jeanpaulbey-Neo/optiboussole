@@ -571,7 +571,7 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
   verifie('titre et canonique corrects',
     info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
     `→ ${info.titre} / ${info.canonique}`);
-  verifie('les sept chapitres sont là', info.h2.length === 7, `→ ${info.h2.length}`);
+  verifie('les huit chapitres sont là', info.h2.length === 8, `→ ${info.h2.length}`);
   verifie('le contre-argument a son chapitre',
     info.h2.some((t) => /contre-argument/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('la valeur de l’information a son chapitre',

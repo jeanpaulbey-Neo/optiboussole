@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>La méthode — Boussole</title>
-<meta name="description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.">
+<meta name="description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.">
 <link rel="canonical" href="https://optiboussole.fr/la-methode">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="La méthode — Boussole">
-<meta property="og:description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.">
+<meta property="og:description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, et ce que la méthode ne sait pas faire.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://optiboussole.fr/la-methode">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -32,18 +32,18 @@
 
 <article class="panneau article">
   <p>Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire <b>ce qu’il faut aller vérifier</b> — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.</p>
-  <p>Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.</p>
+  <p>Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.</p>
 
   <section class="chapitre">
-    <h2>Une fourchette à 90 %</h2>
+    <h2>Une fourchette à 90 %</h2>
     <p>C’est le seul chiffre que le site vous demande, et c’est délibéré. Plutôt qu’une valeur unique que vous n’avez pas, vous donnez deux bornes entre lesquelles vous pensez qu’il y a <b>neuf chances sur dix</b> que la vraie valeur se trouve.</p>
     <pre class="exemple"><code>loyer = 900 à 1150</code></pre>
-    <p>De cette fourchette, le site tire une loi de probabilité. Si les deux bornes sont positives, c’est une <b>lognormale</b> : la médiane est la moyenne <em>géométrique</em> des bornes, pas leur milieu.</p>
+    <p>De cette fourchette, le site tire une loi de probabilité. Si les deux bornes sont positives, c’est une <b>lognormale</b> : la médiane est la moyenne <em>géométrique</em> des bornes, pas leur milieu.</p>
     <pre class="exemple"><code>x = 100 à 400</code></pre>
     <p class="reponse">médiane 200, et non 250. Neuf tirages sur dix tombent entre 100 et 400, aucun n’est négatif.</p>
-    <p>Ce choix n’est pas cosmétique. Presque toutes les grandeurs qu’on estime — un prix, une durée, un nombre de clients — sont multiplicatives : se tromper d’un facteur deux vers le haut est aussi plausible que de se tromper d’un facteur deux vers le bas. Une loi normale, elle, autoriserait des valeurs négatives et donnerait un poids déraisonnable au milieu.</p>
-    <p>Quand les bornes changent de signe — <code>-2 % à 5 %</code> — le site utilise une normale. Quand la borne basse vaut exactement zéro — <code>0 à 100</code> — il replie la normale sur les positifs : écrire zéro, c’est dire qu’on exclut le négatif.</p>
-    <p><b>Et voici le point faible de toute la méthode.</b> Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir <em>la robustesse</em>, plus bas.</p>
+    <p>Ce choix n’est pas cosmétique. Presque toutes les grandeurs qu’on estime — un prix, une durée, un nombre de clients — sont multiplicatives : se tromper d’un facteur deux vers le haut est aussi plausible que de se tromper d’un facteur deux vers le bas. Une loi normale, elle, autoriserait des valeurs négatives et donnerait un poids déraisonnable au milieu.</p>
+    <p>Quand les bornes changent de signe — <code>-2 % à 5 %</code> — le site utilise une normale. Quand la borne basse vaut exactement zéro — <code>0 à 100</code> — il replie la normale sur les positifs : écrire zéro, c’est dire qu’on exclut le négatif.</p>
+    <p><b>Et voici le point faible de toute la méthode.</b> Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir <em>la robustesse</em>, plus bas.</p>
   </section>
 
   <section class="chapitre">
@@ -52,73 +52,90 @@
     <pre class="exemple"><code>gros  = 0 à 100
 petit = 49 à 51
 y = gros + petit</code></pre>
-    <p class="reponse"><code>gros</code> porte 100 % de l’incertitude, <code>petit</code> 0 %. Connaître <code>gros</code> exactement ferait passer la fourchette du résultat de 93 à 5 de large.</p>
-    <p>C’est trivial sur cet exemple, et c’est justement l’intérêt : sur un modèle de trente lignes, l’hypothèse qui domine n’est presque jamais celle qu’on croit, et elle est souvent une de celles qu’on avait écrites sans réfléchir.</p>
-    <p><b>La part est calculée sur les rangs du résultat, pas sur ses valeurs.</b> C’est un détail technique qui change tout. L’indice classique compare la variance conditionnelle à la variance totale ; sur une grandeur à queue longue — c’est-à-dire sur presque tout — la variance est confisquée par une poignée de tirages extrêmes, et l’indice s’effondre :</p>
+    <p class="reponse"><code>gros</code> porte 100 % de l’incertitude, <code>petit</code> 0 %. Connaître <code>gros</code> exactement ferait passer la fourchette du résultat de 93 à 5 de large.</p>
+    <p>C’est trivial sur cet exemple, et c’est justement l’intérêt : sur un modèle de trente lignes, l’hypothèse qui domine n’est presque jamais celle qu’on croit, et elle est souvent une de celles qu’on avait écrites sans réfléchir.</p>
+    <p><b>La part est calculée sur les rangs du résultat, pas sur ses valeurs.</b> C’est un détail technique qui change tout. L’indice classique compare la variance conditionnelle à la variance totale ; sur une grandeur à queue longue — c’est-à-dire sur presque tout — la variance est confisquée par une poignée de tirages extrêmes, et l’indice s’effondre :</p>
     <pre class="exemple"><code>a = 1 à 1000
 y = a</code></pre>
-    <p class="reponse">Ici <code>y</code> <b>est</b> <code>a</code> : la part devrait valoir 1. Calculée sur les valeurs, elle donne 0,27. Calculée sur les rangs, 0,998.</p>
-    <p>On perd l’interprétation « décomposition de la variance en unités d’origine » ; on gagne un chiffre juste. L’échange est bon.</p>
-    <p>Attention à ce que cette part ne dit pas : elle mesure l’incertitude, <b>pas la masse</b>. Dans un budget, le poste le plus gros et le poste le plus incertain sont rarement le même, et c’est le second que le site désigne.</p>
+    <p class="reponse">Ici <code>y</code> <b>est</b> <code>a</code> : la part devrait valoir 1. Calculée sur les valeurs, elle donne 0,27. Calculée sur les rangs, 0,998.</p>
+    <p>On perd l’interprétation « décomposition de la variance en unités d’origine » ; on gagne un chiffre juste. L’échange est bon.</p>
+    <p>Attention à ce que cette part ne dit pas : elle mesure l’incertitude, <b>pas la masse</b>. Dans un budget, le poste le plus gros et le poste le plus incertain sont rarement le même, et c’est le second que le site désigne. Le chapitre suivant montre les deux côte à côte.</p>
+  </section>
+
+  <section class="chapitre">
+    <h2>Le poids et l’incertitude</h2>
+    <p>La part d’incertitude répond à « de quoi dépend le résultat ? ». Devant une addition, on se pose une autre question, plus simple : <b>quel poste pèse le plus ?</b> Ce sont deux questions distinctes, et le site répond aux deux, côte à côte, dans le panneau <em>Le détail des calculs</em> sous les résultats.</p>
+    <p>Chaque valeur calculée y est donnée avec sa médiane et sa fourchette à 90 % — ce qu’un tableur montre dans chaque cellule, et qu’un modèle écrit en quelques lignes cache. Les sommes y sont décomposées en postes, avec le poids de chacun <b>à sa valeur médiane</b>. Sur « le vrai prix du kilomètre » :</p>
+    <pre class="exemple"><code>fixe = decote_an + assurance + entretien + reparations
+     + pneus + controle + stationnement</code></pre>
+    <p class="reponse"><code>fixe</code> vaut 4 240 € par an. La décote en fait 1 930 €, près de la moitié ; l’assurance 670 € ; les réparations 350 €. Mais l’incertitude de <code>fixe</code> est portée par <code>reparations</code> à 39 % et par <code>stationnement</code> à 28 % — et la décote n’y est pour presque rien.</p>
+    <p><b>Ce qui pèse et ce qu’on ignore ne coïncident pas.</b> La décote est le poste le plus lourd de loin, et c’est le mieux connu : un prix d’achat, une durée, une valeur de revente qu’on lit dans les annonces. Les réparations pèsent près de six fois moins, et elles sont ce qu’on ne sait pas. Un tableur donnerait la première colonne. C’est la seconde qui dit où passer son temps, et on ne la voit qu’en tirant les fourchettes au sort.</p>
+    <p>Le poids est pris à la médiane de chaque poste, parce que c’est la seule définition qu’on puisse défendre : un poste à <code>0 à 900</code> ne pèse pas une fraction fixe du total, il pèse 11 % dans le scénario central et bien plus dans un mauvais. Le site le dit tel quel, sans prétendre à une décomposition qui vaudrait dans tous les tirages.</p>
+    <p><b>Un produit ne se décompose pas, et ce n’est pas un manque.</b> Dans <code>ca = tjm * jours</code>, chaque facteur pèse exactement autant que l’autre : doublez l’un ou l’autre, le résultat double. La question « quel facteur pèse le plus » n’a pas de réponse, et un poids affiché serait une invention. Ce qui distingue les facteurs d’un produit, c’est uniquement leur incertitude :</p>
+    <pre class="exemple"><code>a = 1 à 3
+b = 10 à 12
+c = 100 à 110
+y = a * b * c</code></pre>
+    <p class="reponse"><code>c</code> est le plus grand facteur, et <code>a</code> porte 96 % de l’incertitude de <code>y</code>. C’est la seule chose utile à dire sur ce produit, et c’est celle que le site dit.</p>
   </section>
 
   <section class="chapitre">
     <h2>Le seuil de bascule</h2>
-    <p>Quand vous comparez deux branches, savoir laquelle gagne « en moyenne » ne suffit pas. Ce qui sert, c’est de savoir <b>à partir de quelle valeur la réponse change de camp</b>.</p>
+    <p>Quand vous comparez deux branches, savoir laquelle gagne « en moyenne » ne suffit pas. Ce qui sert, c’est de savoir <b>à partir de quelle valeur la réponse change de camp</b>.</p>
     <pre class="exemple"><code>cout_actuel  = 1200
 cout_nouveau = 700 à 1900
 option "Garder"  = -cout_actuel
 option "Changer" = -cout_nouveau</code></pre>
-    <p class="reponse">Le verdict bascule vers « Garder » dès que <code>cout_nouveau</code> dépasse 1 200 — ce qui arrive 45 % du temps d’après votre fourchette.</p>
-    <p>Un seuil est une phrase qu’on peut emporter : on peut le surveiller, le vérifier, le négocier. Une moyenne, non.</p>
-    <p>Le calcul fige toutes les autres hypothèses à leur médiane et balaie celle-là sur sa plage plausible. C’est donc un seuil <b>toutes choses égales par ailleurs</b> : si deux hypothèses bougent ensemble, la frontière réelle n’est pas exactement là. Le site le dit plutôt que de faire semblant d’une précision qu’il n’a pas.</p>
+    <p class="reponse">Le verdict bascule vers « Garder » dès que <code>cout_nouveau</code> dépasse 1 200 — ce qui arrive 45 % du temps d’après votre fourchette.</p>
+    <p>Un seuil est une phrase qu’on peut emporter : on peut le surveiller, le vérifier, le négocier. Une moyenne, non.</p>
+    <p>Le calcul fige toutes les autres hypothèses à leur médiane et balaie celle-là sur sa plage plausible. C’est donc un seuil <b>toutes choses égales par ailleurs</b> : si deux hypothèses bougent ensemble, la frontière réelle n’est pas exactement là. Le site le dit plutôt que de faire semblant d’une précision qu’il n’a pas.</p>
   </section>
 
   <section class="chapitre">
     <h2>Le contre-argument</h2>
-    <p>Le seuil de bascule déplace <b>une</b> hypothèse et laisse les autres à leur médiane. Or il arrive très souvent qu’aucune hypothèse seule ne renverse le verdict, alors que plusieurs déplacées ensemble, chacune d’un cheveu, le renversent sans peine. Le site pose alors la question à l’envers : <b>quel est le jeu d’hypothèses le plus proche du vôtre qui donnerait la conclusion contraire ?</b></p>
+    <p>Le seuil de bascule déplace <b>une</b> hypothèse et laisse les autres à leur médiane. Or il arrive très souvent qu’aucune hypothèse seule ne renverse le verdict, alors que plusieurs déplacées ensemble, chacune d’un cheveu, le renversent sans peine. Le site pose alors la question à l’envers : <b>quel est le jeu d’hypothèses le plus proche du vôtre qui donnerait la conclusion contraire ?</b></p>
     <pre class="exemple"><code>a = 90 à 110
 b = 90 à 110
 c = 90 à 110
 option "Rester" = a + b + c
 option "Partir" = 320</code></pre>
-    <p class="reponse">« Partir » l’emporte 97 % du temps. Aucune des trois hypothèses ne renverse ce choix à elle seule : il faudrait que <code>a</code> dépasse 121, très au-delà de sa fourchette. Mais si les trois valaient 107 au lieu de 99,5 — chacune bien à l’intérieur de sa fourchette —, « Rester » l’emporterait.</p>
-    <p>C’est le genre de scénario qu’on ne trouve pas en tâtonnant une variable à la fois, et c’est pourtant celui qui décrit le mieux un désaccord réel : on se trompe rarement sur un seul chiffre, on se trompe dans un sens, sur plusieurs à la fois.</p>
-    <p><b>Comment se mesure la distance.</b> Chaque hypothèse est ramenée à son unité propre : zéro à sa médiane, ±1,645 aux bornes de sa fourchette à 90 %. Le site cherche alors le point de la frontière de décision le plus proche de l’origine. Sur l’exemple, ce point est à <b>2,01 écarts</b> — un peu au-delà du bord des fourchettes, donc improbable sans l’être absurdement. C’est l’indice de fiabilité de Hasofer-Lind, emprunté au calcul des structures, où l’on cherche de la même façon la combinaison de charges la plus vraisemblable qui fasse céder un pont.</p>
-    <p><b>Ce que cette distance n’ajoute pas.</b> Elle dit à peu près la même chose que la probabilité déjà affichée dans le verdict : un choix gagné 97 % du temps est, sans surprise, à environ deux écarts de la frontière. Ce que le contre-argument apporte n’est pas un degré de confiance de plus, c’est une <b>adresse</b> — les valeurs précises, dans les unités de votre modèle, d’un scénario que vous pouvez lire et reconnaître, ou rejeter.</p>
-    <p>Le site ne l’affiche donc que là où il apprend quelque chose : quand aucune hypothèse ne bascule seule, ou pour signaler l’un des deux cas que rien d’autre ne dit.</p>
+    <p class="reponse">« Partir » l’emporte 97 % du temps. Aucune des trois hypothèses ne renverse ce choix à elle seule : il faudrait que <code>a</code> dépasse 121, très au-delà de sa fourchette. Mais si les trois valaient 107 au lieu de 99,5 — chacune bien à l’intérieur de sa fourchette —, « Rester » l’emporterait.</p>
+    <p>C’est le genre de scénario qu’on ne trouve pas en tâtonnant une variable à la fois, et c’est pourtant celui qui décrit le mieux un désaccord réel : on se trompe rarement sur un seul chiffre, on se trompe dans un sens, sur plusieurs à la fois.</p>
+    <p><b>Comment se mesure la distance.</b> Chaque hypothèse est ramenée à son unité propre : zéro à sa médiane, ±1,645 aux bornes de sa fourchette à 90 %. Le site cherche alors le point de la frontière de décision le plus proche de l’origine. Sur l’exemple, ce point est à <b>2,01 écarts</b> — un peu au-delà du bord des fourchettes, donc improbable sans l’être absurdement. C’est l’indice de fiabilité de Hasofer-Lind, emprunté au calcul des structures, où l’on cherche de la même façon la combinaison de charges la plus vraisemblable qui fasse céder un pont.</p>
+    <p><b>Ce que cette distance n’ajoute pas.</b> Elle dit à peu près la même chose que la probabilité déjà affichée dans le verdict : un choix gagné 97 % du temps est, sans surprise, à environ deux écarts de la frontière. Ce que le contre-argument apporte n’est pas un degré de confiance de plus, c’est une <b>adresse</b> — les valeurs précises, dans les unités de votre modèle, d’un scénario que vous pouvez lire et reconnaître, ou rejeter.</p>
+    <p>Le site ne l’affiche donc que là où il apprend quelque chose : quand aucune hypothèse ne bascule seule, ou pour signaler l’un des deux cas que rien d’autre ne dit.</p>
     <p><b>Vos valeurs médianes disent déjà l’inverse.</b> Le verdict ne tient alors pas au centre de vos fourchettes mais à leur forme. C’est une hésitation, pas une réponse.</p>
-    <p><b>Vous êtes exactement sur la ligne.</b> Sur « ce projet sera-t-il prêt à temps ? », chaque tâche à sa durée médiane donne 89,9 jours contre 90 promis. Il n’y a rien à corriger pour manquer la date : le moindre écart suffit.</p>
-    <p>Et quand aucun scénario plausible ne renverse le verdict — quand il faudrait s’être trompé de plus de cinq écarts sur l’ensemble —, le site dit la seule chose utile qui reste : si vous hésitez encore, ce n’est aucun des chiffres du modèle qui vous fait hésiter. C’est quelque chose qui n’y est pas. Le travail n’est plus de mieux estimer, il est d’ajouter ce qui manque.</p>
+    <p><b>Vous êtes exactement sur la ligne.</b> Sur « ce projet sera-t-il prêt à temps ? », chaque tâche à sa durée médiane donne 89,9 jours contre 90 promis. Il n’y a rien à corriger pour manquer la date : le moindre écart suffit.</p>
+    <p>Et quand aucun scénario plausible ne renverse le verdict — quand il faudrait s’être trompé de plus de cinq écarts sur l’ensemble —, le site dit la seule chose utile qui reste : si vous hésitez encore, ce n’est aucun des chiffres du modèle qui vous fait hésiter. C’est quelque chose qui n’y est pas. Le travail n’est plus de mieux estimer, il est d’ajouter ce qui manque.</p>
   </section>
 
   <section class="chapitre">
     <h2>La valeur de l’information</h2>
-    <p>C’est l’idée centrale du site, et la moins connue. La question n’est pas « de quoi suis-je le plus incertain ? » mais <b>« qu’est-ce que ça vaut, de lever ce doute ? »</b></p>
-    <p>Formellement : ce que vous gagneriez, en moyenne, à connaître une hypothèse exactement <em>avant</em> de choisir, plutôt qu’à choisir maintenant avec ce que vous savez. Sur l’exemple ci-dessus, 141 € — et comme il n’y a qu’une seule hypothèse, c’est aussi le maximum que puisse rapporter n’importe quelle enquête.</p>
-    <p>Le renversement que produit ce calcul est le suivant : <b>une hypothèse peut être massivement incertaine et totalement sans intérêt.</b> Elle fait beaucoup bouger le résultat, mais jamais assez pour renverser le choix. Y consacrer une semaine ne changerait rien à ce que vous ferez.</p>
-    <p>L’inverse existe aussi. Sur « garder ou changer de voiture », les réparations à venir portent 54 % de l’incertitude <em>et</em> décident : le verdict bascule au-delà de 1 110 € par an, ce qui arrive 3 fois sur 10, et lever ce doute vaut environ 630 €. Aller chercher ses factures des trois dernières années est, littéralement, l’heure la mieux payée de la décision.</p>
-    <p>Et quand la valeur de l’information est faible devant l’enjeu — moins de 2 % de l’écart entre la meilleure et la pire branche — le site vous dit d’arrêter d’enquêter. Sur « isoler ses combles », aucune hypothèse ne renverse le choix : la question est tranchée, quelle que soit votre ignorance.</p>
+    <p>C’est l’idée centrale du site, et la moins connue. La question n’est pas « de quoi suis-je le plus incertain ? » mais <b>« qu’est-ce que ça vaut, de lever ce doute ? »</b></p>
+    <p>Formellement : ce que vous gagneriez, en moyenne, à connaître une hypothèse exactement <em>avant</em> de choisir, plutôt qu’à choisir maintenant avec ce que vous savez. Sur l’exemple ci-dessus, 141 € — et comme il n’y a qu’une seule hypothèse, c’est aussi le maximum que puisse rapporter n’importe quelle enquête.</p>
+    <p>Le renversement que produit ce calcul est le suivant : <b>une hypothèse peut être massivement incertaine et totalement sans intérêt.</b> Elle fait beaucoup bouger le résultat, mais jamais assez pour renverser le choix. Y consacrer une semaine ne changerait rien à ce que vous ferez.</p>
+    <p>L’inverse existe aussi. Sur « garder ou changer de voiture », les réparations à venir portent 54 % de l’incertitude <em>et</em> décident : le verdict bascule au-delà de 1 110 € par an, ce qui arrive 3 fois sur 10, et lever ce doute vaut environ 630 €. Aller chercher ses factures des trois dernières années est, littéralement, l’heure la mieux payée de la décision.</p>
+    <p>Et quand la valeur de l’information est faible devant l’enjeu — moins de 2 % de l’écart entre la meilleure et la pire branche — le site vous dit d’arrêter d’enquêter. Sur « isoler ses combles », aucune hypothèse ne renverse le choix : la question est tranchée, quelle que soit votre ignorance.</p>
   </section>
 
   <section class="chapitre">
     <h2>La robustesse</h2>
-    <p>Tout ce qui précède suppose que vos fourchettes sont honnêtes. Comme elles ne le sont probablement pas — voir plus haut —, le site pose une dernière question : <b>et si elles étaient trop étroites ?</b></p>
-    <p>Il élargit alors toutes vos fourchettes d’un facteur croissant, médiane inchangée, et regarde à partir de quand votre conclusion tombe. L’étirement est multiplicatif sur les grandeurs positives, donc une fourchette élargie ne devient jamais négative ; les lois discrètes ne sont pas touchées, parce qu’une probabilité ne s’étire pas comme une fourchette.</p>
-    <p class="reponse">Sur « louer ou acheter », il suffit de fourchettes 2,5× trop étroites pour que le verdict s’inverse. Sur « isoler ses combles », la conclusion tient jusqu’à 6× plus large.</p>
-    <p>Le second cas est le plus instructif. Il signifie que cette conclusion-là ne dépend pas de la justesse de vos fourchettes, mais de leurs <b>valeurs centrales</b> : ce n’est pas votre incertitude qu’il faut réduire, ce sont vos ordres de grandeur qu’il faut vérifier.</p>
+    <p>Tout ce qui précède suppose que vos fourchettes sont honnêtes. Comme elles ne le sont probablement pas — voir plus haut —, le site pose une dernière question : <b>et si elles étaient trop étroites ?</b></p>
+    <p>Il élargit alors toutes vos fourchettes d’un facteur croissant, médiane inchangée, et regarde à partir de quand votre conclusion tombe. L’étirement est multiplicatif sur les grandeurs positives, donc une fourchette élargie ne devient jamais négative ; les lois discrètes ne sont pas touchées, parce qu’une probabilité ne s’étire pas comme une fourchette.</p>
+    <p class="reponse">Sur « louer ou acheter », il suffit de fourchettes 2,5× trop étroites pour que le verdict s’inverse. Sur « isoler ses combles », la conclusion tient jusqu’à 6× plus large.</p>
+    <p>Le second cas est le plus instructif. Il signifie que cette conclusion-là ne dépend pas de la justesse de vos fourchettes, mais de leurs <b>valeurs centrales</b> : ce n’est pas votre incertitude qu’il faut réduire, ce sont vos ordres de grandeur qu’il faut vérifier.</p>
   </section>
 
   <section class="chapitre">
     <h2>Ce que la méthode ne sait pas faire</h2>
-    <p><b>Elle suppose vos hypothèses indépendantes.</b> Sauf là où vous les liez par une formule. Dans la réalité, un taux de crédit, une inflation des loyers et un rendement de placement suivent la même conjoncture. Cela s’écrit, et c’est même la bonne façon de le dire :</p>
+    <p><b>Elle suppose vos hypothèses indépendantes.</b> Sauf là où vous les liez par une formule. Dans la réalité, un taux de crédit, une inflation des loyers et un rendement de placement suivent la même conjoncture. Cela s’écrit, et c’est même la bonne façon de le dire :</p>
     <pre class="exemple"><code>conjoncture = -1 à 1
 revalorisation = 1,5% + 2% * conjoncture + (-1% à 1%)
 hausse_loyer   = 2% + 1% * conjoncture</code></pre>
     <p>Le site désigne alors <code>conjoncture</code> comme l’hypothèse décisive, ce qui est plus juste — et plus utile — que de désigner l’une des deux qu’elle pilote.</p>
-    <p><b>Elle ne connaît aucune donnée.</b> Aucun barème, aucun taux, aucun prix de marché. Tous les chiffres sont ceux que vous écrivez ; les modèles de départ ne sont que des ordres de grandeur à remplacer. C’est une limite, et c’est aussi ce qui garantit que rien de ce que vous tapez ne quitte votre navigateur.</p>
-    <p><b>Elle vérifie la cohérence, jamais la pertinence.</b> Un modèle qui oublie un poste entier sera calculé impeccablement et répondra à côté. C’est pourquoi chaque page de modèle dit ce que le sien ignore : lisez-le avant de croire le verdict.</p>
-    <p><b>Elle est numérique.</b> Vingt mille tirages donnent une probabilité à un demi-point près environ. Le générateur est initialisé de la même manière à chaque fois : deux calculs du même modèle rendent exactement le même résultat, ce qui évite que l’affichage frémisse pendant que vous tapez.</p>
+    <p><b>Elle ne connaît aucune donnée.</b> Aucun barème, aucun taux, aucun prix de marché. Tous les chiffres sont ceux que vous écrivez ; les modèles de départ ne sont que des ordres de grandeur à remplacer. C’est une limite, et c’est aussi ce qui garantit que rien de ce que vous tapez ne quitte votre navigateur.</p>
+    <p><b>Elle vérifie la cohérence, jamais la pertinence.</b> Un modèle qui oublie un poste entier sera calculé impeccablement et répondra à côté. C’est pourquoi chaque page de modèle dit ce que le sien ignore : lisez-le avant de croire le verdict.</p>
+    <p><b>Elle est numérique.</b> Vingt mille tirages donnent une probabilité à un demi-point près environ. Le générateur est initialisé de la même manière à chaque fois : deux calculs du même modèle rendent exactement le même résultat, ce qui évite que l’affichage frémisse pendant que vous tapez.</p>
     <p><b>Et elle ne verra jamais ce qui ne s’écrit pas en chiffres.</b> Quand deux branches sont à égalité, le calcul a fini son travail, et il reste tout ce qui compte vraiment.</p>
   </section>
 
