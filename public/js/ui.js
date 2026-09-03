@@ -37,7 +37,8 @@ function echelle(x) {
 function valeur(x, unite, ech = null) {
   if (!Number.isFinite(x)) return '—';
   if (unite === '%') {
-    return nf({ maximumFractionDigits: Math.abs(x) < 0.01 ? 2 : 1 }).format(x * 100) + '\u202f%';
+    // Deux décimales sous 10 % : un taux de crédit à 3,21 % n'est pas à 3,2 %.
+    return nf({ maximumFractionDigits: Math.abs(x) < 0.1 ? 2 : 1 }).format(x * 100) + '\u202f%';
   }
   const [diviseur, suffixe] = ech || echelle(x);
   const v = x / diviseur;
