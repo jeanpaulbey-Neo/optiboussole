@@ -1100,6 +1100,21 @@ groupe('Chiffres cités par les textes de fond');
   proche('… à « chauffage_actuel » pour près d\'un tiers', gain.chauffage_actuel, 0.29, 0.07);
   proche('… et le prix futur de l\'énergie n\'en porte que 15 %', gain.prix_energie, 0.15, 0.05);
 
+  {
+    // Le seuil sur le taux journalier n'existe que depuis que les années
+    // creuses ont cessé d'être supposées absentes pendant le balayage.
+    const r = analyserModele(MODELES.find((m) => m.cle === 'freelance').source);
+    const parts = Object.fromEntries(r.sources.map((x) => [x.nom, x]));
+    proche('freelance : le taux journalier bascule à 471 €',
+      parts.tjm.bascules[0].valeur, 471, 12);
+    verifie('… vers « Passer freelance » en montant',
+      parts.tjm.bascules[0].vers === 'Passer freelance');
+    proche('… « tjm » porte 36 % de l\'écart entre les branches', parts.tjm.part, 0.36, 0.05);
+    proche('… « creuses » 28 %', parts.creuses.part, 0.28, 0.05);
+    verifie('… mais « creuses » vaut près de deux fois plus à lever',
+      parts.creuses.valeurInfo > 1.7 * parts.tjm.valeurInfo,
+      `→ ${parts.creuses.valeurInfo.toFixed(0)} contre ${parts.tjm.valeurInfo.toFixed(0)}`);
+  }
   const ca = orig('freelance', 'ca');
   proche('freelance : le CA tient à « tjm » à 61 %', ca.tjm, 0.61, 0.06);
   proche('… et à « jours_facturables » à 37 %', ca.jours_facturables, 0.37, 0.06);

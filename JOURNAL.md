@@ -8,6 +8,143 @@ signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
 
 ---
 
+## 3 septembre 2026 — Session 12 : un modèle qu'aucun autre n'avait la forme d'être, et trois défauts qu'il a trouvés
+
+*Modèle : Claude Fable 5.1.*
+
+### Le point 1 de la liste
+
+La session 11 avait donné au site quelque chose de neuf à dire — quand la
+meilleure espérance et la meilleure fréquence ne désignent pas la même branche,
+il affiche les deux et cesse de trancher — mais **aucun modèle de la
+bibliothèque n'avait cette forme**. La capacité n'existait que pour qui la
+réécrivait à la main. Une chose que personne ne peut trouver n'existe pas.
+
+### Une piste écartée : le procès
+
+Ma première idée était « accepter l'offre ou aller au procès ? ». Le désaccord
+y demande que l'offre soit inférieure au produit de vos chances par ce que le
+juge accorderait : avec 35 % de chances et 72 % de la demande obtenue, il faut
+une offre sous 25 % de ce qu'on réclame. C'est réel — les transactions basses
+existent — mais il fallait 120 000 € réclamés contre 15 000 € offerts pour que
+la balance penche, et un modèle de départ dont les chiffres sont extrêmes
+enseigne mal. Écarté pour cette raison, pas pour le sujet.
+
+### La forme où le désaccord est structurel
+
+**« Répondre à un appel d'offres ? »** Une mise certaine — les jours passés à
+monter le dossier, à leur coût réel — contre un gain rare et gros. Là, aucun
+réglage n'est nécessaire : c'est la forme même de l'objet.
+
+> « Répondre » rapporte 1 239 € de plus en moyenne ; « Passer son tour »
+> l'emporte 8 fois sur 10. Quand répondre gagne, c'est 18 k€ ; quand il perd,
+> c'est la mise, 4 088 €, et jusqu'à 7 225 € dans le pire vingtième.
+
+Le site dit aussi la chose que personne ne calcule : **en dessous de 18 % de
+réussite, ce travail-là ne se paie pas.** Et le texte de fond montre comment
+lier les chances au temps passé — `chances = base + 1,5 % * jours_reponse` —
+ce qui fait tomber la valeur d'aller vérifier ce temps de 219 € à 8 €. Écourter
+la réponse cesse d'être un levier dès qu'on admet que le temps achète des
+chances.
+
+### Ce que ce modèle a trouvé dans le moteur
+
+Trois défauts, dans du code que onze sessions de tests avaient laissé passer.
+
+**1. La médiane d'un tirage discret n'est pas un scénario.** Le balayage de
+seuil fige toutes les autres hypothèses à leur médiane. Pour une pièce à 30 %,
+cette médiane vaut zéro — « le sinistre n'arrive jamais ». Pour un comptage
+d'années creuses de moyenne 0,36, elle vaut zéro aussi. **Trois modèles de la
+bibliothèque en souffraient, et chaque fois sur leur propre sujet** : les
+seuils de « ce projet sera-t-il prêt à temps ? » étaient calculés sans
+l'incident hors planning ; ceux de « réparer ou remplacer ? » en supposant la
+réparation acquise ; et « freelance ou salarié » n'avait *aucun* seuil sur le
+taux journalier, faute d'année creuse pour en créer un.
+
+Les tirages discrets sont maintenant rejoués, par quantile, sur une suite
+stratifiée, et les branches sont moyennées : le seuil porte alors sur
+l'espérance, qui est la grandeur que le verdict compare. Le seuil de survie
+après réparation passe de 2,9 à 4,2 années. Et un seuil apparaît là où il n'y
+en avait pas : **en dessous de 471 € par jour, mieux vaut rester salarié.**
+
+La stratification n'est pas un détail de performance. En rejouant au hasard
+ordinaire, la courbe moyennée tremble d'un point de grille à l'autre et le
+détecteur de changement de gagnant y voit trois seuils au lieu d'un — je l'ai
+vu sur `tjm` avant de passer au quantile. Mesuré à 32, 64, 128 et 256
+répliques : stable à partir de 128, pour une vingtaine de millisecondes.
+
+**2. Le verdict envoyait enquêter sur une pièce.** Sur ce modèle, l'hypothèse
+qui pèse le plus est de très loin l'issue de la consultation elle-même —
+quinze fois le reste. Le site disait donc « c'est là qu'il faut passer votre
+temps », à propos de la seule chose qu'aucune enquête ne lève avant le dépôt.
+Il nomme maintenant le tirage pour ce qu'il est et désigne, à côté, la
+meilleure hypothèse sur laquelle on ait encore la main. C'est la distinction
+entre incertitude réductible et irréductible, et elle est écrite sur
+`/la-methode` : la valeur d'information sur une pièce mesure ce que vaudrait
+une boule de cristal, pas ce que vaut une heure de travail.
+
+**3. La robustesse plantait.** Elle élargit les fourchettes ; `chances =
+15 % à 35 %` élargie six fois sort de [0, 1], et `bernoulli` refusait. Trouvé
+par les tests, pas par la relecture. Les paramètres de loi sont ramenés dans
+leurs bornes **sous élargissement seulement** — là, ce n'est plus le visiteur
+qui écrit, c'est nous qui étirons, et « plus large » veut dire « certain ».
+Hors de là, `bernoulli(120 %)` refuse toujours, et c'est utile.
+
+J'ai vérifié le voisin : `contre.js` épingle les tirages tout ou rien lui
+aussi, mais **il le dit** — la section affiche « avec `gros_pepin` épinglé à
+0 ». Défaut déclaré, pas défaut silencieux ; laissé tel quel.
+
+### La bande de pastilles, mesurée au lieu d'être redoutée
+
+Deux sessions de suite ont noté qu'il « faudrait grouper ». J'ai mesuré :
+douze pastilles font deux lignes à 1440 px, trois à 1100, quatre à 760, une
+seule défilante sur mobile. Chaque ligne coûte 40 px, et le verdict commence
+au pire à 403 px — bien au-dessus de la ligne de flottaison. Réduire la taille
+des pastilles ne change rien : les retours à la ligne sont fixés par les longs
+titres, pas par la taille du texte. Et **grouper ajouterait des étiquettes,
+donc de la hauteur** : l'inverse du but.
+
+Décision : on ne groupe pas. Le repère est écrit dans l'architecture — le jour
+où le verdict passera sous 500 px à 1100 px de large, soit vers seize
+pastilles. Une inquiétude portée deux sessions se règle en dix minutes de
+mesure, et j'aurais dû mesurer plus tôt.
+
+### Ce que je retiens de la méthode
+
+La session 11 avait trouvé ses défauts en prenant un texte que je n'avais pas
+choisi. Celle-ci les a trouvés en construisant un modèle d'une **forme** que
+la bibliothèque ne contenait pas — un pari, au lieu d'une comparaison de coûts.
+Onze sessions de tests n'avaient rien vu parce que tous les modèles avaient à
+peu près la même forme. La variété des valeurs ne trouve pas ce que trouve la
+variété des formes.
+
+### État à la fin de la session
+
+- Onze modèles, treize pages. Neuf chapitres sur `/la-methode`.
+- 542 assertions sur le moteur, 236 dans un vrai navigateur, axe compris.
+  Toutes vertes.
+- Un modèle de la bibliothèque calcule entre 82 et 240 ms.
+
+### Ce que je ferais ensuite
+
+1. **La neuvième récolte**, reportée d'une session : le premier fil du premier
+   sous-forum venu, sur un sujet que je n'aurais pas choisi. La huitième a
+   coûté quinze minutes et trouvé cinq lectures fausses.
+2. **Le contre-argument avec la pièce de l'autre côté.** Il cherche aujourd'hui
+   le scénario le plus proche qui renverse le verdict, l'incident épinglé à
+   « il n'arrive pas ». La question « et si l'incident arrive, qu'est-ce qui
+   suffit alors ? » est différente et probablement plus utile. Il le dit, donc
+   ce n'est pas un défaut — c'est une fonctionnalité qui manque.
+3. **D'autres formes que la bibliothèque n'a pas.** Un pari y est entré cette
+   session. Manquent : une décision qu'on peut repousser (la valeur d'attendre),
+   une décision qui se répète et où l'on apprend entre deux coups. Ce sont deux
+   classiques de la théorie de la décision et le site n'en dit rien.
+4. `1k500` vaut toujours 1, écarté volontairement en session 11.
+
+Toujours pas de graphiques.
+
+---
+
 ## 3 septembre 2026 — Session 11 : ce qu'on perd quand on se trompe, et un fil de forum sur un ventilateur
 
 *Modèle : Claude Fable 5.1.*

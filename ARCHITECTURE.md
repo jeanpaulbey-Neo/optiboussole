@@ -40,7 +40,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              537 assertions sur le moteur (Node, sans dépendance)
+│   ├── run.js              542 assertions sur le moteur (Node, sans dépendance)
 │   └── navigateur.js       236 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
@@ -252,20 +252,28 @@ des phrases en français
   `APPROXIMATIFS_NOMBRES` renvoie à la fourchette (« 16 à 24 ») au lieu de
   valoir 1 — « une » lu comme le nombre, « vingtaine » ignoré comme une unité.
   Un nom défini garde la priorité : `dizaine = 10` reste utilisable.
-- **Une pièce ne se fige pas à sa médiane.** Pendant un balayage de seuil, les
-  autres hypothèses sont figées à leur médiane. Pour un tirage **tout ou rien**,
-  cette médiane vaut « l'événement n'arrive pas » : les seuils de « ce projet
-  sera-t-il prêt à temps ? » étaient calculés sans l'incident hors planning, et
-  ceux de « réparer ou remplacer ? » en supposant la réparation acquise — dans
-  deux modèles dont c'est le sujet. `balayer()` ne les fige donc plus : chaque
-  point de la grille est répliqué `REPLIQUES_PIECE` fois, la pièce est rejouée
-  sur une suite stratifiée déterministe (`uniformeBernoulli` dans evaluer.js,
-  décalée en nombre d'or d'une pièce à l'autre pour ne pas les corréler), et
-  les branches sont moyennées par bloc. Le seuil porte alors sur l'espérance,
-  qui est la grandeur que le verdict compare. **128 répliques** : les seuils
-  sont stables à partir de là (mesuré à 32, 64, 128, 256), pour 18 ms de plus
-  sur les deux modèles concernés. Les modèles sans pièce ne paient rien —
-  `R = 1` et le code d'avant.
+- **Un tirage discret ne se fige pas à sa médiane.** Pendant un balayage de
+  seuil, les autres hypothèses sont figées à leur médiane. Pour une loi
+  discrète, cette médiane vaut « l'événement n'arrive pas » : celle d'une pièce
+  à 30 % vaut 0, celle d'un comptage d'années creuses de moyenne 0,36 aussi.
+  Trois modèles en souffraient — les seuils de « ce projet sera-t-il prêt à
+  temps ? » calculés sans l'incident hors planning, ceux de « réparer ou
+  remplacer ? » en supposant la réparation acquise, et « freelance ou
+  salarié » sans aucun seuil sur le taux journalier faute d'année creuse pour
+  en créer un. Dans les trois cas, c'est le sujet même du modèle.
+  `balayer()` ne les fige donc plus (`rejouee(s)` : `discret` vient de la loi,
+  `binaire` couvre le reste). Chaque point de la grille est répliqué
+  `REPLIQUES_DISCRET` fois, le tirage est rejoué **par quantile** sur une suite
+  stratifiée déterministe (`uniformeDiscret` dans evaluer.js, décalée en nombre
+  d'or d'un tirage à l'autre pour ne pas les corréler ; `poissonInverse` pour
+  les comptages), et les branches sont moyennées par bloc. Le seuil porte alors
+  sur l'espérance, qui est la grandeur que le verdict compare. **128
+  répliques** : les seuils sont stables à partir de là (mesuré à 32, 64, 128,
+  256), pour une vingtaine de millisecondes sur les modèles concernés. Les
+  autres ne paient rien — `R = 1` et le code d'avant. ⚠️ Le rejeu **doit** être
+  stratifié : en tirage ordinaire, la courbe moyennée tremble d'un point de
+  grille à l'autre et le détecteur de changement de gagnant y voit trois seuils
+  au lieu d'un (constaté sur `tjm`).
 - **Les paramètres de loi sont ramenés dans leurs bornes sous élargissement,
   et seulement là.** `chances = 15 % à 35 %` élargi six fois sort de [0, 1] et
   `bernoulli` refusait : la passe de robustesse plantait sur le modèle d'appel

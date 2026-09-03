@@ -41,6 +41,16 @@ export function quantile(tri, p) {
   return tri[bas] + (tri[haut] - tri[bas]) * (pos - bas);
 }
 
+// Quantile d'une loi de Poisson, par somme cumulée. Sert au balayage de seuil,
+// où les tirages discrets sont rejoués sur une suite régulière plutôt que
+// figés à leur médiane. Le tirage ordinaire garde la méthode de rng.js.
+export function poissonInverse(u, lambda) {
+  if (!(lambda > 0)) return 0;
+  let p = Math.exp(-lambda), cumul = p, k = 0;
+  while (cumul < u && k < 10000) { k++; p *= lambda / k; cumul += p; }
+  return k;
+}
+
 export function trier(v) {
   const c = Float64Array.from(v);
   c.sort();
@@ -163,17 +173,17 @@ function plusProche(nom, candidats) {
 // --- Contexte d'évaluation --------------------------------------------------
 
 class Contexte {
-  constructor(ast, { N, graine, remplacements, elargissement, uniformeBernoulli }) {
+  constructor(ast, { N, graine, remplacements, elargissement, uniformeDiscret }) {
     this.ast = ast;
     this.N = N;
     this.rng = new RNG(graine);
-    // Pendant un balayage de seuil, les tirages tout ou rien ne sont pas figés
+    // Pendant un balayage de seuil, les tirages **discrets** ne sont pas figés
     // à leur médiane — ce serait balayer en supposant que le sinistre n'arrive
-    // jamais. Ils sont retirés sur une suite stratifiée déterministe, et le
-    // résultat est moyenné : voir `balayer` dans moteur.js. Décalage en
-    // nombre d'or d'une pièce à l'autre, sinon deux pièces tomberaient
-    // toujours du même côté ensemble.
-    this.uniformeBernoulli = uniformeBernoulli || null;
+    // jamais, ou qu'aucune année n'est creuse. Ils sont rejoués sur une suite
+    // stratifiée déterministe, par quantile, et le résultat est moyenné : voir
+    // `balayer` dans moteur.js. Décalage en nombre d'or d'un tirage à l'autre,
+    // sinon deux pièces tomberaient toujours du même côté ensemble.
+    this.uniformeDiscret = uniformeDiscret || null;
     this.compteurPiece = 0;
     this.remplacements = remplacements || null;
     this.elargissement = elargissement || 1;
@@ -381,6 +391,10 @@ class Contexte {
       };
       const CONTINUES = new Set(['unif', 'uniforme', 'normale', 'normal',
         'lognormale', 'lognormal', 'triangulaire']);
+      // Les lois dont la médiane n'est pas un scénario représentatif : celle
+      // d'une pièce à 30 % vaut « elle ne tombe jamais ». Le balayage de seuil
+      // les rejoue au lieu de les figer.
+      const DISCRETES = new Set(['bernoulli', 'pile', 'poisson']);
       // Un paramètre impossible donne un tirage plausible et faux : bernoulli(120 %)
       // vaut toujours 1, triangulaire(1, 5, 3) sort de ses propres bornes.
       const borne = (k, test, message) => {
@@ -461,10 +475,10 @@ class Contexte {
           }
           case 'bernoulli': case 'pile': {
             const P = lire(0);
-            if (this.uniformeBernoulli) {
+            if (this.uniformeDiscret) {
               const decalage = (this.compteurPiece++ * 0.6180339887498949) % 1;
               for (let i = 0; i < N; i++) {
-                const u = (this.uniformeBernoulli(i) + decalage) % 1;
+                const u = (this.uniformeDiscret(i) + decalage) % 1;
                 out[i] = u < P(i) ? 1 : 0;
               }
             } else {
@@ -474,7 +488,14 @@ class Contexte {
           }
           case 'poisson': {
             const L = lire(0);
-            for (let i = 0; i < N; i++) out[i] = r.poisson(L(i));
+            if (this.uniformeDiscret) {
+              const decalage = (this.compteurPiece++ * 0.6180339887498949) % 1;
+              for (let i = 0; i < N; i++) {
+                out[i] = poissonInverse((this.uniformeDiscret(i) + decalage) % 1, L(i));
+              }
+            } else {
+              for (let i = 0; i < N; i++) out[i] = r.poisson(L(i));
+            }
             break;
           }
           case 'triangulaire': {
@@ -489,7 +510,7 @@ class Contexte {
           }
         }
         return out;
-      }, { elargissable: CONTINUES.has(nom) });
+      }, { elargissable: CONTINUES.has(nom), discret: DISCRETES.has(nom) });
     }
 
     throw new ErreurModele(`fonction « ${n.nom} » inconnue`, n.ligne);
@@ -571,8 +592,8 @@ const estLitteral = (expr) => expr.k === 'nombre' || (expr.k === 'neg' && expr.e
 
 export function evaluerModele(ast,
   { N = 20000, graine = 20260901, remplacements = null, elargissement = 1, detail = false,
-    uniformeBernoulli = null } = {}) {
-  const ctx = new Contexte(ast, { N, graine, remplacements, elargissement, uniformeBernoulli });
+    uniformeDiscret = null } = {}) {
+  const ctx = new Contexte(ast, { N, graine, remplacements, elargissement, uniformeDiscret });
 
   // Ordre stable : on force l'évaluation dans l'ordre d'écriture pour que les
   // identifiants de source ne dépendent pas du chemin d'accès.

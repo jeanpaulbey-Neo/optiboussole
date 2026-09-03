@@ -205,27 +205,34 @@ export function histogramme(tri, nBarres = 56, bas = null, haut = null) {
 
 const PAS_BALAYAGE = 161;
 
-// Une source « tout ou rien » n'a pas de médiane qui veuille dire quelque
-// chose. La figer à 0 — ce que faisait le balayage — revient à chercher le
-// seuil **en supposant que le sinistre n'arrive jamais** : les seuils de
-// « ce projet sera-t-il prêt à temps ? » étaient calculés sans l'incident
-// hors planning, et ceux de « réparer ou remplacer ? » en supposant que la
-// réparation tient toujours. Dans les deux cas, c'est exactement ce que le
-// modèle prétend traiter.
+// Un tirage **discret** n'a pas de médiane qui veuille dire quelque chose. La
+// médiane d'une pièce à 30 % vaut 0 ; celle d'un comptage d'années creuses de
+// moyenne 0,36 vaut 0 aussi. Figer ces sources — ce que faisait le balayage —
+// revient à chercher le seuil **en supposant que le sinistre n'arrive
+// jamais** : les seuils de « ce projet sera-t-il prêt à temps ? » étaient
+// calculés sans l'incident hors planning, ceux de « réparer ou remplacer ? »
+// en supposant la réparation acquise, et « freelance ou salarié » n'avait
+// aucun seuil sur le taux journalier faute d'année creuse. Dans les trois cas,
+// c'est exactement ce que le modèle prétend traiter.
 //
-// On les laisse donc se retirer, sur une suite stratifiée déterministe, et on
-// moyenne : le seuil porte alors sur l'espérance de chaque branche, ce qui est
-// la grandeur que le verdict compare. Le coût n'est payé que par les modèles
-// qui contiennent une pièce.
-const REPLIQUES_PIECE = 128;
+// On les rejoue donc, sur une suite stratifiée déterministe (par quantile), et
+// on moyenne : le seuil porte alors sur l'espérance de chaque branche, ce qui
+// est la grandeur que le verdict compare. Le coût n'est payé que par les
+// modèles qui contiennent un tirage discret.
+const REPLIQUES_DISCRET = 128;
+
+// Une source rejouée plutôt que figée. `discret` vient de la loi elle-même
+// (bernoulli, pile, poisson) ; `binaire` couvre le cas où le résultat ne prend
+// que deux valeurs sans venir d'une de ces lois.
+const rejouee = (s) => !!s.discret || !!s.binaire;
 
 function balayer(ast, sources, cible) {
-  const aPiece = sources.some((s) => s.binaire && s.id !== cible.id);
-  const R = aPiece ? REPLIQUES_PIECE : 1;
+  const aTirage = sources.some((s) => rejouee(s) && s.id !== cible.id);
+  const R = aTirage ? REPLIQUES_DISCRET : 1;
 
   const remplacements = {};
   for (const s of sources) {
-    if (s.id === cible.id || s.binaire) continue;
+    if (s.id === cible.id || rejouee(s)) continue;
     remplacements[s.id] = s.stats ? s.stats.p50 : moyenne(s.valeurs);
   }
   const bas = cible.stats.p05, haut = cible.stats.p95;
@@ -239,7 +246,7 @@ function balayer(ast, sources, cible) {
   const r = evaluerModele(ast, {
     N: PAS_BALAYAGE * R,
     remplacements,
-    uniformeBernoulli: R > 1 ? (i) => ((i % R) + 0.5) / R : null,
+    uniformeDiscret: R > 1 ? (i) => ((i % R) + 0.5) / R : null,
   });
   if (R === 1) return { grille, res: r };
 
