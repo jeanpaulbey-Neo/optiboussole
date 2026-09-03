@@ -4,7 +4,8 @@
 // s'affiche, que l'édition recalcule, et produit des captures d'écran.
 
 import puppeteer from 'puppeteer';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { MODELES } from '../public/js/modeles.js';
 
 const URL = process.argv[2] || 'https://optiboussole.fr';
@@ -603,6 +604,72 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
 
   verifie('aucune erreur sur la page de méthode', inc9.length === 0, '→ ' + inc9.join(' | '));
   await p9.close();
+}
+
+// --- Accessibilité ---------------------------------------------------------------
+// Un visiteur au clavier ou au lecteur d'écran est un visiteur réel. axe-core
+// vérifie ce qui se vérifie mécaniquement ; le reste — une seule phrase
+// annoncée à chaque recalcul, pas toute la page — est vérifié à la main ici.
+console.log('\n\x1b[1mAccessibilité\x1b[0m');
+{
+  const axeSource = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
+  const pa = await navigateur.newPage();
+  await pa.setViewport({ width: 1200, height: 900 });
+  await pa.setBypassCSP(true);   // pour injecter axe ; le site, lui, garde sa CSP
+  for (const chemin of ['/', '/la-methode', '/prix-du-kilometre', '/une-adresse-qui-n-existe-pas']) {
+    await pa.goto(URL + chemin, { waitUntil: 'networkidle0' });
+    if (chemin === '/' || chemin.startsWith('/prix')) await pa.waitForSelector('.verdict-titre');
+    await pa.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
+    await pa.evaluate(axeSource);
+    const res = await pa.evaluate(async () => {
+      const r = await axe.run(document, { resultTypes: ['violations'] });
+      return r.violations.map((v) => `${v.id} ×${v.nodes.length} (${v.nodes[0].target.join(' ')})`);
+    });
+    verifie(`${chemin} : aucune violation axe`, res.length === 0, `→ ${res.join(' | ')}`);
+    const reperes = await pa.evaluate(() => ({
+      main: document.querySelectorAll('main').length,
+      saut: document.querySelector('a.saut')?.getAttribute('href'),
+      h1: document.querySelectorAll('h1').length,
+    }));
+    verifie(`${chemin} : un seul <main>, un <h1>, un lien d'évitement`,
+      reperes.main === 1 && reperes.h1 === 1 && reperes.saut === '#contenu', `→ ${JSON.stringify(reperes)}`);
+  }
+
+  // Le lecteur d'écran n'entend que le verdict, et seulement s'il a changé.
+  await pa.goto(URL + '/prix-du-kilometre', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  const a1 = await pa.$eval('#annonce', (n) => n.textContent);
+  verifie('l’annonce initiale est une phrase courte', a1.length > 10 && a1.length < 300, `→ ${a1.length} car. « ${a1.slice(0, 80)}… »`);
+  verifie('la zone de résultats n’est plus en aria-live',
+    await pa.$eval('#resultats', (n) => !n.hasAttribute('aria-live') && n.getAttribute('role') === 'region'));
+  await pa.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value.replace('# la queue est longue', '# note');
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  const a2 = await pa.$eval('#annonce', (n) => n.textContent);
+  verifie('un commentaire modifié ne change pas l’annonce', a2 === a1);
+  await pa.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value.replace('km_an = 8000 à 16000', 'km_an = 30000 à 40000');
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  const a3 = await pa.$eval('#annonce', (n) => n.textContent);
+  verifie('une hypothèse modifiée change l’annonce', a3 !== a1, `→ « ${a3.slice(0, 80)} »`);
+
+  // Au clavier : le premier Tab tombe sur le lien d'évitement, qui mène au contenu.
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.keyboard.press('Tab');
+  const premier = await pa.evaluate(() => document.activeElement.className);
+  verifie('le premier Tab atteint le lien d’évitement', premier === 'saut', `→ ${premier}`);
+  const visible = await pa.$eval('a.saut', (n) => n.getBoundingClientRect().top >= 0);
+  verifie('… qui devient visible au focus', visible);
+  await pa.keyboard.press('Enter');
+  const cible = await pa.evaluate(() => document.activeElement.id);
+  verifie('… et Entrée mène au contenu', cible === 'contenu', `→ ${cible}`);
+  await pa.close();
 }
 
 // --- Plan du site et 404 --------------------------------------------------------

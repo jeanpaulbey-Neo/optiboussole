@@ -231,6 +231,25 @@ nav .exemples { margin-bottom: 0; }
 }
 #modele:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+/* Clavier : un contour visible et identique partout. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#contenu:focus { outline: none; }
+
+/* Lien d'évitement : invisible jusqu'au premier Tab. */
+.saut {
+  position: absolute; left: 12px; top: -100px;
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--accent); color: var(--surface);
+  font-size: 14px; z-index: 10;
+}
+.saut:focus { top: 12px; }
+
+/* Pour les lecteurs d'écran seulement : hors écran, jamais display:none. */
+.annonce {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 .erreur {
   margin: 0;
   padding: 10px 14px;

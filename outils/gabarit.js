@@ -184,6 +184,54 @@ const pied = () => `<footer>
   <p><a href="/la-methode">La méthode, en détail</a></p>
 </footer>`;
 
+// La page 404 : la même enveloppe, la bande de modèles complète, rien d’autre.
+// Générée pour ne plus dériver — écrite à la main, elle avait perdu trois
+// modèles en chemin.
+export function page404({ modeles, defaut }) {
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page introuvable — Boussole</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/boussole.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<a class="saut" href="#contenu">Aller au contenu</a>
+<div class="enveloppe">
+<header>
+  <div class="marque">
+    <svg class="rose" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-opacity=".28"/>
+      <path d="M16 3 L19.2 14.4 L16 16 Z" fill="currentColor"/>
+      <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
+    </svg>
+    <a class="retour" href="/">Boussole</a>
+  </div>
+  <h1 class="baseline titre-modele">Cette adresse ne correspond à rien.</h1>
+  <p class="sous-baseline">
+    Aucune trace de cette page. Les modèles disponibles sont juste en dessous ;
+    <a href="/">la page d’accueil</a> vous laissera aussi écrire le vôtre.
+  </p>
+</header>
+<main id="contenu" tabindex="-1">
+<nav aria-label="Modèles">
+<ul class="exemples">
+${chips(modeles, null, defaut)}
+</ul>
+</nav>
+</main>
+${pied()}
+</div>
+</body>
+</html>
+`;
+}
+
 // Une page de contenu : la même enveloppe, sans l’atelier. Sert /la-methode.
 export function pageMethode() {
   const m = METHODE;
@@ -210,6 +258,7 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
+<a class="saut" href="#contenu">Aller au contenu</a>
 <div class="enveloppe">
 
 <header>
@@ -224,6 +273,7 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
   <h1 class="baseline titre-modele">${echappe(m.titre)}</h1>
 </header>
 
+<main id="contenu" tabindex="-1">
 <article class="panneau article">
 ${m.intro.map((b) => '  ' + riche(b)).join('\n')}
 
@@ -231,6 +281,7 @@ ${corps}
 
   <p class="retour-outil"><a href="/">← Revenir à l’outil</a></p>
 </article>
+</main>
 
 ${pied()}
 
@@ -267,6 +318,7 @@ export function page({ modele, modeles, defaut, accueil }) {
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-modele="${attr(modele.cle)}"${accueil ? ' data-accueil="1"' : ''}>
+<a class="saut" href="#contenu">Aller au contenu</a>
 <div class="enveloppe">
 
 <header>
@@ -295,6 +347,7 @@ ${chips(modeles, modele.cle, defaut)}
 </ul>
 </nav>
 
+<main id="contenu" tabindex="-1">
 <div class="atelier">
 
   <section class="panneau editeur" aria-label="Le modèle">
@@ -312,13 +365,18 @@ ${chips(modeles, modele.cle, defaut)}
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
-  <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>
+  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
+       le verdict. La zone entière en aria-live aurait relu toute la page à
+       chaque frappe. -->
+  <p class="annonce" id="annonce" aria-live="polite"></p>
+  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
 </div>
 
 ${fond(modele)}
 
 ${AIDE}
+</main>
 
 ${pied()}
 

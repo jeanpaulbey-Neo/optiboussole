@@ -23,7 +23,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
-│   ├── 404.html            écrit à la main
+│   ├── 404.html            ⚙ généré — la bande de modèles complète, et rien d'autre
 │   ├── app.css             thème clair/sombre par variables CSS
 │   ├── boussole.svg        favicon
 │   └── js/

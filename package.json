@@ -9,5 +9,9 @@
     "test:navigateur": "node test/navigateur.js",
     "test:tout": "node test/run.js && node test/navigateur.js",
     "pages": "node outils/pages.js"
+  },
+  "devDependencies": {
+    "axe-core": "^4.13.0",
+    "puppeteer": "^25.9.0"
   }
 }

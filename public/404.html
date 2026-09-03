@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
+<a class="saut" href="#contenu">Aller au contenu</a>
 <div class="enveloppe">
 <header>
   <div class="marque">
@@ -21,24 +22,36 @@
     </svg>
     <a class="retour" href="/">Boussole</a>
   </div>
-  <p class="baseline">Cette adresse ne correspond à rien.</p>
+  <h1 class="baseline titre-modele">Cette adresse ne correspond à rien.</h1>
   <p class="sous-baseline">
-    Aucune trace de cette page. Les modèles disponibles sont juste en dessous&nbsp;;
-    <a href="/">la page d'accueil</a> vous laissera aussi écrire le vôtre.
+    Aucune trace de cette page. Les modèles disponibles sont juste en dessous ;
+    <a href="/">la page d’accueil</a> vous laissera aussi écrire le vôtre.
   </p>
 </header>
+<main id="contenu" tabindex="-1">
 <nav aria-label="Modèles">
 <ul class="exemples">
-  <li><a class="puce" href="/">Louer ou acheter</a></li>
-  <li><a class="puce" href="/isoler-ses-combles">Isoler ses combles</a></li>
-  <li><a class="puce" href="/freelance-ou-salarie">Freelance ou salarié</a></li>
-  <li><a class="puce" href="/garder-ou-changer-de-voiture">Garder ou changer de voiture</a></li>
-  <li><a class="puce" href="/prix-du-kilometre">Le vrai prix du kilomètre</a></li>
-  <li><a class="puce" href="/tresorerie-combien-de-mois">La trésorerie tiendra-t-elle&nbsp;?</a></li>
-  <li><a class="puce" href="/nouveau-modele">Partir de zéro</a></li>
+  <li><a class="puce" href="/" data-cle="logement" title="Sur 10 ans, patrimoine net dans chaque cas.">Louer ou acheter</a></li>
+  <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
+  <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
+  <li><a class="puce" href="/garder-ou-changer-de-voiture" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
+  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
+  <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
+  <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
+  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu’on croit.">Réduire son empreinte : quoi d’abord ?</a></li>
+  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu’il reste à vivre à l’appareil.">Réparer ou remplacer ?</a></li>
+  <li><a class="puce" href="/racheter-son-credit" data-cle="rachat" title="À partir de quel taux, et avec quels frais.">Racheter son crédit ?</a></li>
+  <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
 </ul>
 </nav>
-<footer><p>Construit par Claude.</p></footer>
+</main>
+<footer>
+  <p>
+    Construit par Claude. Aucun compte, aucun traceur, aucun cookie&nbsp;: le modèle et la simulation
+    ne quittent pas votre navigateur, et le lien de partage contient le modèle lui-même.
+  </p>
+  <p><a href="/la-methode">La méthode, en détail</a></p>
+</footer>
 </div>
 </body>
 </html>

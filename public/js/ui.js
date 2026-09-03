@@ -117,7 +117,8 @@ function phrase(...segments) {
 
 function jauge(fraction, pale = false) {
   const largeur = Math.max(0, Math.min(1, fraction || 0)) * 100;
-  return el('div', { class: pale ? 'barre pale' : 'barre' },
+  // Décorative : la valeur qu'elle illustre est toujours écrite à côté.
+  return el('div', { class: pale ? 'barre pale' : 'barre', 'aria-hidden': 'true' },
     el('i', { style: { width: largeur.toFixed(1) + '%' } }));
 }
 
@@ -690,7 +691,29 @@ const PROBLEMES = {
   ],
 };
 
+// Ce qu'un lecteur d'écran entend après un recalcul : le verdict et sa
+// première phrase, seulement s'ils ont changé. Pas la page entière.
+const zoneAnnonce = $('#annonce');
+let derniereAnnonce = '';
+function annoncer() {
+  if (!zoneAnnonce) return;
+  const titre = zoneResultats.querySelector('.verdict-titre');
+  if (!titre) return;
+  const chapeau = titre.previousElementSibling;
+  const suite = titre.nextElementSibling;
+  const texte = [chapeau && chapeau.textContent, titre.textContent + '.', suite && suite.tagName === 'P' && suite.textContent]
+    .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  if (texte === derniereAnnonce) return;
+  derniereAnnonce = texte;
+  zoneAnnonce.textContent = texte;
+}
+
 function rendre(r) {
+  rendreContenu(r);
+  annoncer();
+}
+
+function rendreContenu(r) {
   zoneResultats.replaceChildren();
   rendreAvertissements(r.avertissements);
   if (r.probleme) {

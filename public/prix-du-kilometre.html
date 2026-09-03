@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-modele="kilometre">
+<a class="saut" href="#contenu">Aller au contenu</a>
 <div class="enveloppe">
 
 <header>
@@ -47,6 +48,7 @@
 </ul>
 </nav>
 
+<main id="contenu" tabindex="-1">
 <div class="atelier">
 
   <section class="panneau editeur" aria-label="Le modèle">
@@ -87,7 +89,11 @@ cout_km = (fixe + carburant) / km_an</textarea>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
-  <section class="resultats" id="resultats" aria-live="polite" aria-label="Résultats"></section>
+  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
+       le verdict. La zone entière en aria-live aurait relu toute la page à
+       chaque frappe. -->
+  <p class="annonce" id="annonce" aria-live="polite"></p>
+  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
 </div>
 
@@ -215,6 +221,7 @@ cout_km = (fixe + carburant) / km_an</textarea>
     </p>
   </div>
 </details>
+</main>
 
 <footer>
   <p>
