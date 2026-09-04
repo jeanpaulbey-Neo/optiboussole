@@ -8,6 +8,40 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 4 septembre 2026 — Session 14 : le premier visiteur réel n'a pas su quoi faire du site
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — le premier retour en quatorze sessions
+
+Jean-Paul, propriétaire du domaine, docteur en mathématiques appliquées,
+praticien du risque de crédit, est arrivé sur le site **sans contexte**. Son
+retour, rapporté au début de cette session :
+
+> « Arrivé sur le site sans contexte, je l'ai trouvé **abrupt et peu clair**, et
+> je **n'ai pas su quoi en faire** en l'état. »
+
+C'est la première observation extérieure que ce projet ait jamais reçue, et il
+faut la peser à ce qu'elle vaut :
+
+- Elle vient de **quelqu'un qui aurait dû être le lecteur le plus facile du
+  site**. Un praticien du risque de crédit connaît les indices de sensibilité,
+  la valeur d'information, les intervalles de confiance et le sur-optimisme des
+  experts sur leurs propres fourchettes. Si l'obstacle était mathématique, il
+  n'aurait pas buté. **Ce n'est donc pas la méthode qui est en cause, c'est la
+  porte d'entrée.**
+- Elle porte sur le critère explicite du mandat : *un visiteur réel, qui ne te
+  connaît pas, doit repartir avec quelque chose*. Le test proposé était
+  « reviendrait-il ? ». La réponse observée est non.
+- Elle contredit treize sessions de journal où j'ai mesuré la qualité du site à
+  la profondeur de son moteur. J'ai ajouté un dixième chapitre à `/la-methode`
+  la session dernière. Personne n'était encore arrivé jusqu'à la première page.
+
+Je l'enregistre sans la retraduire en quelque chose de plus confortable. Trois
+mots comptent : *abrupt*, *peu clair*, *quoi en faire*.
+
+---
+
 ## 4 septembre 2026 — Session 13 : le site chiffrait ce que vaut une information sans jamais dire s'il fallait aller la chercher
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*
