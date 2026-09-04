@@ -8,6 +8,227 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 4 septembre 2026 — Session 18 : le site demandait d'écrire du code pour changer six nombres
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — cinquième passage du même lecteur
+
+Deux des six points de la session précédente sont réglés — « la bande de densité
+et `/un-cas` », et `/un-cas` est « la meilleure page du site, la seule qui m'a
+montré à quoi ça sert ». Restent quatre points, consignés mot pour mot :
+
+> 1. Pour me servir d'un des douze modèles, je dois éditer du texte, alors que
+>    le lexique contient déjà le mot français, l'unité et la source de chaque
+>    hypothèse — je m'attendais à six champs « basse / haute » avec des
+>    libellés, pas à du code.
+> 2. Les titres du site nomment des méthodes (contre-argument, valeur de
+>    l'information, robustesse) là où j'attends des situations.
+> 3. Le site se présente en disant ce qu'il ne fait pas, quatre fois avant que
+>    je voie ce qu'il fait.
+> 4. La réponse que j'obtiens est un devoir d'une heure, pas une réponse — c'est
+>    ton parti pris, mais c'est aussi pourquoi je ne recommanderais le site à
+>    personne autour de moi.
+
+La quatrième est la phrase la plus dure des cinq passages, et c'est la seule qui
+touche au mandat plutôt qu'à une page : *reviendrait-il ?* est le test que
+`CLAUDE.md` pose, et « je ne le recommanderais à personne » y répond non.
+
+### 1. Le formulaire, et il ne manquait que des positions
+
+Le site sait dire « `reparations`, ce que l'ancienne vous coûtera en pannes,
+€/an, vos factures de garage des trois dernières années ». Il le dit dans la
+réponse. Pour **changer** ce chiffre, il fallait aller le retrouver dans
+quarante lignes de texte et le retaper au bon endroit.
+
+Tout ce qu'il faut pour un formulaire était déjà écrit :
+
+- le mot français : `lexique.js` pour les 91 hypothèses de la bibliothèque, le
+  commentaire de fin de ligne partout ailleurs (session 17) ;
+- l'unité : le lexique, sinon le symbole collé au nombre, sinon le mot posé
+  après (session 17 encore) ;
+- les intertitres : `# --- Le crédit ---`, que les douze modèles écrivent déjà.
+
+Il manquait une chose, et une seule : **les positions**. Le lexer savait lire
+`400 à 1800 €   # par an`, il ne savait pas dire *où* étaient les chiffres. Deux
+champs sur les jetons — `debut` partout, `chiffres` sur les nombres — et
+`reglages.js` peut réécrire la tranche des chiffres au caractère près, en
+laissant le commentaire, le symbole, le `%`, l'échelle `k` et les espaces qui
+alignent les colonnes. C'est le point qui décide de tout : un formulaire qui
+régénère la ligne détruit ce que le site a mis quinze sessions à savoir lire.
+
+Une seule chose s'est révélée en le faisant : `extraireUnite()` neutralisait la
+ligne `unité: €` **en la vidant**, avec un commentaire disant « les numéros de
+ligne restent justes ». Ils l'étaient. Les positions, non — tout ce qui suivait
+se décalait de neuf caractères, et sept modèles sur douze rendaient un
+formulaire vide. Elle la remplit maintenant d'espaces de même longueur.
+
+Ce que le formulaire prend : `nom = nombre` et `nom = nombre à nombre`. Ce qu'il
+laisse au texte : les formules, les lois écrites à la main, les `±`. Sur les
+douze modèles, cela fait **114 champs, 200 bornes**, et de six à treize par
+modèle — c'est-à-dire exactement les lignes qu'on est censé remplacer. Le
+lecteur en attendait six ; il en trouvera huit sur la voiture.
+
+**Le principe qui tient tout : le texte reste la vérité.** Le formulaire n'a pas
+d'état — il se relit du texte à chaque calcul, chaque champ réécrit le texte, et
+le texte se relit. C'est ce qui fait que le lien de partage, la barre de
+reprise, `Réinitialiser`, les pastilles et les avertissements continuent de
+marcher sans rien savoir de lui.
+
+Un test rejoue les 200 bornes : chacune se réécrit, se relit à la bonne valeur,
+et **la ligne est identique à un groupe de chiffres près**. C'est lui qui a
+attrapé le décalage de `extraireUnite`, et c'est lui qui attrapera le prochain.
+
+### Et le texte est replié — pour la quatrième fois qu'on se le refuse
+
+Session 15, 16, 17 : « ce que je n'ai pas fait, replier l'éditeur derrière un
+bouton », avec chaque fois la même bonne raison — *qu'on arrive et que l'outil
+tourne déjà sur un cas réel est la seule chose que ce projet ait qui ne soit pas
+ailleurs.* C'était vrai. Et c'était, pour la quatrième fois, une phrase bien
+tournée qui protégeait un défaut : la session 17 avait fini par nommer le motif
+et par écrire qu'il fallait **relire les principes que ce journal énonce**.
+
+La phrase était juste et la conclusion fausse. On arrive toujours sur un cas
+réel qui tourne — mais sur ses **champs**, pas sur son code. Ce qui est replié
+n'est pas l'outil, c'est sa syntaxe ; elle est à un clic, elle reste la vérité,
+et elle se déplie toute seule là où le formulaire ne peut rien : page blanche,
+modèle en cours d'écriture, faute de syntaxe. Sans JavaScript, le `<details>`
+est servi ouvert et rien n'a changé.
+
+Deux défauts trouvés en le construisant, tous les deux invisibles au test de
+moteur et attrapés dans un vrai navigateur :
+
+- l'hypothèse décisive, marquée dans le formulaire, changeait au fil de la
+  frappe ; comme elle entrait dans la signature qui décide de reconstruire le
+  DOM, **le champ perdait le curseur en cours de saisie** — on ne pouvait pas
+  taper « 3000 » sans repartir de « 3 ». C'est une classe qu'on pose, pas une
+  raison de tout refaire ;
+- quatre champs s'affichaient sous un identifiant nu : `horizon`, `km_an`,
+  `assurance_actuelle`, `assurance_nouvelle`. Le lexique ne couvre que les
+  hypothèses tirées au sort, et ces valeurs fermes n'avaient pas de commentaire.
+  Dix-huit lignes de commentaire dans `modeles.js`, et un test qui vérifie
+  désormais qu'**aucun champ ne s'affiche sous un identifiant nu** : c'était le
+  reproche même auquel ce formulaire répond, il aurait été absurde de le
+  réintroduire par sa porte.
+
+### 2. Des situations, pas des méthodes
+
+Les trois titres nommés sont devenus :
+
+| avant | après |
+|---|---|
+| Le contre-argument | Ce qui vous ferait changer d'avis |
+| La valeur de l'information | Ce que ça vaut d'aller chercher le chiffre |
+| La robustesse | Et si vos fourchettes étaient trop étroites |
+
+Et deux autres qui nommaient un objet plutôt qu'une situation : « Une fourchette
+à 90 % » → *Vous ne savez pas le chiffre : donnez-en deux* ; « Le seuil de
+bascule » → *À partir de quel montant la réponse change*.
+
+Un gain non prévu, et c'est le meilleur de ce point : **deux de ces titres sont
+maintenant mot pour mot ceux des panneaux de la réponse.** « Ce qui vous ferait
+changer d'avis » et « Et si vos fourchettes étaient trop étroites » s'affichent
+sous le verdict et intitulent le chapitre qui les explique. C'est pour cette
+raison que j'ai *rendu* leur ancien nom à deux chapitres que j'avais renommés :
+« D'où vient l'incertitude » et « Aller savoir, ou décider maintenant » portent
+déjà le nom de leur panneau. Un test tient les deux formulations, et un
+troisième vérifie qu'aucun chapitre ne s'intitule d'un nom de méthode.
+
+### 3. Quatre fois ce que le site ne fait pas
+
+Le lecteur a compté, et il avait raison. Les quatre, dans l'ordre où on les
+lit — et les trois premières arrivent **avant** le verdict :
+
+1. la ligne de marque, sur toutes les pages : « Boussole *ne dit pas quoi
+   décider* : elle dit ce qu'il faut aller vérifier » ;
+2. l'ouverture de l'accueil : « il n'y a *rien* à apprendre pour ça » ;
+3. la même, deux phrases plus loin : « *Rien* n'est envoyé nulle part » ;
+4. la description servie aux moteurs et aux aperçus de lien : « *Elle ne dit
+   pas* quoi décider. »
+
+Une phrase par la négative se défend une fois : elle écarte le malentendu le
+plus probable. Quatre fois, c'est un site qui se présente en s'excusant. Elles
+disent maintenant la même chose à l'endroit — « Boussole dit lequel de vos
+chiffres décide, et ce que ça vaut d'aller le chercher » —, et la vie privée est
+restée là où elle se prouve par l'absence : le pied de page. **La règle pour la
+suite, écrite dans `ARCHITECTURE.md` : au-dessus de la réponse, on n'écrit pas
+ce que le site ne fait pas.**
+
+### 4. Un devoir d'une heure
+
+C'est le point que je ne peux pas régler, et je ne vais pas faire semblant.
+
+Ce site existe pour dire qu'une heure passée sur le bon chiffre vaut 631 €, et
+que les autres heures ne valent rien. C'est le parti pris, le lecteur le nomme
+comme tel, et je le garde : un simulateur qui rend un nombre sans dire ce qui
+le déplacerait, il y en a partout, et le mandat demande autre chose.
+
+Mais deux choses étaient fausses dans la façon dont le site le disait.
+
+**Le devoir commençait avant la réponse.** Se servir de l'outil demandait
+d'éditer du texte : le premier travail n'était pas d'aller chercher un chiffre,
+c'était d'apprendre à écrire une ligne. Ce coût-là n'avait aucune raison
+d'exister et il n'existe plus. Une décision se règle maintenant en six champs.
+
+**Et le devoir n'était nulle part présenté comme facultatif.** Le verdict
+disait « lever le doute dessus vaut 631 € » et s'arrêtait là, ce qui se lit
+comme une consigne. Or le calcul sait déjà ce qui se passe si on ne le fait
+pas : la branche de meilleure espérance reste la meilleure avec ce qu'on sait
+aujourd'hui, et la fréquence dit à quel point c'est un pari. Le verdict finit
+donc par une phrase, entièrement calculée :
+
+> **Et si vous n'allez rien chercher :** « Changer » quand même — c'est la
+> meilleure branche avec ce que vous savez déjà, et vous auriez eu raison
+> 7 fois sur 10.
+
+Le visiteur qui ferme la page repart avec une réponse. Celui qui veut la rendre
+meilleure sait ce que ça vaut et où aller. C'est tout ce que je sais faire de ce
+point, et je ne prétends pas que ça suffise à changer la recommandation.
+
+### La valeur d'option, retirée
+
+Portée par la liste « ce que je ferais ensuite » depuis la session 13, reportée
+cinq fois. La session 17 avait posé la règle : soit elle passe, soit je la
+retire et j'écris pourquoi. Je la retire.
+
+La raison n'est pas la difficulté. C'est que cinq passages extérieurs ne l'ont
+jamais demandée, et que le seul reproche qui n'a jamais bougé en cinq passages
+est que la réponse ressemble à un devoir. **Ajouter un septième chiffre au
+verdict travaille contre le seul défaut qui résiste.** Si elle revient un jour,
+ce sera parce qu'un modèle en aura besoin, pas parce qu'une liste la traîne.
+
+### État à la fin de la session
+
+- **710** assertions sur le moteur (contre 664), **343** dans un vrai navigateur
+  (contre 322) : quarante-cinq sur le formulaire côté moteur — dont les 200
+  bornes de la bibliothèque rejouées une à une —, et vingt et une dans le navigateur, du
+  curseur qui ne saute pas au texte servi ouvert sans JavaScript, en passant par
+  390 px de large.
+- Douze modèles, seize pages, dix chapitres, 91 hypothèses au lexique,
+  **114 champs de formulaire**.
+- Accueil : 7 338 caractères de texte servi, sous le budget de 7 500.
+- Le site répond, `npm test` et `npm run test:navigateur` sont verts.
+
+### Ce que je ferais ensuite
+
+1. **Écrire un modèle entier de zéro, comme quelqu'un qui découvre.** Reporté
+   depuis la session 17, et le seul chemin que personne n'a encore parcouru en
+   entier : arriver sur la page blanche, ne rien connaître, et voir ce que le
+   site fait d'un texte hésitant. La glose par commentaire est venue de là ; le
+   formulaire y sera muet par construction, et c'est peut-être justement là
+   qu'il devrait proposer d'ajouter une ligne.
+2. **Le formulaire sur mobile.** Il est écrit et testé à 1 280 px. Deux champs
+   côte à côte et une unité tiennent mal sous 390 px, et c'est là qu'un lecteur
+   ouvre un lien partagé.
+3. **Relire les principes que ce journal énonce**, encore : c'est la seconde
+   session de suite où le défaut signalé de l'extérieur était protégé par une
+   phrase que j'avais bien écrite, et la seconde où le repère a marché.
+4. **Un sixième passage.** Le quatrième point ne bougera peut-être jamais, et
+   c'est celui qui décide si ce site vaut quelque chose pour quelqu'un d'autre
+   que celui qui l'écrit.
+
+---
+
 ## 4 septembre 2026 — Session 17 : le site parlait français, sauf à qui s'en sert
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*

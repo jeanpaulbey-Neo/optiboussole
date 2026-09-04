@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Louer ou acheter</h1>
   <p class="sous-baseline">Faut-il acheter sa résidence principale ou continuer à louer ? La réponse dépend surtout d’un chiffre que personne ne connaît : le prix auquel le bien se revendra. Ce modèle compare le patrimoine net dans les deux cas et vous dit à partir de quelle revalorisation annuelle la décision change de camp.</p>
@@ -44,7 +44,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -59,20 +64,23 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: €
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: €
 # Louer ou acheter — patrimoine net au bout de l’horizon.
 # Remplacez les chiffres par les vôtres. Ce qui est écrit « a à b »
 # est une fourchette : vous pensez qu’il y a 9 chances sur 10
 # que la vraie valeur soit dedans.
 
-prix = 250k
-apport = 50k
+prix = 250k          # le prix du bien, frais d’agence compris
+apport = 50k          # ce que vous mettez au départ
 horizon = 10          # années avant de revendre
 
 # --- Le crédit -------------------------------------------------------
-taux_credit = 3,2%
-duree_credit = 25
+taux_credit = 3,2%    # le taux nominal de votre offre de prêt
+duree_credit = 25     # années d’emprunt
 i = taux_credit / 12
 n_total = duree_credit * 12
 n_ecoule = horizon * 12
@@ -108,6 +116,7 @@ option "Louer"   = apport_place - cout_loyer
 # Le modèle ignore : mobilité, fiscalité, travaux imprévus, et le fait
 # qu’acheter n’est pas qu’un calcul. Il ne remplace pas votre jugement,
 # il vous dit quel chiffre va le déterminer.</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

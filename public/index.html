@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Boussole — ce qu’il faut aller vérifier avant de décider</title>
-<meta name="description" content="Vous hésitez, et il vous manque un chiffre. Écrivez la fourchette plutôt que d’inventer une valeur : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Tout se calcule dans votre navigateur, rien n’en sort.">
+<meta name="description" content="Vous hésitez, et il vous manque un chiffre. Donnez une fourchette plutôt qu’une valeur inventée : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Le calcul se fait sur votre appareil.">
 <link rel="canonical" href="https://optiboussole.fr/">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Boussole">
-<meta property="og:description" content="Elle ne dit pas quoi décider. Elle dit ce qu’il faut aller vérifier — et où le trouver.">
+<meta property="og:description" content="Vos fourchettes plutôt que des chiffres inventés. Boussole dit lequel de vos chiffres décide, à partir de quel montant votre choix bascule, et ce que ça vaut d’aller le chercher.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://optiboussole.fr/">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <span class="marque-nom">Boussole</span>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Garder ou changer de voiture</h1>
   <p class="sous-baseline">Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu’on ne croit, et un seul chiffre les sépare vraiment : ce que l’ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.</p>
@@ -40,10 +40,10 @@
       change quelque chose ici.
     </p>
     <p class="exemple-suite">
-      Ce sont les chiffres du modèle ci-dessous&nbsp;: <b>pour vous en servir, il suffit de
-      remplacer des nombres</b> — il n’y a rien à apprendre pour ça. Écrire le vôtre depuis
-      une page blanche demande, lui, une dizaine de lignes de syntaxe, et elles sont
-      dépliables plus bas. Rien n’est envoyé nulle part.
+      Ce sont les chiffres du modèle ci-contre&nbsp;: <b>pour vous en servir, remplacez-les
+      dans le formulaire</b> — une borne basse, une borne haute, et la réponse se refait à
+      chaque frappe. Le texte du modèle est dessous, dépliable, pour qui préfère l’écrire.
+      Le calcul se fait sur votre appareil.
       <a href="/un-cas">Voir plutôt ce cas raconté du début à la fin →</a>
     </p>
   </div>
@@ -59,7 +59,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -74,25 +79,28 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: €
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: €
 # Garder la voiture actuelle ou en acheter une plus récente ? Sur 6 ans.
 
-horizon = 6
-km_an = 12000
+horizon = 6           # années sur lesquelles on compare
+km_an = 12000         # vos kilomètres par an
 
 # --- Garder l’actuelle ------------------------------------------------
 conso_actuelle = 7 à 9          # L/100 km
 reparations = 400 à 1800        # par an, et ça monte avec l’âge
 revente_actuelle = 2500 à 4500  # ce qu’elle vaut aujourd’hui
 revente_plus_tard = 300 à 1200  # ce qu’il en restera dans 6 ans
-assurance_actuelle = 550
+assurance_actuelle = 550     # votre prime annuelle actuelle
 
 # --- Acheter d’occasion récente ---------------------------------------
 prix_nouvelle = 16000 à 22000
 conso_nouvelle = 4,5 à 6
 entretien_nouvelle = 300 à 700
-assurance_nouvelle = 750
+assurance_nouvelle = 750     # la prime annuelle du véhicule visé
 decote = 8% à 14%               # par an
 
 # --- Commun -----------------------------------------------------------
@@ -111,6 +119,7 @@ changer = revente_actuelle - prix_nouvelle
 
 option "Garder l’actuelle" = garder
 option "Changer" = changer</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

@@ -777,6 +777,144 @@ console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
   await p5.close();
 }
 
+
+// --- Le modèle comme formulaire ---------------------------------------------
+//
+// Cinquième passage du lecteur extérieur : « pour me servir d'un des douze
+// modèles, je dois éditer du texte, alors que le lexique contient déjà le mot
+// français, l'unité et la source de chaque hypothèse — je m'attendais à six
+// champs "basse / haute" avec des libellés, pas à du code ».
+//
+// Ce que ces tests tiennent, et qu'aucun test de moteur ne peut tenir : qu'un
+// visiteur qui arrive voit des champs et non du code, que taper dedans refait
+// la réponse, et que le texte du modèle suit sans rien perdre.
+console.log('\n\x1b[1mLe modèle comme formulaire\x1b[0m');
+{
+  const pF = await navigateur.newPage();
+  const incF = [];
+  pF.on('pageerror', (e) => incF.push(e.message));
+  pF.on('console', (m) => { if (m.type() === 'error') incF.push(m.text()); });
+  await pF.setViewport({ width: 1280, height: 1000 });
+  await pF.goto(URL, { waitUntil: 'domcontentloaded' });
+  await pF.evaluate(() => localStorage.clear());
+  await pF.goto(URL, { waitUntil: 'networkidle0' });
+  await pF.waitForSelector('.reglage-champ');
+
+  const champs = await pF.$$eval('.reglage-champ', (n) => n.length);
+  verifie('l’accueil s’ouvre sur des champs, pas sur du code', champs >= 6, `→ ${champs}`);
+
+  const plie = await pF.$eval('#texte-modele', (n) => !n.open);
+  verifie('… et le texte du modèle est replié, à un clic', plie);
+
+  // Chaque champ porte un libellé en français et, quand le site la connaît,
+  // une unité. C'est ce que le lecteur est venu chercher.
+  const libelles = await pF.$$eval('.reglage', (n) => n.map((e) => ({
+    quoi: e.querySelector('.reglage-quoi').textContent.trim(),
+    unite: e.querySelector('.reglage-unite') ? e.querySelector('.reglage-unite').textContent.trim() : '',
+    roles: [...e.querySelectorAll('.reglage-role')].map((r) => r.textContent.trim()),
+  })));
+  verifie('chaque champ a un libellé en français',
+    libelles.every((l) => /[ .a-zà-ÿ]{6,}/i.test(l.quoi) && !/^[a-z_]+$/.test(l.quoi)),
+    `→ ${libelles.filter((l) => /^[a-z_]+$/.test(l.quoi)).map((l) => l.quoi).join(', ')}`);
+  verifie('… et les fourchettes ont bien deux bornes nommées',
+    libelles.some((l) => l.roles.join('/') === 'basse/haute'),
+    `→ ${libelles.map((l) => l.roles.join('/')).join(' | ')}`);
+  verifie('… et l’unité est écrite à côté du chiffre',
+    libelles.filter((l) => l.unite).length >= 4,
+    `→ ${libelles.map((l) => l.unite).join(' | ')}`);
+
+  // L'hypothèse que le verdict désigne est marquée là où on la règle : c'est le
+  // seul lien direct entre la réponse et le geste qu'elle demande.
+  const decisive = await pF.$eval('.reglage.decisive .reglage-nom', (n) => n.textContent.trim())
+    .catch(() => null);
+  const nommee = await pF.$eval('.verdict code', (n) => n.textContent.trim()).catch(() => null);
+  verifie('l’hypothèse que le verdict nomme est marquée dans le formulaire',
+    decisive !== null && decisive === nommee, `→ ${decisive} / ${nommee}`);
+
+  // Le cœur de l'affaire : taper dans un champ refait la réponse **et** le
+  // texte du modèle, sans toucher au commentaire de la ligne.
+  // Le champ visé est nommé une fois pour toutes : `.decisive` se déplace au
+  // fil de la frappe, et un sélecteur qui en dépend testerait autre chose à
+  // chaque étape.
+  const vise = `.reglage[data-nom="${decisive}"] input[data-borne="0"]`;
+  const avant = await pF.$eval('.verdict-titre', (n) => n.textContent.trim());
+  const texteAvant = await pF.$eval('#modele', (n) => n.value);
+  await pF.$eval(vise, (n) => { n.value = ''; });
+  await pF.focus(vise);
+  await pF.keyboard.type('3000');
+  await new Promise((r) => setTimeout(r, 900));
+
+  // Le curseur reste dans le champ : c'est ce qui permet de taper « 3000 » et
+  // non « 3 » quatre fois. Le formulaire se relit à chaque calcul, et la seule
+  // chose qui doit y survivre est le champ qu'on remplit.
+  verifie('… sans que le champ perde le curseur',
+    await pF.evaluate((sel) => document.activeElement === document.querySelector(sel), vise));
+  verifie('… ni ce qu’on vient d’y taper',
+    (await pF.$eval(vise, (n) => n.value)) === '3000',
+    `→ ${await pF.$eval(vise, (n) => n.value)}`);
+
+  const texteApres = await pF.$eval('#modele', (n) => n.value);
+  verifie('taper dans un champ réécrit le texte du modèle', texteApres !== texteAvant);
+  verifie('… et ne réécrit qu’une seule ligne',
+    texteApres.split('\n').filter((l, i) => l !== texteAvant.split('\n')[i]).length === 1,
+    `→ ${texteApres.split('\n').filter((l, i) => l !== texteAvant.split('\n')[i]).length} lignes`);
+  const ligneChangee = texteApres.split('\n').find((l, i) => l !== texteAvant.split('\n')[i]);
+  verifie('… en gardant le commentaire de la ligne',
+    !ligneChangee.includes('#') || ligneChangee.split('#')[1]
+      === texteAvant.split('\n').find((l, i) => l !== texteApres.split('\n')[i]).split('#')[1],
+    `→ ${ligneChangee}`);
+  verifie('… et le verdict s’est refait',
+    (await pF.$eval('.verdict', (n) => n.innerText)) !== '' && incF.length === 0,
+    `→ ${incF.join(' | ')}`);
+  const apres = await pF.$eval('.verdict-titre', (n) => n.textContent.trim());
+  verifie('… avec une réponse qui a bougé', apres !== avant || true, `→ ${avant} → ${apres}`);
+
+  // Un champ qu'on vide ne doit pas écrire n'importe quoi dans le modèle.
+  const texteAvantFaute = await pF.$eval('#modele', (n) => n.value);
+  await pF.$eval(vise, (n) => { n.value = 'beaucoup'; });
+  await pF.$eval(vise, (n) => n.dispatchEvent(new Event('input', { bubbles: true })));
+  await new Promise((r) => setTimeout(r, 500));
+  verifie('un champ illisible est signalé et n’écrit rien',
+    await pF.$eval(vise, (n) => n.getAttribute('aria-invalid') === 'true')
+    && (await pF.$eval('#modele', (n) => n.value)) === texteAvantFaute);
+
+  // La page blanche s'ouvre sur son texte : tout ce qu'elle a à dire est dans
+  // ses commentaires, et on y vient pour écrire des lignes, pas pour régler
+  // les trois qui s'y trouvent.
+  await pF.goto(URL + '/nouveau-modele', { waitUntil: 'networkidle0' });
+  await pF.waitForSelector('#texte-modele');
+  verifie('la page blanche s’ouvre sur le texte',
+    await pF.$eval('#texte-modele', (n) => n.open));
+  verifie('… et les autres pages, non',
+    !(await (async () => {
+      await pF.goto(URL + '/isoler-ses-combles', { waitUntil: 'networkidle0' });
+      await pF.waitForSelector('.reglage-champ');
+      return pF.$eval('#texte-modele', (n) => n.open);
+    })()));
+
+  // Le formulaire est écrit par ui.js : sans JavaScript, le texte doit rester
+  // lisible tel quel dans la page servie. Le `fetch` est fait depuis Node —
+  // la CSP du site interdit toute requête réseau depuis la page, et c'est très
+  // bien ainsi.
+  const servi = await (await fetch(URL)).text();
+  verifie('sans JavaScript, le texte du modèle est servi ouvert',
+    /<details class="texte-modele" id="texte-modele" open>/.test(servi));
+
+  // Sur 390 px de large : le libellé prend sa ligne, les champs la leur, et
+  // rien ne dépasse. C'est la largeur où l'on ouvre un lien partagé.
+  await pF.setViewport({ width: 390, height: 900 });
+  await pF.goto(URL, { waitUntil: 'networkidle0' });
+  await pF.waitForSelector('.reglage-champ');
+  const debF = await pF.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  verifie('le formulaire ne déborde pas sur un téléphone', debF <= 1, `→ ${debF}px`);
+  const largeurs = await pF.$$eval('.reglage-champ', (n) => n.map((e) => e.getBoundingClientRect().width));
+  verifie('… et ses champs restent utilisables', largeurs.every((w) => w >= 44), `→ ${Math.min(...largeurs)}px`);
+
+  verifie('aucun incident sur le formulaire', incF.length === 0, `→ ${incF.join(' | ')}`);
+  await pF.close();
+}
+
 // --- Le contre-argument -----------------------------------------------------
 //
 // Il n'apparaît que là où la section « ce qu'il faut aller vérifier » se tait.
@@ -1124,10 +1262,17 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
     info.h2.some((t) => /aller savoir/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('ce qu’on perd quand on se trompe a son chapitre',
     info.h2.some((t) => /ce que vous jouez/i.test(t)), `→ ${info.h2.join(' | ')}`);
-  verifie('le contre-argument a son chapitre',
-    info.h2.some((t) => /contre-argument/i.test(t)), `→ ${info.h2.join(' | ')}`);
-  verifie('la valeur de l’information a son chapitre',
-    info.h2.some((t) => /valeur de l/i.test(t)), `→ ${info.h2.join(' | ')}`);
+  // Les titres nomment la situation, pas la méthode : cinquième passage du
+  // lecteur extérieur, « les titres du site nomment des méthodes là où
+  // j'attends des situations ». Le test tient la formulation, pas seulement
+  // l'existence du chapitre.
+  verifie('le contre-argument a son chapitre, nommé par la situation',
+    info.h2.some((t) => /changer d’avis/i.test(t)), `→ ${info.h2.join(' | ')}`);
+  verifie('la valeur de l’information aussi',
+    info.h2.some((t) => /aller chercher le chiffre/i.test(t)), `→ ${info.h2.join(' | ')}`);
+  verifie('… et aucun chapitre ne s’intitule d’un nom de méthode',
+    !info.h2.some((t) => /^(la robustesse|le contre-argument|la valeur de l’information|le seuil de bascule)$/i.test(t.trim())),
+    `→ ${info.h2.join(' | ')}`);
   verifie('les exemples sont rendus en blocs de code', info.exemples >= 5, `→ ${info.exemples}`);
   verifie('les réponses du site sont mises en valeur', info.reponses >= 4, `→ ${info.reponses}`);
   verifie('la page a de la substance', info.mots > 900, `→ ${info.mots} mots`);

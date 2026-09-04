@@ -27,13 +27,18 @@ const SEUIL = new Set(['seuil', 'objectif', 'cible', 'threshold', 'target', 'goa
 // extraite avant l'analyse lexicale, qui n'a pas à connaître ces symboles.
 const LIGNE_UNITE = /^[ \t]*(?:unité|unite|unit)[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 
-function extraireUnite(source) {
+export function extraireUnite(source) {
   let unite = '';
   const lignes = source.split('\n').map((l) => {
     const m = l.match(LIGNE_UNITE);
     if (!m) return l;
     unite = m[1].replace(/^["«“](.*)["»”]$/, '$1').trim();
-    return ''; // ligne neutralisée : les numéros de ligne restent justes
+    // Ligne neutralisée par des espaces, et **de la même longueur** : les
+    // numéros de ligne restent justes, et les positions des jetons dans la
+    // source aussi. `reglages.js` réécrit un nombre à sa position exacte dans
+    // le texte que le visiteur a sous les yeux ; la vider décalait tout ce qui
+    // suit de la longueur de « unité: € ».
+    return ' '.repeat(l.length);
   });
   return { source: lignes.join('\n'), unite };
 }
@@ -103,7 +108,13 @@ export function lexer(source) {
   let i = 0, ligne = 1, profondeur = 0;
   const n = source.length;
 
-  const pousser = (type, valeur) => jetons.push({ type, valeur, ligne });
+  // `debut` est l'indice du premier caractère du jeton dans la source. Tous les
+  // appels à `pousser` se font avant l'avancée de `i`, donc il est toujours
+  // juste. Il ne sert pas au calcul : il sert à `reglages.js`, qui réécrit un
+  // nombre dans le texte sans toucher à ce qui l'entoure — l'espace, le
+  // symbole, le commentaire. Sans position, un champ « basse / haute » ne
+  // pourrait que réécrire la ligne entière, et perdrait ce que l'auteur a écrit.
+  const pousser = (type, valeur) => jetons.push({ type, valeur, ligne, debut: i });
 
   while (i < n) {
     const c = source[i];
@@ -227,6 +238,11 @@ export function lexer(source) {
         while (j < n && /[0-9]/.test(source[j])) { brut += source[j]; j++; }
       }
       let valeur = parseFloat(brut);
+      // La fin des chiffres eux-mêmes, avant « % », avant le suffixe d'échelle
+      // et avant le symbole : c'est la seule tranche de texte qu'un champ de
+      // formulaire a le droit de remplacer. « 400 à 1800 € par an » doit rester
+      // « 500 à 1800 € par an », commentaire, unité et espaces compris.
+      const finChiffres = j;
       let pourcent = false;
       let suffixe = 1;
 
@@ -281,6 +297,7 @@ export function lexer(source) {
       pousser('nombre', valeur);
       jetons[jetons.length - 1].pourcent = pourcent;
       jetons[jetons.length - 1].suffixe = suffixe;
+      jetons[jetons.length - 1].chiffres = finChiffres;
       // Le symbole reste décoratif pour le calcul — il n'y a pas
       // d'arithmétique des euros — mais il dit dans quelle unité l'auteur a
       // écrit cette ligne-là, et c'est la seule chose que le site sache d'un

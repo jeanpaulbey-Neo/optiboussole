@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Réduire son empreinte : quoi d’abord ?</h1>
   <p class="sous-baseline">Entre isoler son logement, passer à l’électrique, supprimer un vol ou réduire la viande rouge, quel changement pèse réellement le plus ? Les ordres de grandeur sont si différents que l’intuition se trompe presque toujours — et une action visible peut valoir dix fois moins qu’une action discrète.</p>
@@ -44,7 +44,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -59,8 +64,11 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: kg CO₂e
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: kg CO₂e
 # Quel changement réduit le plus votre empreinte, sur une année ?
 # On compare des actions concrètes, chacune sur une année.
 # Les facteurs sont des ordres de grandeur, écrits en fourchettes
@@ -87,6 +95,7 @@ option "Supprimer un vol long-courrier" = si vols_longs &gt;= 1 alors par_vol_lo
 option "Passer à la voiture électrique" = km_voiture * (par_km_thermique - par_km_electrique)
 option "Isoler le logement" = surface * chauffage_par_m2 * gain_isolation
 option "Moitié moins de viande rouge" = repas_rouge / 2 * 52 * (par_repas_rouge - par_repas_vege)</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

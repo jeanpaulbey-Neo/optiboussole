@@ -241,7 +241,7 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">${echappe(c.titre)}</h1>
 </header>
@@ -272,7 +272,7 @@ export function page({ modele, modeles, defaut, accueil }) {
     ? 'Boussole — ce qu’il faut aller vérifier avant de décider'
     : `${modele.titre} — Boussole`;
   const description = accueil
-    ? 'Vous hésitez, et il vous manque un chiffre. Écrivez la fourchette plutôt que d’inventer une valeur : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Tout se calcule dans votre navigateur, rien n’en sort.'
+    ? 'Vous hésitez, et il vous manque un chiffre. Donnez une fourchette plutôt qu’une valeur inventée : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Le calcul se fait sur votre appareil.'
     : modele.question;
   const canonique = SITE + (accueil ? '/' : '/' + modele.slug);
 
@@ -287,7 +287,7 @@ export function page({ modele, modeles, defaut, accueil }) {
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="${attr(accueil ? 'Boussole' : modele.titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(accueil ? 'Elle ne dit pas quoi décider. Elle dit ce qu’il faut aller vérifier — et où le trouver.' : modele.question)}">
+<meta property="og:description" content="${attr(accueil ? 'Vos fourchettes plutôt que des chiffres inventés. Boussole dit lequel de vos chiffres décide, à partir de quel montant votre choix bascule, et ce que ça vaut d’aller le chercher.' : modele.question)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${attr(canonique)}">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -305,7 +305,7 @@ export function page({ modele, modeles, defaut, accueil }) {
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     ${accueil ? '<span class="marque-nom">Boussole</span>' : '<a class="retour" href="/">Boussole</a>'}
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">${echappe(modele.titre)}</h1>
   <p class="sous-baseline">${echappe(modele.question)}</p>
@@ -319,10 +319,10 @@ export function page({ modele, modeles, defaut, accueil }) {
       change quelque chose ici.
     </p>
     <p class="exemple-suite">
-      Ce sont les chiffres du modèle ci-dessous&nbsp;: <b>pour vous en servir, il suffit de
-      remplacer des nombres</b> — il n’y a rien à apprendre pour ça. Écrire le vôtre depuis
-      une page blanche demande, lui, une dizaine de lignes de syntaxe, et elles sont
-      dépliables plus bas. Rien n’est envoyé nulle part.
+      Ce sont les chiffres du modèle ci-contre&nbsp;: <b>pour vous en servir, remplacez-les
+      dans le formulaire</b> — une borne basse, une borne haute, et la réponse se refait à
+      chaque frappe. Le texte du modèle est dessous, dépliable, pour qui préfère l’écrire.
+      Le calcul se fait sur votre appareil.
       <a href="/un-cas">Voir plutôt ce cas raconté du début à la fin →</a>
     </p>
   </div>`
@@ -339,7 +339,12 @@ export function page({ modele, modeles, defaut, accueil }) {
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -354,8 +359,12 @@ export function page({ modele, modeles, defaut, accueil }) {
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">${echappe(modele.source)}</textarea>
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">${echappe(modele.source)}</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
@@ -422,7 +431,7 @@ export function pageLangage() {
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">${titre}</h1>
   <p class="sous-baseline">${typographie(question)}</p>
@@ -432,8 +441,9 @@ export function pageLangage() {
 <article class="panneau article aide-corps">
   <p>
     Un modèle Boussole est un texte. Chaque ligne nomme une quantité ; celles que vous ne
-    connaissez pas s’écrivent en fourchette plutôt qu’en chiffre inventé. Il n’y a rien
-    d’autre à apprendre&nbsp;: le tableau ci-dessous est le langage entier.
+    connaissez pas s’écrivent en fourchette plutôt qu’en chiffre inventé. Le tableau
+    ci-dessous est le langage entier&nbsp;: dix lignes, et vous les avez toutes vues.
+    Sur les modèles déjà écrits, un formulaire vous évite même de les lire.
   </p>
 
   <h2>Les dix lignes</h2>

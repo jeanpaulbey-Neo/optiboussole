@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Racheter son crédit ?</h1>
   <p class="sous-baseline">Faire racheter son crédit immobilier par une autre banque : à partir de quel taux, et avec quels frais, l’opération rapporte-t-elle vraiment ? Le calcul qui manque à tous les simulateurs de courtier n’est pas le gain à un taux donné, c’est le taux à partir duquel il n’y a plus rien à gagner.</p>
@@ -44,7 +44,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -59,18 +64,21 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: €
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: €
 # Faire racheter son crédit immobilier par une autre banque ?
 # On compare ce qu'il reste à payer d'intérêts, avec et sans, sur la
 # durée restante — même mensualité de principe, même durée.
 
-# --- Ce que vous savez (tableau d'amortissement) --------------------------
-capital_restant = 180k
-taux_actuel = 3,4%
+# --- Ce que vous savez (tableau d’amortissement) --------------------------
+capital_restant = 180k          # ce qu’il vous reste à rembourser
+taux_actuel = 3,4%              # le taux de votre crédit en cours
 duree_restante = 18            # années
 
-# --- Ce qu'on vous propose --------------------------------------------------
+# --- Ce qu’on vous propose --------------------------------------------------
 nouveau_taux = 2,9% à 3,3%
 
 # --- Ce que ça coûte --------------------------------------------------------
@@ -91,6 +99,7 @@ frais = frais_dossier + (garantie + ira) * capital_restant
 
 option "Garder le crédit" = -interets_actuels
 option "Racheter" = -(interets_nouveaux + frais)</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

@@ -13,12 +13,12 @@ export const METHODE = {
   question:
     "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, s’il faut aller la chercher ou décider tout de suite, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.",
   intro: [
-    "Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire **ce qu’il faut aller vérifier** — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.",
+    "Boussole vous dit **lequel de vos chiffres décide de votre choix**, à partir de quelle valeur ce choix bascule, et ce que ça vaut d’aller chercher ce chiffre — comme ce qu’il est inutile d’aller chercher.",
     "Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.",
   ],
   sections: [
     {
-      titre: 'Une fourchette à 90 %',
+      titre: 'Vous ne savez pas le chiffre : donnez-en deux',
       blocs: [
         "C’est le seul chiffre que le site vous demande, et c’est délibéré. Plutôt qu’une valeur unique que vous n’avez pas, vous donnez deux bornes entre lesquelles vous pensez qu’il y a **neuf chances sur dix** que la vraie valeur se trouve.",
         "```\nloyer = 900 à 1150\n```",
@@ -27,7 +27,7 @@ export const METHODE = {
         "> médiane 200, et non 250. Neuf tirages sur dix tombent entre 100 et 400, aucun n’est négatif.",
         "Ce choix n’est pas cosmétique. Presque toutes les grandeurs qu’on estime — un prix, une durée, un nombre de clients — sont multiplicatives : se tromper d’un facteur deux vers le haut est aussi plausible que de se tromper d’un facteur deux vers le bas. Une loi normale, elle, autoriserait des valeurs négatives et donnerait un poids déraisonnable au milieu.",
         "Quand les bornes changent de signe — `-2 % à 5 %` — le site utilise une normale. Quand la borne basse vaut exactement zéro — `0 à 100` — il replie la normale sur les positifs : écrire zéro, c’est dire qu’on exclut le négatif.",
-        "**Et voici le point faible de toute la méthode.** Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir *la robustesse*, plus bas.",
+        "**Et voici le point faible de toute la méthode.** Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir *et si vos fourchettes étaient trop étroites*, plus bas.",
       ],
     },
     {
@@ -45,7 +45,7 @@ export const METHODE = {
       ],
     },
     {
-      titre: 'Le poids et l’incertitude',
+      titre: 'Le poste le plus lourd n’est pas celui à vérifier',
       blocs: [
         "La part d’incertitude répond à « de quoi dépend le résultat ? ». Devant une addition, on se pose une autre question, plus simple : **quel poste pèse le plus ?** Ce sont deux questions distinctes, et le site répond aux deux, côte à côte, dans le panneau *Le détail des calculs* sous les résultats.",
         "Chaque valeur calculée y est donnée avec sa médiane et sa fourchette à 90 % — ce qu’un tableur montre dans chaque cellule, et qu’un modèle écrit en quelques lignes cache. Les sommes y sont décomposées en postes, avec le poids de chacun **à sa valeur médiane**. Sur « le vrai prix du kilomètre » :",
@@ -59,7 +59,7 @@ export const METHODE = {
       ],
     },
     {
-      titre: 'Le seuil de bascule',
+      titre: 'À partir de quel montant la réponse change',
       blocs: [
         "Quand vous comparez deux branches, savoir laquelle gagne « en moyenne » ne suffit pas. Ce qui sert, c’est de savoir **à partir de quelle valeur la réponse change de camp**.",
         "```\ncout_actuel  = 1200\ncout_nouveau = 700 à 1900\noption \"Garder\"  = -cout_actuel\noption \"Changer\" = -cout_nouveau\n```",
@@ -72,7 +72,7 @@ export const METHODE = {
       ],
     },
     {
-      titre: 'Le contre-argument',
+      titre: 'Ce qui vous ferait changer d’avis',
       blocs: [
         "Le seuil de bascule déplace **une** hypothèse et laisse les autres à leur médiane. Or il arrive très souvent qu’aucune hypothèse seule ne renverse le verdict, alors que plusieurs déplacées ensemble, chacune d’un cheveu, le renversent sans peine. Le site pose alors la question à l’envers : **quel est le jeu d’hypothèses le plus proche du vôtre qui donnerait la conclusion contraire ?**",
         "```\na = 90 à 110\nb = 90 à 110\nc = 90 à 110\noption \"Rester\" = a + b + c\noption \"Partir\" = 320\n```",
@@ -87,7 +87,7 @@ export const METHODE = {
       ],
     },
     {
-      titre: "La valeur de l’information",
+      titre: "Ce que ça vaut d’aller chercher le chiffre",
       blocs: [
         "C’est l’idée centrale du site, et la moins connue. La question n’est pas « de quoi suis-je le plus incertain ? » mais **« qu’est-ce que ça vaut, de lever ce doute ? »**",
         "Formellement : ce que vous gagneriez, en moyenne, à connaître une hypothèse exactement *avant* de choisir, plutôt qu’à choisir maintenant avec ce que vous savez. Sur l’exemple ci-dessus, 141 € — et comme il n’y a qu’une seule hypothèse, c’est aussi le maximum que puisse rapporter n’importe quelle enquête.",
@@ -132,7 +132,7 @@ export const METHODE = {
       ],
     },
     {
-      titre: 'La robustesse',
+      titre: 'Et si vos fourchettes étaient trop étroites',
       blocs: [
         "Tout ce qui précède suppose que vos fourchettes sont honnêtes. Comme elles ne le sont probablement pas — voir plus haut —, le site pose une dernière question : **et si elles étaient trop étroites ?**",
         "Il élargit alors toutes vos fourchettes d’un facteur croissant, médiane inchangée, et regarde à partir de quand votre conclusion tombe. L’étirement est multiplicatif sur les grandeurs positives, donc une fourchette élargie ne devient jamais négative ; les lois discrètes ne sont pas touchées, parce qu’une probabilité ne s’étire pas comme une fourchette.",

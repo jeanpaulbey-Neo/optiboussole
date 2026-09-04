@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 4 septembre 2026 (fin de session 14).
+État au 4 septembre 2026 (fin de session 18).
 
 ## En une phrase
 
@@ -35,6 +35,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
 │       ├── modeles.js      bibliothèque des douze modèles de départ (plus la page blanche)
 │       ├── lexique.js     ce que chaque hypothèse veut dire, son unité, où la trouver
+│       ├── reglages.js     le modèle vu comme un formulaire : lire les bornes, les réécrire
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
@@ -42,8 +43,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              620 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       278 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              710 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       343 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -83,6 +84,13 @@ des phrases en français
            │  proche des médianes, dans l'espace des écarts normalisés   │
            │  → quel jeu d'hypothèses donnerait la conclusion contraire  │
            └────────────────────────────────────────────────────────────┘
+
+           ┌─ reglages.js : le même texte, dans l'autre sens ────────────┐
+           │  lexer → les lignes « nom = a à b », avec la position       │
+           │  exacte de chaque chiffre                                   │
+           │  → des champs « basse / haute » ; un champ modifié réécrit  │
+           │    la tranche des chiffres, et le texte se relit            │
+           └────────────────────────────────────────────────────────────┘
 ```
 
 ### Points de conception à ne pas casser
@@ -111,6 +119,12 @@ des phrases en français
   fin de ligne tant qu'une parenthèse est ouverte. Sans ça, le parseur tronquait
   les formules longues **en silence** — c'est arrivé à un modèle de la
   bibliothèque pendant deux sessions.
+- **Les positions des jetons sont un contrat.** `lexer()` pose `debut` sur
+  chaque jeton et `chiffres` sur les nombres, et `extraireUnite()` neutralise la
+  ligne d'unité *en gardant sa longueur*. `reglages.js` réécrit un nombre à sa
+  position exacte dans le texte que le visiteur a sous les yeux : toute
+  transformation de la source avant le lexer doit préserver les longueurs, ou
+  le formulaire écrira au mauvais endroit — silencieusement.
 - **Les avertissements valent les tests.** `avertissements()` signale les fautes
   qui produisent un résultat plausible mais faux : `900-1150` lu comme une
   soustraction, variable définie et jamais utilisée, branches homonymes. Le
@@ -370,6 +384,103 @@ des phrases en français
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
 
+## Le modèle comme formulaire
+
+C'est la face que le site présente maintenant à qui arrive : `#reglages`, un
+formulaire écrit par `ui.js` à partir du texte du modèle, et le texte lui-même
+replié dans un `<details id="texte-modele">`, à un clic.
+
+Le lecteur extérieur, cinquième passage : *« pour me servir d'un des douze
+modèles, je dois éditer du texte, alors que le lexique contient déjà le mot
+français, l'unité et la source de chaque hypothèse — je m'attendais à six champs
+"basse / haute" avec des libellés, pas à du code. »* Le site avait en effet tout
+ce qu'il fallait ; il lui manquait les **positions**.
+
+**Le principe qui tient tout : le texte reste la vérité.** Le formulaire n'a pas
+d'état. Il se relit du texte à chaque calcul, chaque champ modifié réécrit le
+texte, et le texte se relit. Rien ne peut diverger — et le lien de partage, la
+barre de reprise, les pastilles, `Réinitialiser` et les avertissements
+continuent de marcher sans rien savoir de lui. Toute réécriture de ce fichier
+qui donnerait un état propre au formulaire est un bug en préparation.
+
+`reglages.js` fait deux choses et rien d'autre :
+
+- **lire** — une ligne est réglable si elle s'écrit `nom = nombre` ou
+  `nom = nombre à nombre`, suivie au plus d'un mot d'unité. Une formule
+  (`emprunt = prix - apport`), une loi écrite à la main (`bernoulli(8 %)`), une
+  fourchette en `±`, une ligne `option`/`savoir`/`unité:` n'en sont pas. Sur les
+  douze modèles, cela donne de 6 à 13 champs — c'est-à-dire toutes les lignes
+  qu'on est censé remplacer, et aucune autre ;
+- **réécrire** — la tranche des chiffres, **au caractère près**, et rien d'autre.
+  Le commentaire en français, le symbole d'unité, le `%`, l'échelle `k` et les
+  espaces qui alignent les colonnes sont ce que le site a mis quinze sessions à
+  savoir lire ; un formulaire qui régénérerait la ligne les perdrait tous.
+  Un test rejoue les 194 bornes de la bibliothèque et vérifie que la ligne
+  réécrite est identique à un groupe de chiffres près.
+
+### Ce dont il dépend, et qu'il ne faut pas casser
+
+- **`lexer()` pose `debut` sur chaque jeton** (l'indice du premier caractère) et
+  `chiffres` sur les nombres (la fin des chiffres, *avant* le `%`, le suffixe
+  d'échelle et le symbole). Sans ces deux champs, un formulaire ne peut que
+  réécrire la ligne entière.
+- **`extraireUnite()` neutralise la ligne `unité: €` par des espaces de même
+  longueur**, et non par une chaîne vide. Les numéros de ligne y survivaient
+  déjà ; les positions, non — tout ce qui suivait se décalait de la longueur de
+  la ligne effacée.
+- **`reecrire()` ne fait rien si la valeur est inchangée.** Sans cette garde,
+  poser le curseur dans un champ transformait `1,60` en `1,6` dans le modèle du
+  visiteur, qui n'avait rien demandé.
+- **Les positions sont relues à chaque frappe**, jamais gardées : dès qu'une
+  borne change de longueur, celles qui suivent se décalent. Relire coûte une
+  analyse lexicale sur quarante lignes, c'est-à-dire rien.
+- **Le DOM n'est reconstruit que si la *forme* du formulaire change** (noms,
+  nombre de bornes, intertitres). Sinon le champ perdrait le curseur à chaque
+  frappe et on ne pourrait pas taper « 1400 » sans repartir de « 1 ». Le champ
+  qui a le focus n'est jamais réécrit par le rendu.
+
+### Les libellés, et d'où ils viennent
+
+Rien ne s'invente, c'est la règle de la session 17 et elle vaut ici :
+
+| ce qu'affiche le champ | d'où ça vient |
+|---|---|
+| le mot français | `lexique.js`, sinon le commentaire de fin de ligne |
+| l'unité | `lexique.js`, sinon le symbole collé au nombre, sinon le mot posé après |
+| l'échelle | le suffixe écrit : `prix = 250k` se règle en milliers, et l'étiquette dit `k€` |
+| l'intertitre | le trait de section du modèle : `# --- Le crédit ---` |
+
+L'intertitre demande une règle de reconnaissance, et c'est le **trait** : les
+douze modèles s'ouvrent tous sur un paragraphe de commentaires qui explique le
+sujet, et « que la vraie valeur soit dedans » aurait fait un titre absurde
+au-dessus du premier champ. Un titre porte donc une suite d'au moins trois
+tirets, signes égal ou étoiles — la décoration que les douze modèles emploient
+déjà. Les seize intertitres ainsi récoltés (« Le crédit », « Ce qu'on ne sait
+pas », « Vos chances, honnêtement ») sont du français écrit par l'auteur du
+modèle : le site n'en fabrique aucun.
+
+L'hypothèse que le verdict désigne — `r.sources[0]`, quand elle est notable —
+porte la classe `.decisive` **dans le formulaire**. C'est le seul lien direct
+entre la réponse et le geste qu'elle demande, et un test de navigateur vérifie
+que le nom marqué est bien celui que le verdict nomme.
+
+### Quand le formulaire s'efface
+
+- **Aucun champ** (page blanche, modèle en cours d'écriture) : le panneau est
+  masqué et le `<details>` du texte s'ouvre.
+- **Modèle illisible** : `reglages()` rend une liste vide, le texte s'ouvre —
+  c'est le seul endroit où la faute se corrige.
+- **Sans JavaScript** : il n'y a pas de formulaire du tout. Le `<details>` est
+  donc **servi ouvert**, et `ui.js` le replie au démarrage s'il a de quoi le
+  remplacer. Le modèle reste lisible dans le HTML servi, comme avant.
+- **La page blanche** (`pageBlanche: true` sur le modèle `vierge`) s'ouvre
+  toujours sur son texte : tout ce qu'elle a à dire est dans ses commentaires,
+  et on y vient pour écrire des lignes, pas pour régler les trois qui s'y
+  trouvent. C'est déclaré dans `modeles.js`, pas deviné dans `ui.js`.
+
+`positionnerTexte()` n'est appelé qu'au chargement et au changement de modèle :
+au fil de la frappe, c'est au visiteur de décider ce qui est ouvert.
+
 ## La bande de modèles
 
 **Elle est passée sous la réponse (session 15)**, à la fin de l'atelier, sous
@@ -435,7 +546,9 @@ l'accueil n'est plus écrit à la main sauf son exemple travaillé.
 
 L'ouverture de l'accueil (`gabarit.js`) est cet exemple travaillé, qui reprend
 les chiffres du modèle servi : seuil 1 109 €/an, 631 € à gagner, fourchette 400
-à 1 800. **Ils sont épinglés par des tests** : s'ils divergent, c'est la page
+à 1 800. Sa seconde moitié dit ce qu'il faut faire pour s'en servir, et depuis
+la session 18 c'est « remplacez-les dans le formulaire », pas « il suffit de
+remplacer des nombres » — voir *Le modèle comme formulaire*. **Ils sont épinglés par des tests** : s'ils divergent, c'est la page
 qu'on corrige. Changer de modèle d'accueil veut donc dire réécrire cette
 ouverture — c'est voulu, elle ne doit jamais décrire autre chose que ce qui
 tourne en dessous. Elle ne le peut d'ailleurs plus : `ajusterOuverture()` est
@@ -473,6 +586,18 @@ pastilles qui invitent à aller ailleurs.
 sous les quarante lignes de code, en introduction de la bande de modèles, où le
 même lecteur a constaté qu'elle arrivait trop tard. Un test vérifie qu'elle
 précède le `<textarea>` dans le HTML servi.
+
+**Elle dit maintenant ce que le site fait, et non ce qu'il ne fait pas.** Elle
+se lisait « Boussole *ne dit pas quoi décider* : elle dit ce qu'il faut aller
+vérifier » ; elle se lit « Boussole *dit lequel de vos chiffres décide*, et ce
+que ça vaut d'aller le chercher ». Cinquième passage du lecteur extérieur :
+« le site se présente en disant ce qu'il ne fait pas, quatre fois avant que je
+voie ce qu'il fait ». Les quatre étaient cette phrase-là, « il n'y a rien à
+apprendre pour ça » et « rien n'est envoyé nulle part » dans l'ouverture, et la
+description servie aux moteurs et aux aperçus de lien. Les quatre disent
+maintenant la même chose à l'endroit, et la vie privée est restée où elle se
+prouve par l'absence : le pied de page. **La règle pour la suite : au-dessus de
+la réponse, on n'écrit pas ce que le site ne fait pas.**
 
 Changer `MODELE_PAR_DEFAUT` déplace deux adresses : l'ancien défaut gagne son
 slug, le nouveau le perd. `npm run pages` n'efface pas l'ancien fichier —
@@ -541,7 +666,8 @@ et le site les jetait toutes les deux :
 
 `moteur.js` en fait une glose par ligne, reportée sur chaque source. `ui.js`
 consulte **le lexique d'abord** — écrit à la main, relu, et seul à dire *où*
-trouver le chiffre — puis le modèle. Le site n'invente toujours rien : il rend
+trouver le chiffre — puis le modèle. C'est ce même ordre qui étiquette les
+champs du formulaire (session 18). Le site n'invente toujours rien : il rend
 au visiteur ce qu'il a écrit, à l'endroit où ça sert.
 
 **Ce que cela n'autorise pas** : deviner une unité à partir d'un nom

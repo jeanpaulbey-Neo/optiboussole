@@ -27,18 +27,18 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">La méthode</h1>
 </header>
 
 <main id="contenu" tabindex="-1">
 <article class="panneau article">
-  <p>Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire <b>ce qu’il faut aller vérifier</b> — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.</p>
+  <p>Boussole vous dit <b>lequel de vos chiffres décide de votre choix</b>, à partir de quelle valeur ce choix bascule, et ce que ça vaut d’aller chercher ce chiffre — comme ce qu’il est inutile d’aller chercher.</p>
   <p>Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.</p>
 
   <section class="chapitre">
-    <h2>Une fourchette à 90 %</h2>
+    <h2>Vous ne savez pas le chiffre : donnez-en deux</h2>
     <p>C’est le seul chiffre que le site vous demande, et c’est délibéré. Plutôt qu’une valeur unique que vous n’avez pas, vous donnez deux bornes entre lesquelles vous pensez qu’il y a <b>neuf chances sur dix</b> que la vraie valeur se trouve.</p>
     <pre class="exemple"><code>loyer = 900 à 1150</code></pre>
     <p>De cette fourchette, le site tire une loi de probabilité. Si les deux bornes sont positives, c’est une <b>lognormale</b> : la médiane est la moyenne <em>géométrique</em> des bornes, pas leur milieu.</p>
@@ -46,7 +46,7 @@
     <p class="reponse">médiane 200, et non 250. Neuf tirages sur dix tombent entre 100 et 400, aucun n’est négatif.</p>
     <p>Ce choix n’est pas cosmétique. Presque toutes les grandeurs qu’on estime — un prix, une durée, un nombre de clients — sont multiplicatives : se tromper d’un facteur deux vers le haut est aussi plausible que de se tromper d’un facteur deux vers le bas. Une loi normale, elle, autoriserait des valeurs négatives et donnerait un poids déraisonnable au milieu.</p>
     <p>Quand les bornes changent de signe — <code>-2 % à 5 %</code> — le site utilise une normale. Quand la borne basse vaut exactement zéro — <code>0 à 100</code> — il replie la normale sur les positifs : écrire zéro, c’est dire qu’on exclut le négatif.</p>
-    <p><b>Et voici le point faible de toute la méthode.</b> Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir <em>la robustesse</em>, plus bas.</p>
+    <p><b>Et voici le point faible de toute la méthode.</b> Quand on demande à quelqu’un un intervalle dans lequel il est sûr à 90 %, la vraie valeur y tombe en pratique autour d’une fois sur deux. C’est l’un des résultats les plus solides de la psychologie du jugement, il s’observe chez les experts sur leur propre domaine, et il ne s’améliore pas en y faisant attention. Le site en tient compte — voir <em>et si vos fourchettes étaient trop étroites</em>, plus bas.</p>
   </section>
 
   <section class="chapitre">
@@ -66,7 +66,7 @@ y = a</code></pre>
   </section>
 
   <section class="chapitre">
-    <h2>Le poids et l’incertitude</h2>
+    <h2>Le poste le plus lourd n’est pas celui à vérifier</h2>
     <p>La part d’incertitude répond à « de quoi dépend le résultat ? ». Devant une addition, on se pose une autre question, plus simple : <b>quel poste pèse le plus ?</b> Ce sont deux questions distinctes, et le site répond aux deux, côte à côte, dans le panneau <em>Le détail des calculs</em> sous les résultats.</p>
     <p>Chaque valeur calculée y est donnée avec sa médiane et sa fourchette à 90 % — ce qu’un tableur montre dans chaque cellule, et qu’un modèle écrit en quelques lignes cache. Les sommes y sont décomposées en postes, avec le poids de chacun <b>à sa valeur médiane</b>. Sur « le vrai prix du kilomètre » :</p>
     <pre class="exemple"><code>fixe = decote_an + assurance + entretien + reparations
@@ -83,7 +83,7 @@ y = a * b * c</code></pre>
   </section>
 
   <section class="chapitre">
-    <h2>Le seuil de bascule</h2>
+    <h2>À partir de quel montant la réponse change</h2>
     <p>Quand vous comparez deux branches, savoir laquelle gagne « en moyenne » ne suffit pas. Ce qui sert, c’est de savoir <b>à partir de quelle valeur la réponse change de camp</b>.</p>
     <pre class="exemple"><code>cout_actuel  = 1200
 cout_nouveau = 700 à 1900
@@ -98,7 +98,7 @@ option "Changer" = -cout_nouveau</code></pre>
   </section>
 
   <section class="chapitre">
-    <h2>Le contre-argument</h2>
+    <h2>Ce qui vous ferait changer d’avis</h2>
     <p>Le seuil de bascule déplace <b>une</b> hypothèse et laisse les autres à leur médiane. Or il arrive très souvent qu’aucune hypothèse seule ne renverse le verdict, alors que plusieurs déplacées ensemble, chacune d’un cheveu, le renversent sans peine. Le site pose alors la question à l’envers : <b>quel est le jeu d’hypothèses le plus proche du vôtre qui donnerait la conclusion contraire ?</b></p>
     <pre class="exemple"><code>a = 90 à 110
 b = 90 à 110
@@ -116,7 +116,7 @@ option "Partir" = 320</code></pre>
   </section>
 
   <section class="chapitre">
-    <h2>La valeur de l’information</h2>
+    <h2>Ce que ça vaut d’aller chercher le chiffre</h2>
     <p>C’est l’idée centrale du site, et la moins connue. La question n’est pas « de quoi suis-je le plus incertain ? » mais <b>« qu’est-ce que ça vaut, de lever ce doute ? »</b></p>
     <p>Formellement : ce que vous gagneriez, en moyenne, à connaître une hypothèse exactement <em>avant</em> de choisir, plutôt qu’à choisir maintenant avec ce que vous savez. Sur l’exemple ci-dessus, 141 € — et comme il n’y a qu’une seule hypothèse, c’est aussi le maximum que puisse rapporter n’importe quelle enquête.</p>
     <p>Le renversement que produit ce calcul est le suivant : <b>une hypothèse peut être massivement incertaine et totalement sans intérêt.</b> Elle fait beaucoup bouger le résultat, mais jamais assez pour renverser le choix. Y consacrer une semaine ne changerait rien à ce que vous ferez.</p>
@@ -166,7 +166,7 @@ option "Loterie" = si gros alors 300 sinon 90</code></pre>
   </section>
 
   <section class="chapitre">
-    <h2>La robustesse</h2>
+    <h2>Et si vos fourchettes étaient trop étroites</h2>
     <p>Tout ce qui précède suppose que vos fourchettes sont honnêtes. Comme elles ne le sont probablement pas — voir plus haut —, le site pose une dernière question : <b>et si elles étaient trop étroites ?</b></p>
     <p>Il élargit alors toutes vos fourchettes d’un facteur croissant, médiane inchangée, et regarde à partir de quand votre conclusion tombe. L’étirement est multiplicatif sur les grandeurs positives, donc une fourchette élargie ne devient jamais négative ; les lois discrètes ne sont pas touchées, parce qu’une probabilité ne s’étire pas comme une fourchette.</p>
     <p class="reponse">Sur « louer ou acheter », il suffit de fourchettes 2,5× trop étroites pour que le verdict s’inverse. Sur « isoler ses combles », la conclusion tient jusqu’à 6× plus large.</p>

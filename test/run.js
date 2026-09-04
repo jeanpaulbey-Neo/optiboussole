@@ -1974,6 +1974,190 @@ x = loyer * duree + carburant * 1000 + taux`);
     hypothese('voiture', 'reparations').quoi.length > 0);
 }
 
+
+// --- Le modèle comme formulaire ---------------------------------------------
+//
+// Cinquième passage du lecteur extérieur : « pour me servir d'un des douze
+// modèles, je dois éditer du texte ». Le formulaire lit le texte et le
+// réécrit ; ces tests tiennent les deux sens, et surtout **ce que la réécriture
+// n'a pas le droit de toucher** : le commentaire en français, le symbole
+// d'unité, l'échelle et l'alignement. C'est tout ce que le site a mis quinze
+// sessions à savoir lire.
+groupe('Le modèle comme formulaire');
+{
+  const { reglages, intertitres, afficher, lireChamp, reecrire } =
+    await import('../public/js/reglages.js');
+
+  // Chaque modèle de la bibliothèque doit se régler sans ouvrir le texte,
+  // sinon le formulaire est un demi-service et le lecteur avait raison.
+  for (const m of MODELES) {
+    const r = reglages(m.source);
+    if (m.cle === 'vierge') {
+      verifie('la page blanche a ses trois champs', r.length === 3, `→ ${r.length}`);
+      continue;
+    }
+    verifie(`${m.cle} : au moins six hypothèses réglables`, r.length >= 6, `→ ${r.length}`);
+  }
+
+  // Aucune formule ne doit apparaître comme une hypothèse : « emprunt = prix -
+  // apport » n'est pas un chiffre qu'on règle, c'est un calcul.
+  const logement = MODELES.find((m) => m.cle === 'logement');
+  const noms = reglages(logement.source).map((e) => e.nom);
+  verifie('aucune formule dans le formulaire',
+    !noms.includes('emprunt') && !noms.includes('mensualite') && !noms.includes('i'),
+    `→ ${noms.join(', ')}`);
+  verifie('… et les hypothèses, elles, y sont toutes',
+    ['prix', 'loyer', 'revalorisation', 'taxe_fonciere', 'placement'].every((n) => noms.includes(n)),
+    `→ ${noms.join(', ')}`);
+
+  // Une ligne « option », « savoir » ou « unité: » n'est pas une hypothèse.
+  const solaire = MODELES.find((m) => m.cle === 'solaire');
+  const nomsSolaire = reglages(solaire.source).map((e) => e.nom);
+  verifie('ni option, ni savoir, ni unité dans le formulaire',
+    !nomsSolaire.some((n) => ['option', 'savoir', 'attendre', 'unité'].includes(n)),
+    `→ ${nomsSolaire.join(', ')}`);
+
+  // Ce que le champ montre : la valeur dans l'échelle où elle est écrite.
+  const par = Object.fromEntries(reglages(logement.source).map((e) => [e.nom, e]));
+  proche('« 250k » se règle en milliers', par.prix.bornes[0].affiche, 250, 0);
+  verifie('… et son étiquette porte l’échelle', par.prix.echelle === 'k', `→ ${par.prix.echelle}`);
+  proche('« 3,2% » se règle en points', par.taux_credit.bornes[0].affiche, 3.2, 1e-9);
+  verifie('… et son unité est le pourcentage', par.taux_credit.unite === '%');
+  proche('une borne négative reste négative', par.revalorisation.bornes[0].affiche, -1, 1e-9);
+  verifie('une fourchette a deux bornes, une valeur ferme une seule',
+    par.loyer.bornes.length === 2 && par.horizon.bornes.length === 1);
+
+  // Le symbole d'unité écrit dans le modèle sert d'étiquette là où le lexique
+  // se tait — c'est ce que la session 17 a rendu lisible.
+  const uSrc = 'reparations = 400 à 1800 €   # par an\nx = reparations';
+  verifie('l’unité écrite au modèle étiquette le champ',
+    reglages(uSrc)[0].unite === '€', `→ ${JSON.stringify(reglages(uSrc)[0].unite)}`);
+
+  // --- La réécriture --------------------------------------------------------
+  const relire = (src, nom) => reglages(src).find((e) => e.nom === nom);
+
+  let src = logement.source;
+  src = reecrire(src, relire(src, 'loyer').bornes[1], 1400);
+  const ligneLoyer = src.split('\n').find((l) => l.startsWith('loyer'));
+  verifie('la borne change…', /900 à 1400/.test(ligneLoyer), `→ ${ligneLoyer}`);
+  verifie('… le commentaire en français reste',
+    /# ce que vous paieriez à la place$/.test(ligneLoyer), `→ ${ligneLoyer}`);
+  verifie('… et l’alignement des colonnes aussi',
+    /1400 {13}#/.test(ligneLoyer), `→ ${JSON.stringify(ligneLoyer)}`);
+
+  src = reecrire(src, relire(src, 'prix').bornes[0], 310);
+  verifie('l’échelle « k » survit à la réécriture',
+    src.includes('prix = 310k'), `→ ${src.split('\n').find((l) => l.startsWith('prix ='))}`);
+
+  src = reecrire(src, relire(src, 'travaux').bornes[1], 2.5);
+  verifie('le « % » survit à la réécriture',
+    /travaux = 0,3% à 2,5%/.test(src), `→ ${src.split('\n').find((l) => l.startsWith('travaux'))}`);
+
+  src = reecrire(src, relire(src, 'revalorisation').bornes[0], 2);
+  verifie('un signe « - » s’efface quand la borne devient positive',
+    /revalorisation = 2% à 4%/.test(src), `→ ${src.split('\n').find((l) => l.startsWith('revalorisation'))}`);
+  src = reecrire(src, relire(src, 'revalorisation').bornes[0], -3);
+  verifie('… et se réécrit quand elle redevient négative',
+    /revalorisation = -3% à 4%/.test(src), `→ ${src.split('\n').find((l) => l.startsWith('revalorisation'))}`);
+
+  // Le tout doit rester un modèle que le site sait calculer : c'est la seule
+  // garantie qui compte, et elle est bon marché.
+  const apres = analyserModele(src);
+  verifie('le modèle réécrit se calcule encore', !apres.probleme && apres.modeDecision);
+  verifie('… sans avertissement nouveau', apres.avertissements.length === 0,
+    `→ ${apres.avertissements.map((a) => a.texte || a.message || '').join(' | ')}`);
+
+  // Les douze modèles, borne par borne. Deux exigences, et c'est le test qui
+  // attrape un décalage d'un caractère, une échelle perdue, un pourcentage
+  // effacé : la valeur relue est bien celle qu'on a écrite, et **rien d'autre
+  // que les chiffres n'a bougé sur la ligne** — pas le commentaire, pas le
+  // symbole, pas l'espace qui aligne les colonnes.
+  let bornes = 0;
+  const abimes = [];
+  const squelette = (l) => l.replace(/[0-9]+/g, '#');
+  for (const m of MODELES) {
+    for (const e of reglages(m.source)) {
+      for (let i = 0; i < e.bornes.length; i++) {
+        bornes++;
+        const v = e.bornes[i].affiche;
+        // Une valeur voisine, de même signe : « -1 » devient « -2 », pas « 0 ».
+        const cible = v + Math.sign(v || 1);
+        const refait = reecrire(m.source,
+          reglages(m.source).find((x) => x.nom === e.nom).bornes[i], cible);
+        const relu = reglages(refait).find((x) => x.nom === e.nom);
+        const avant = m.source.split('\n')[e.ligne - 1];
+        const apresLigne = refait.split('\n')[e.ligne - 1];
+        if (!relu || Math.abs(relu.bornes[i].affiche - cible) > 1e-9) {
+          abimes.push(`${m.cle}/${e.nom}[${i}] relu ${relu && relu.bornes[i].affiche} ≠ ${cible}`);
+        } else if (squelette(avant) !== squelette(apresLigne)
+                   || refait.split('\n').length !== m.source.split('\n').length) {
+          abimes.push(`${m.cle}/${e.nom}[${i}] ${JSON.stringify(apresLigne)}`);
+        }
+      }
+    }
+  }
+  verifie(`chaque borne se réécrit sans toucher au reste de sa ligne (${bornes} bornes)`,
+    abimes.length === 0, `→ ${abimes.slice(0, 3).join(' | ')}`);
+
+  // Et réécrire une borne à sa propre valeur ne touche à rien du tout : poser
+  // le curseur dans un champ ne doit pas transformer « 1,60 » en « 1,6 ».
+  verifie('un champ inchangé laisse le texte intact',
+    MODELES.every((m) => reglages(m.source).every((e) => e.bornes.every((b, i) =>
+      reecrire(m.source, reglages(m.source).find((x) => x.nom === e.nom).bornes[i],
+        b.affiche) === m.source))));
+
+  // Les positions viennent d'une source où la ligne « unité: € » est
+  // neutralisée. Si elle l'était en la vidant, tout ce qui suit se décalerait.
+  verifie('la ligne « unité » ne décale pas les positions',
+    reglages('unité: €\nloyer = 900 à 1150').length === 1
+    && reecrire('unité: €\nloyer = 900 à 1150',
+      reglages('unité: €\nloyer = 900 à 1150')[0].bornes[0], 800)
+       === 'unité: €\nloyer = 800 à 1150');
+
+  // Ce que le champ accepte, et ce qu'il refuse plutôt que d'écrire n'importe
+  // quoi dans le modèle.
+  proche('un champ lit la virgule française', lireChamp('1 234,5'), 1234.5, 1e-9);
+  proche('… et le point', lireChamp('12.5'), 12.5, 1e-9);
+  proche('… et le signe', lireChamp('-3'), -3, 0);
+  verifie('un champ vide n’écrit rien', lireChamp('') === null);
+  verifie('un mot n’écrit rien', lireChamp('beaucoup') === null);
+  verifie('une formule n’écrit rien', lireChamp('2*3') === null);
+  verifie('l’affichage n’invente pas de séparateur de milliers', afficher(1234.5) === '1234,5');
+
+  // Les intertitres sont ceux que l'auteur a écrits, et seulement les traits de
+  // section : le paragraphe d'introduction de chaque modèle n'en est pas un.
+  const t = intertitres(logement.source);
+  verifie('les traits de section deviennent des intertitres',
+    [...t.values()].join(' | ') === 'Le crédit | Ce qu’on ne sait pas | Achat | Location',
+    `→ ${[...t.values()].join(' | ')}`);
+  verifie('… et le paragraphe d’ouverture n’en est pas un',
+    ![...t.values()].some((x) => /valeur soit dedans/.test(x)));
+
+  // Un texte que le lexer refuse ne doit pas emporter le formulaire : il rend
+  // la main au texte, où la faute se corrige.
+  verifie('un modèle illisible ne rend aucun champ', reglages('x = (((').length === 0);
+
+  // **Aucun champ ne doit s'afficher sous un identifiant nu.** C'est le
+  // reproche même auquel le formulaire répond : « le lexique contient déjà le
+  // mot français ». Une valeur ferme (`horizon = 6`) n'est pas une hypothèse
+  // tirée au sort, donc pas dans le lexique — elle porte alors le commentaire
+  // de fin de ligne de son auteur. Si vous ajoutez une ligne réglable à un
+  // modèle, donnez-lui l'un ou l'autre, sinon ce test tombe.
+  const { hypothese: motDe } = await import('../public/js/lexique.js');
+  const anonymes = [];
+  for (const m of MODELES) {
+    const ast = analyser(m.source);
+    for (const e of reglages(m.source)) {
+      const h = motDe(m.cle, e.nom);
+      if (h && h.quoi) continue;
+      if (ast.commentaires && ast.commentaires.get(e.ligne)) continue;
+      anonymes.push(`${m.cle}/${e.nom}`);
+    }
+  }
+  verifie('aucun champ ne s’affiche sous un identifiant nu',
+    anonymes.length === 0, `→ ${anonymes.join(', ')}`);
+}
+
 // --- Le poids de la page servie ---------------------------------------------
 //
 // Un lecteur extérieur a compté ce que l'accueil lui mettait sous les yeux :

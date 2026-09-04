@@ -10,6 +10,7 @@ import { analyserContreArgument } from './contre.js';
 import { ErreurModele } from './lang.js';
 import { MODELES, MODELE_PAR_DEFAUT } from './modeles.js';
 import { hypothese } from './lexique.js';
+import { reglages, intertitres, afficher, lireChamp, reecrire } from './reglages.js';
 
 const $ = (s) => document.querySelector(s);
 const zoneModele = $('#modele');
@@ -827,6 +828,23 @@ function blocDecision(r) {
   const ou = verifiable ? phraseOu(verifiable) : null;
   if (ou) verdict.appendChild(ou);
 
+  // Et la réponse pour qui ne fera rien de tout cela.
+  //
+  // Cinquième passage du lecteur extérieur : « la réponse que j'obtiens est un
+  // devoir d'une heure, pas une réponse ». C'est en partie le parti pris du
+  // site — il dit où passer une heure parce que c'est ce qu'aucun simulateur
+  // ne dit. Mais le devoir n'était nulle part présenté comme facultatif, alors
+  // que le calcul sait déjà ce qu'il advient si on ne le fait pas : la branche
+  // de meilleure espérance reste la meilleure avec ce qu'on sait aujourd'hui,
+  // et la fréquence dit à quel point c'est un pari. Une phrase, déjà calculée,
+  // et le visiteur repart avec une réponse même s'il ferme la page.
+  if (verifiable && !serre && !desaccord) {
+    verdict.appendChild(phrase(
+      el('b', { text: 'Et si vous n’allez rien chercher\u202f: ' }),
+      '\u00ab\u202f', rec.nom, '\u202f\u00bb quand même — c’est la meilleure branche avec ce que ',
+      'vous savez déjà, et vous auriez eu raison ', foisSur10(1 - r.options.pRegret), '.'));
+  }
+
   // Les branches comparées.
   const options = el('section', { class: 'panneau bloc' }, el('h2', { text: 'Les branches' }));
   const liste = el('ul', { class: 'options' });
@@ -943,7 +961,7 @@ function rendreContre(c, r) {
   if (!aucunSeuilSimple && !c.medianeContredit && !c.surLaFrontiere) return null;
 
   const bloc = el('section', { class: 'panneau bloc contre' },
-    el('h2', { text: 'Le contre-argument' }));
+    el('h2', { text: 'Ce qui vous ferait changer d\u2019avis' }));
 
   // Ce qu'on cherche à faire arriver, dit une fois pour toutes.
   const but = c.modeDecision
@@ -1367,6 +1385,203 @@ function surligneLigne(n) {
   zoneModele.scrollTop = Math.max(0, (n - 6) * hauteurLigne);
 }
 
+// --- Le modèle comme formulaire ---------------------------------------------
+//
+// Cinquième passage du lecteur extérieur : « pour me servir d'un des douze
+// modèles, je dois éditer du texte, alors que le lexique contient déjà le mot
+// français, l'unité et la source de chaque hypothèse — je m'attendais à six
+// champs "basse / haute" avec des libellés, pas à du code. »
+//
+// Le site avait tout : le mot est dans `lexique.js` ou dans le commentaire que
+// l'auteur a écrit en fin de ligne, l'unité dans le lexique ou dans le symbole
+// collé au nombre, les intertitres dans les commentaires de section. Ce qui
+// manquait, c'était les positions — et `reglages.js` les donne.
+//
+// Le formulaire n'a **pas d'état**. Il se relit du texte, et chaque champ
+// réécrit le texte. C'est ce qui fait que le lien de partage, la
+// réinitialisation, les pastilles et les avertissements continuent de marcher
+// sans rien savoir de lui.
+
+const zoneReglages = $('#reglages');
+const detailsTexte = $('#texte-modele');
+
+// La signature dit si la *forme* du formulaire a changé — les noms, le nombre
+// de bornes, les intertitres. Tant qu'elle tient, on met à jour les valeurs
+// sans reconstruire le DOM : sinon le champ perdrait le curseur à chaque
+// frappe, et on ne pourrait pas taper « 1400 » sans repartir de « 1 ».
+function signature(entrees, titres) {
+  return entrees.map((e) => `${e.ligne}:${e.nom}:${e.bornes.length}:${titres.get(e.ligne) || ''}`).join('|');
+}
+let signatureCourante = null;
+
+// Ce que le site sait dire de cette hypothèse-là, dans l'ordre : le lexique,
+// écrit à la main pour les douze modèles ; sinon le commentaire de fin de
+// ligne, écrit par l'auteur du modèle. Rien ne s'invente.
+function libelle(e, commentaires) {
+  const h = hypothese(cleCourante, e.nom);
+  if (h && h.quoi) return h.quoi;
+  return (commentaires && commentaires.get(e.ligne)) || null;
+}
+
+function uniteReglage(e) {
+  const h = hypothese(cleCourante, e.nom);
+  const u = (h && h.unite) || e.unite || '';
+  // « prix = 250k » se règle en milliers : le champ dit 250, l'étiquette dit
+  // « k€ ». Réécrire 250 000 dans le texte effacerait l'échelle de l'auteur.
+  return e.echelle && u !== '%' ? e.echelle + u : u;
+}
+
+const ROLES = [['bas', 'basse'], ['haut', 'haute']];
+
+function champ(e, i, unite, nomAccessible) {
+  const role = e.bornes.length === 2 ? ROLES[i][1] : 'valeur';
+  const entree = el('input', {
+    class: 'reglage-champ', type: 'text', inputmode: 'decimal',
+    autocomplete: 'off', spellcheck: 'false',
+    value: afficher(e.bornes[i].affiche),
+    'aria-label': `${nomAccessible}, ${role}${unite ? ' en ' + unite : ''}`,
+  });
+  entree.dataset.nom = e.nom;
+  entree.dataset.borne = String(i);
+  entree.addEventListener('input', () => modifier(entree));
+  return el('label', { class: 'reglage-case' }, [
+    el('span', { class: 'reglage-role', text: role }),
+    entree,
+  ]);
+}
+
+// Un champ modifié réécrit le texte du modèle, et rien d'autre.
+//
+// Les positions sont **relues à chaque frappe** plutôt que gardées : dès qu'une
+// borne change de longueur, celles qui suivent se décalent. Relire coûte une
+// analyse lexicale sur quarante lignes, c'est-à-dire rien, et supprime la seule
+// façon qu'aurait ce formulaire d'écrire au mauvais endroit.
+function modifier(entree) {
+  const v = lireChamp(entree.value);
+  if (v === null) {
+    entree.setAttribute('aria-invalid', 'true');
+    return;
+  }
+  entree.removeAttribute('aria-invalid');
+  const e = reglages(zoneModele.value).find((x) => x.nom === entree.dataset.nom);
+  if (!e) return;
+  const b = e.bornes[+entree.dataset.borne];
+  if (!b) return;
+  zoneModele.value = reecrire(zoneModele.value, b, v);
+  programmer();
+}
+
+// Le rappel de ce qu'est une fourchette, à l'endroit où on la saisit. Il était
+// sur trois pages de fond ; c'est ici qu'il sert.
+const INTRO_PLAGE = 'Vos chiffres. Pour ce que vous ne savez pas, donnez deux bornes '
+  + 'plutôt qu’une valeur inventée : celles entre lesquelles vous mettriez 9 chances sur 10.';
+
+function construireReglages(entrees, titres, commentaires) {
+  const corps = el('div', { class: 'reglages-corps' });
+  let dernierTitre = null;
+  for (const e of entrees) {
+    const t = titres.get(e.ligne - 1) || titres.get(e.ligne - 2) || null;
+    if (t && t !== dernierTitre) {
+      corps.appendChild(el('h3', { class: 'reglages-titre', text: t }));
+      dernierTitre = t;
+    }
+    const unite = uniteReglage(e);
+    const quoi = libelle(e, commentaires);
+    const nomAccessible = quoi || e.nom;
+
+    const nom = el('button', {
+      class: 'reglage-nom', type: 'button',
+      title: 'Voir cette ligne dans le modèle',
+    }, e.nom);
+    nom.addEventListener('click', () => {
+      if (detailsTexte) detailsTexte.open = true;
+      surligneLigne(e.ligne);
+    });
+
+    const bloc = el('div', { class: 'reglage' }, [
+      el('div', { class: 'reglage-tete' }, [
+        el('span', { class: 'reglage-quoi', text: quoi || e.nom }),
+        quoi ? nom : null,
+      ]),
+      el('div', { class: 'reglage-champs' }, [
+        ...e.bornes.map((_, i) => champ(e, i, unite, nomAccessible)),
+        unite ? el('span', { class: 'reglage-unite', text: unite }) : null,
+      ]),
+      el('p', { class: 'reglage-note', text: 'C’est ce chiffre-là qui décide.', hidden: true }),
+    ]);
+    bloc.dataset.nom = e.nom;
+    corps.appendChild(bloc);
+  }
+  return corps;
+}
+
+// Le texte du modèle est replié quand le formulaire peut le remplacer, et
+// déplié quand il ne le peut pas — page blanche, modèle en cours d'écriture,
+// erreur. Ce n'est pas un choix esthétique : le lecteur extérieur qui a
+// demandé ce formulaire écrivait, quatrième passage, « la page d'accueil me
+// demande d'apprendre un langage alors qu'elle dit ne rien demander ». Le
+// langage est toujours là, à un clic, et c'est toujours lui la vérité.
+//
+// Appelé au chargement et au changement de modèle seulement : au fil de la
+// frappe, c'est au visiteur de décider ce qui est ouvert.
+function positionnerTexte() {
+  if (!detailsTexte || !zoneReglages) return;
+  const m = MODELES.find((x) => x.cle === cleCourante);
+  detailsTexte.open = zoneReglages.hidden || !!(m && m.pageBlanche);
+}
+
+function rendreReglages(r) {
+  if (!zoneReglages) return 0;
+  const source = zoneModele.value;
+  const entrees = reglages(source);
+  const titres = intertitres(source);
+  const commentaires = r && r.ast && r.ast.commentaires;
+  // L'hypothèse que le verdict désigne, marquée là où on la règle : c'est le
+  // seul lien direct entre la réponse et le geste qu'elle demande.
+  const tete = r && r.sources && r.sources[0];
+  const decisive = tete && !r.probleme && notable(tete, r) ? tete.nom : null;
+
+  if (entrees.length === 0) {
+    zoneReglages.hidden = true;
+    zoneReglages.replaceChildren();
+    signatureCourante = null;
+    return 0;
+  }
+  zoneReglages.hidden = false;
+
+  // L'hypothèse décisive ne fait **pas** partie de la signature : elle change
+  // au fil de la frappe, et reconstruire le DOM à ce moment-là arracherait le
+  // curseur du champ qu'on est en train de remplir. C'est une classe qu'on
+  // pose et qu'on retire, rien de plus.
+  const sig = signature(entrees, titres);
+  if (sig !== signatureCourante) {
+    signatureCourante = sig;
+    zoneReglages.replaceChildren(
+      el('p', { class: 'reglages-intro', text: INTRO_PLAGE }),
+      construireReglages(entrees, titres, commentaires));
+  }
+  for (const bloc of zoneReglages.querySelectorAll('.reglage')) {
+    const cible = bloc.dataset.nom === decisive;
+    bloc.classList.toggle('decisive', cible);
+    const note = bloc.querySelector('.reglage-note');
+    if (note) note.hidden = !cible;
+  }
+
+  // Même forme : on remet seulement les valeurs, et jamais dans le champ qu'on
+  // est en train de remplir — « 1,5 » y passerait par « 1 » puis « 1,5 ».
+  for (const e of entrees) {
+    for (let i = 0; i < e.bornes.length; i++) {
+      const entree = zoneReglages.querySelector(
+        `.reglage[data-nom="${CSS.escape(e.nom)}"] input[data-borne="${i}"]`);
+      if (!entree || entree === document.activeElement) continue;
+      const attendu = afficher(e.bornes[i].affiche);
+      if (entree.value !== attendu) entree.value = attendu;
+      entree.removeAttribute('aria-invalid');
+    }
+  }
+  return entrees.length;
+}
+
 // --- Boucle ------------------------------------------------------------------
 
 let minuteur = null;
@@ -1380,6 +1595,7 @@ function calculer() {
     const r = analyserModele(source, { N: 20000 });
     zoneErreur.hidden = true;
     rendre(r);
+    rendreReglages(r);
     // Le balayage coûte ~200 ms : on le lance quand la frappe s'est arrêtée,
     // pour que le verdict, lui, reste immédiat.
     minuteurRobustesse = setTimeout(() => {
@@ -1388,6 +1604,10 @@ function calculer() {
   } catch (e) {
     montrerErreur(e);
     rendreAvertissements(null);
+    // Un modèle qui ne s'analyse pas n'a pas de formulaire fiable : on rend la
+    // main au texte, qui est le seul endroit où la faute se corrige.
+    rendreReglages(null);
+    if (detailsTexte) detailsTexte.open = true;
   }
   // Le travail en cours reste dans le navigateur du visiteur, nulle part ailleurs.
   // Et seulement le travail : un modèle de bibliothèque tel quel n'est pas un
@@ -1454,6 +1674,7 @@ function chargerModele(cle, { remplacerTexte = true } = {}) {
   if (m && remplacerTexte) zoneModele.value = m.source;
   marquerPastille(cleCourante);
   calculer();
+  positionnerTexte();
 }
 
 listeExemples.addEventListener('click', (e) => {
@@ -1512,6 +1733,7 @@ function reprendreBrouillon() {
   brouillonEnAttente = null;
   $('#reprise').hidden = true;
   calculer();
+  positionnerTexte();
 }
 
 function oublierBrouillon() {
@@ -1537,6 +1759,7 @@ function oublierBrouillon() {
         cleCourante = connu ? connu.cle : '';
         marquerPastille(cleCourante);
         calculer();
+        positionnerTexte();
         return;
       }
     } catch { /* fragment illisible : on retombe sur le comportement normal */ }

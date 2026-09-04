@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Installer des panneaux solaires</h1>
   <p class="sous-baseline">Une installation solaire en autoconsommation se rembourse-t-elle en vingt ans ? Ce modèle la compare à ne rien faire, et fait ce qu’aucun simulateur d’installateur ne fait : il chiffre ce que vous rapporterait une étude de production sur votre toit — avant de signer, et en euros.</p>
@@ -44,7 +44,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -59,12 +64,15 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: €
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: €
 # Faut-il installer 3 kWc en autoconsommation avec revente du surplus ?
 # Comparé à ne rien faire, sur 20 ans, tout ramené à la fin de l’horizon.
 
-horizon = 20
+horizon = 20          # années sur lesquelles on compare
 puissance = 3                 # kWc posés
 
 # --- Le devis ---------------------------------------------------------
@@ -99,6 +107,7 @@ option "Ne rien faire" = 0
 # Une étude d’ombrage et de production sur votre toit, avant de signer.
 savoir production = 250 €
 </textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

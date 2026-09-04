@@ -27,7 +27,7 @@
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
-    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+    <span class="marque-quoi">dit lequel de vos chiffres décide, et <em>ce que ça vaut d’aller le chercher</em></span>
   </div>
   <h1 class="baseline titre-modele">Le vrai prix du kilomètre</h1>
   <p class="sous-baseline">Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d’où vient l’essentiel de l’incertitude.</p>
@@ -44,7 +44,12 @@
   <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
 
   <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant. -->
+       personne n'a demandé à programmer en arrivant.
+
+       Le formulaire (#reglages) est écrit par ui.js à partir du texte
+       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+       ouvert, et le modèle reste lisible tel quel. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -59,14 +64,17 @@
       <button type="button" id="reprise-oui">Le reprendre</button>
       <button type="button" id="reprise-non">L’oublier</button>
     </p>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-      aria-label="Description du modèle">unité: €/km
+    <div class="reglages" id="reglages" hidden></div>
+    <details class="texte-modele" id="texte-modele" open>
+      <summary>Le texte du modèle</summary>
+      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+        aria-label="Description du modèle">unité: €/km
 # Combien coûte réellement un kilomètre en voiture ?
 # Presque personne ne compte la décote. C’est souvent le premier poste.
 
 km_an = 8000 à 16000
 
-prix_achat = 20000
+prix_achat = 20000              # ce que le véhicule a coûté
 revente_dans = 8               # années
 valeur_residuelle = 15% à 35%  # du prix d’achat
 decote_an = prix_achat * (1 - valeur_residuelle) / revente_dans
@@ -75,7 +83,7 @@ assurance = 500 à 900
 entretien = 300 à 900
 reparations = 100 à 1200       # la queue est longue : une panne arrive
 pneus = 120 à 300
-controle = 45
+controle = 45                   # contrôle technique, ramené à l’année
 stationnement = 0 à 900
 conso = 5 à 8                  # L/100 km
 prix_carburant = 1,70 à 2,10
@@ -84,6 +92,7 @@ carburant = km_an/100 * conso * prix_carburant
 fixe = decote_an + assurance + entretien + reparations + pneus + controle + stationnement
 
 cout_km = (fixe + carburant) / km_an</textarea>
+    </details>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>

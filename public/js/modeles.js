@@ -20,13 +20,13 @@ export const MODELES = [
 # est une fourchette : vous pensez qu’il y a 9 chances sur 10
 # que la vraie valeur soit dedans.
 
-prix = 250k
-apport = 50k
+prix = 250k          # le prix du bien, frais d’agence compris
+apport = 50k          # ce que vous mettez au départ
 horizon = 10          # années avant de revendre
 
 # --- Le crédit -------------------------------------------------------
-taux_credit = 3,2%
-duree_credit = 25
+taux_credit = 3,2%    # le taux nominal de votre offre de prêt
+duree_credit = 25     # années d’emprunt
 i = taux_credit / 12
 n_total = duree_credit * 12
 n_ecoule = horizon * 12
@@ -74,7 +74,7 @@ option "Louer"   = apport_place - cout_loyer
     source: `unité: €
 # Faut-il isoler les combles ? Comparaison sur 15 ans.
 
-horizon = 15
+horizon = 15          # années sur lesquelles on compare
 surface = 80                    # m² de combles
 
 # --- Le devis ---------------------------------------------------------
@@ -105,10 +105,10 @@ option "Ne rien faire" = 0`,
     source: `unité: €
 # Passer freelance ? Comparaison du net perçu sur 3 ans.
 
-horizon = 3
+horizon = 3           # années sur lesquelles on compare
 
 # --- Salarié ----------------------------------------------------------
-salaire_net_mensuel = 3200
+salaire_net_mensuel = 3200      # votre net mensuel actuel
 prime = 0 à 3000                # par an
 salarie_an = salaire_net_mensuel * 12 + prime
 
@@ -143,21 +143,21 @@ option "Passer freelance" = freelance_an * (horizon - creuses * perte_creuse)`,
     source: `unité: €
 # Garder la voiture actuelle ou en acheter une plus récente ? Sur 6 ans.
 
-horizon = 6
-km_an = 12000
+horizon = 6           # années sur lesquelles on compare
+km_an = 12000         # vos kilomètres par an
 
 # --- Garder l’actuelle ------------------------------------------------
 conso_actuelle = 7 à 9          # L/100 km
 reparations = 400 à 1800        # par an, et ça monte avec l’âge
 revente_actuelle = 2500 à 4500  # ce qu’elle vaut aujourd’hui
 revente_plus_tard = 300 à 1200  # ce qu’il en restera dans 6 ans
-assurance_actuelle = 550
+assurance_actuelle = 550     # votre prime annuelle actuelle
 
 # --- Acheter d’occasion récente ---------------------------------------
 prix_nouvelle = 16000 à 22000
 conso_nouvelle = 4,5 à 6
 entretien_nouvelle = 300 à 700
-assurance_nouvelle = 750
+assurance_nouvelle = 750     # la prime annuelle du véhicule visé
 decote = 8% à 14%               # par an
 
 # --- Commun -----------------------------------------------------------
@@ -191,7 +191,7 @@ option "Changer" = changer`,
 
 km_an = 8000 à 16000
 
-prix_achat = 20000
+prix_achat = 20000              # ce que le véhicule a coûté
 revente_dans = 8               # années
 valeur_residuelle = 15% à 35%  # du prix d’achat
 decote_an = prix_achat * (1 - valeur_residuelle) / revente_dans
@@ -200,7 +200,7 @@ assurance = 500 à 900
 entretien = 300 à 900
 reparations = 100 à 1200       # la queue est longue : une panne arrive
 pneus = 120 à 300
-controle = 45
+controle = 45                   # contrôle technique, ramené à l’année
 stationnement = 0 à 900
 conso = 5 à 8                  # L/100 km
 prix_carburant = 1,70 à 2,10
@@ -224,10 +224,10 @@ cout_km = (fixe + carburant) / km_an`,
 
 seuil: 12          # on veut tenir au moins 12 mois
 
-reserve = 6000
+reserve = 6000                  # ce que vous avez de côté aujourd’hui
 
 # --- Sorties ----------------------------------------------------------
-loyer = 850
+loyer = 850                     # loyer et charges, par mois
 courses = 400 à 650
 transport = 80 à 250
 abonnements = 60 à 140
@@ -375,12 +375,12 @@ option "Remplacer" = -cout_remplacer`,
 # On compare ce qu'il reste à payer d'intérêts, avec et sans, sur la
 # durée restante — même mensualité de principe, même durée.
 
-# --- Ce que vous savez (tableau d'amortissement) --------------------------
-capital_restant = 180k
-taux_actuel = 3,4%
+# --- Ce que vous savez (tableau d’amortissement) --------------------------
+capital_restant = 180k          # ce qu’il vous reste à rembourser
+taux_actuel = 3,4%              # le taux de votre crédit en cours
 duree_restante = 18            # années
 
-# --- Ce qu'on vous propose --------------------------------------------------
+# --- Ce qu’on vous propose --------------------------------------------------
 nouveau_taux = 2,9% à 3,3%
 
 # --- Ce que ça coûte --------------------------------------------------------
@@ -450,7 +450,7 @@ option "Passer son tour" = 0
 # Faut-il installer 3 kWc en autoconsommation avec revente du surplus ?
 # Comparé à ne rien faire, sur 20 ans, tout ramené à la fin de l’horizon.
 
-horizon = 20
+horizon = 20          # années sur lesquelles on compare
 puissance = 3                 # kWc posés
 
 # --- Le devis ---------------------------------------------------------
@@ -490,6 +490,11 @@ savoir production = 250 €
   {
     cle: 'vierge',
     slug: 'nouveau-modele',
+    // Cette page-ci s'ouvre sur son texte et non sur son formulaire : tout ce
+    // qu'elle a à dire est dans ses commentaires, et on y vient pour écrire des
+    // lignes, pas pour régler celles qui y sont. C'est le seul modèle dans ce
+    // cas, et c'est déclaré ici plutôt que deviné dans `ui.js`.
+    pageBlanche: true,
     question:
       "Une page blanche et trois lignes de syntaxe pour décrire votre propre décision : les chiffres que vous connaissez, les fourchettes que vous ne connaissez pas, et ce que vous comparez.",
     titre: 'Partir de zéro',
