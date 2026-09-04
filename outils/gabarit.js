@@ -297,7 +297,7 @@ export function page({ modele, modeles, defaut, accueil }) {
     ? 'Boussole — ce qu’il faut aller vérifier avant de décider'
     : `${modele.titre} — Boussole`;
   const description = accueil
-    ? 'Décrivez une décision chiffrée avec ses incertitudes. Boussole ne donne pas un résultat : elle dit quelle hypothèse décide, à partir de quelle valeur votre choix bascule, et quel chiffre vaut la peine d’être vérifié. Tout se calcule dans votre navigateur.'
+    ? 'Vous hésitez, et il vous manque un chiffre. Écrivez la fourchette plutôt que d’inventer une valeur : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Tout se calcule dans votre navigateur, rien n’en sort.'
     : modele.question;
   const canonique = SITE + (accueil ? '/' : '/' + modele.slug);
 
@@ -312,7 +312,7 @@ export function page({ modele, modeles, defaut, accueil }) {
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="${attr(accueil ? 'Boussole' : modele.titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(accueil ? 'Elle ne dit pas quoi décider. Elle dit ce qu’il faut aller vérifier.' : modele.question)}">
+<meta property="og:description" content="${attr(accueil ? 'Elle ne dit pas quoi décider. Elle dit ce qu’il faut aller vérifier — et où le trouver.' : modele.question)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${attr(canonique)}">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -333,11 +333,21 @@ export function page({ modele, modeles, defaut, accueil }) {
   </div>
   ${accueil
     ? `<p class="baseline">Elle ne vous dit pas quoi décider. Elle vous dit <em>ce qu’il faut aller vérifier</em>.</p>
-  <p class="sous-baseline">
-    Décrivez une décision avec les chiffres que vous avez et les fourchettes que vous n’avez pas.
-    Vous obtenez l’hypothèse qui décide vraiment, le seuil où votre choix bascule, et ce que vaut
-    le fait d’aller chercher ce chiffre-là plutôt qu’un autre.
-  </p>`
+  <div class="exemple-ouverture">
+    <p>
+      <b>Celui qui tourne ci-dessous.</b> Vous hésitez à changer de voiture, sans savoir ce que
+      l’ancienne coûtera en pannes : entre 400 et 1 800 € par an. Écrivez la fourchette, pas un
+      chiffre inventé.
+    </p>
+    <p>
+      Réponse : <b>au-dessus de 1 109 € par an, changez</b> — cela arrive 3 fois sur 10. Et
+      <b>ressortir vos factures de garage vaut 631 €</b> : c’est le seul travail qui change
+      quelque chose ici.
+    </p>
+    <p class="exemple-suite">
+      Remplacez les chiffres par les vôtres, ou prenez un autre sujet. Rien n’est envoyé nulle part.
+    </p>
+  </div>`
     : `<h1 class="baseline titre-modele">${echappe(modele.titre)}</h1>
   <p class="sous-baseline">${echappe(modele.question)}</p>`}
 </header>

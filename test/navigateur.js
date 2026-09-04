@@ -6,7 +6,11 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { MODELES } from '../public/js/modeles.js';
+import { MODELES, MODELE_PAR_DEFAUT } from '../public/js/modeles.js';
+
+// L'adresse d'un modèle : celui d'accueil vit à la racine, les autres à leur
+// slug. Le modèle d'accueil a changé en session 14 — ne le codez pas en dur.
+const cheminDe = (m) => (m.cle === MODELE_PAR_DEFAUT ? '/' : '/' + m.slug);
 
 const URL = process.argv[2] || 'https://optiboussole.fr';
 const SORTIE = process.argv[3] || '/tmp/boussole-captures';
@@ -315,6 +319,145 @@ console.log('\n\x1b[1mAller savoir, ou décider maintenant\x1b[0m');
   await ps.close();
 }
 
+// --- Ce que lit quelqu'un qui arrive sans contexte --------------------------
+//
+// Le premier visiteur extérieur (session 14) a trouvé le site « abrupt et peu
+// clair » et n'a « pas su quoi en faire ». Ces vérifications tiennent les trois
+// réponses : une ouverture travaillée, des hypothèses nommées en français avec
+// leur unité, et une adresse où aller chercher le chiffre qui décide.
+console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
+{
+  const pa = await navigateur.newPage();
+  const inca = [];
+  pa.on('pageerror', (e) => inca.push(e.message));
+  await pa.setViewport({ width: 1280, height: 1000 });
+  // Arriver « sans contexte », c'est arriver sans brouillon : les tests
+  // précédents ont pu en laisser un, et un vrai premier visiteur n'en a pas.
+  await pa.goto(URL + '/', { waitUntil: 'domcontentloaded' });
+  await pa.evaluate(() => localStorage.clear());
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+
+  // L'ouverture : un exemple travaillé, lisible sans JavaScript, avant le code.
+  const ouv = await pa.$eval('.exemple-ouverture', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('l’accueil s’ouvre sur un exemple travaillé', ouv.length > 120, `→ ${ouv.slice(0, 60)}`);
+  verifie('… avec la fourchette qu’on écrit', /400 et 1 800/.test(ouv), `→ ${ouv}`);
+  verifie('… le seuil, dans son unité', /1 109 € par an/.test(ouv), `→ ${ouv}`);
+  verifie('… et ce que vaut d’aller chercher le chiffre', /631 €/.test(ouv), `→ ${ouv}`);
+
+  // Elle vient avant l'éditeur : c'est tout l'objet du correctif.
+  const ordre = await pa.evaluate(() => {
+    const o = document.querySelector('.exemple-ouverture').getBoundingClientRect();
+    const e = document.querySelector('.editeur').getBoundingClientRect();
+    return { ouverture: o.top + window.scrollY, editeur: e.top + window.scrollY };
+  });
+  verifie('… et elle précède le modèle', ordre.ouverture < ordre.editeur,
+    `→ ${Math.round(ordre.ouverture)} vs ${Math.round(ordre.editeur)}`);
+
+  // Le verdict d'accueil doit nommer une branche, pas dire « à égalité ».
+  const t = await pa.$eval('.verdict-titre', (n) => n.textContent.trim());
+  verifie('l’accueil ouvre sur une réponse, pas sur « À égalité »',
+    t !== 'À égalité' && t !== 'Deux réponses', `→ « ${t} »`);
+
+  const v = await pa.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('le verdict traduit l’identifiant en français',
+    /reparations, ce que l’ancienne vous coûtera/.test(v), `→ ${v.slice(-320)}`);
+  verifie('… le seuil porte son unité', /au-dessus de 1 109 €\/an/.test(v), `→ ${v.slice(-320)}`);
+  verifie('… et le site dit où aller chercher le chiffre',
+    /Où le trouver\. Vos factures de garage/.test(v), `→ ${v.slice(-320)}`);
+  verifie('… sans redire « c’est là qu’il faut passer votre temps »',
+    !/passer votre temps/.test(v), `→ ${v.slice(-320)}`);
+
+  // Aucune hypothèse listée ne reste un identifiant nu.
+  const nues = await pa.$$eval('.hypothese', (ns) =>
+    ns.filter((n) => !n.querySelector('.quoi')).length);
+  verifie('aucune hypothèse ne reste un identifiant nu', nues === 0, `→ ${nues}`);
+
+  // Une incertitude qu'on ne peut pas lever : le dire est une réponse.
+  await pa.goto(URL + '/installer-des-panneaux-solaires', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  const vs = await pa.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('quand le chiffre ne s’enquête pas, le site le dit',
+    /Où le trouver\. Nulle part, et c’est une réponse/.test(vs), `→ ${vs.slice(-260)}`);
+
+  // Le mode estimation aussi.
+  await pa.goto(URL + '/prix-du-kilometre', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  const vk = await pa.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('le mode estimation nomme aussi son hypothèse',
+    /km_an — les kilomètres que vous parcourez —/.test(vk), `→ ${vk.slice(-280)}`);
+  verifie('… et dit où la trouver',
+    /Où le trouver\. Deux contrôles techniques/.test(vk), `→ ${vk.slice(-280)}`);
+
+  // Un modèle écrit par le visiteur n'a pas de lexique : rien ne doit
+  // apparaître, et surtout rien d'inventé.
+  await pa.goto(URL + '/nouveau-modele', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  await pa.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = 'zorglub = 10 à 90\noption "A" = zorglub\noption "B" = 40';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  const perso = await pa.evaluate(() => ({
+    quoi: document.querySelectorAll('.hypothese .quoi').length,
+    ou: /Où le trouver/.test(document.querySelector('.verdict').innerText),
+  }));
+  verifie('un modèle inconnu ne se voit rien inventer',
+    perso.quoi === 0 && perso.ou === false, `→ ${JSON.stringify(perso)}`);
+
+  // Le brouillon d'un visiteur qui revient : l'ouverture décrirait alors un
+  // modèle qui n'est plus à l'écran. Elle se retire, et « Réinitialiser » la
+  // ramène avec le modèle d'origine.
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  await pa.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = t.value + '\n# une note du visiteur';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  const avecBrouillon = await pa.evaluate(() => ({
+    ouverture: !document.querySelector('.exemple-ouverture').hidden,
+    note: document.querySelector('#modele').value.includes('une note du visiteur'),
+  }));
+  verifie('un brouillon restitué retire l’exemple d’ouverture',
+    avecBrouillon.note && !avecBrouillon.ouverture, `→ ${JSON.stringify(avecBrouillon)}`);
+  await pa.click('#reinit');
+  await new Promise((r) => setTimeout(r, 500));
+  const apresReinit = await pa.evaluate(() => ({
+    ouverture: !document.querySelector('.exemple-ouverture').hidden,
+    note: document.querySelector('#modele').value.includes('une note du visiteur'),
+  }));
+  verifie('… et « Réinitialiser » la ramène avec le modèle d’origine',
+    apresReinit.ouverture && !apresReinit.note, `→ ${JSON.stringify(apresReinit)}`);
+  await pa.evaluate(() => localStorage.clear());
+
+  verifie('aucune erreur en arrivant sans contexte', inca.length === 0, '→ ' + inca.join(' | '));
+  await pa.close();
+}
+
+// --- Les adresses que la session 14 a déplacées -----------------------------
+console.log('\n\x1b[1mDéplacement du modèle d’accueil\x1b[0m');
+{
+  const pd = await navigateur.newPage();
+  const r1 = await pd.goto(URL + '/louer-ou-acheter', { waitUntil: 'networkidle0' });
+  verifie('« louer ou acheter » a gagné son adresse', r1.status() === 200, `→ ${r1.status()}`);
+  await pd.waitForSelector('.verdict-titre');
+  const h1 = await pd.$eval('h1', (n) => n.textContent.trim());
+  verifie('… et c’est bien lui', h1 === 'Louer ou acheter', `→ ${h1}`);
+  const can = await pd.$eval('link[rel=canonical]', (n) => n.href);
+  verifie('… avec son canonique propre', can === URL + '/louer-ou-acheter', `→ ${can}`);
+
+  // L'ancienne adresse du modèle d'accueil a pu être partagée.
+  const r2 = await pd.goto(URL + '/garder-ou-changer-de-voiture', { waitUntil: 'networkidle0' });
+  verifie('l’ancienne adresse de la voiture redirige vers l’accueil',
+    r2.url() === URL + '/', `→ ${r2.url()}`);
+  await pd.close();
+}
+
 // --- Écran étroit ---------------------------------------------------------------
 console.log('\n\x1b[1mÉcran étroit\x1b[0m');
 {
@@ -448,7 +591,7 @@ console.log('\n\x1b[1mLe contre-argument\x1b[0m');
   verifie('… en nommant l\u2019événement tout ou rien épinglé',
     /gros_pepin/.test(projet || ''));
 
-  const voiture = await lire('/garder-ou-changer-de-voiture');
+  const voiture = await lire('/');
   verifie('voiture : rien, puisqu\u2019un seuil de bascule répond déjà',
     voiture === null, `→ ${(voiture || '').slice(0, 60)}`);
 
@@ -612,7 +755,7 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
   await page3.evaluate(() => localStorage.clear());
 
   for (const m of MODELES) {
-    const chemin = m.cle === 'logement' ? '/' : '/' + m.slug;
+    const chemin = cheminDe(m);
     const r = await page3.goto(URL + chemin, { waitUntil: 'networkidle0' });
     await page3.evaluate(() => localStorage.clear());
     // 304 « non modifié » est une réponse réussie : le navigateur a revalidé
@@ -664,9 +807,16 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
     (await page3.$eval('#modele', (n) => n.value)).includes('cout_km'));
   await page3.goBack();
   await new Promise((r) => setTimeout(r, 900));
-  verifie('le retour arrière revient au modèle précédent',
-    (await page3.$eval('#modele', (n) => n.value)).includes('prix = 250k'),
-    `→ ${await page3.url()}`);
+  {
+    // On était sur l'accueil avant de cliquer : le retour arrière y ramène,
+    // donc au modèle d'accueil — quel qu'il soit.
+    const attendu = MODELES.find((m) => m.cle === MODELE_PAR_DEFAUT).source.split('\n')
+      .find((l) => /^[a-z_]+ = /.test(l));
+    verifie('le retour arrière revient au modèle précédent',
+      (await page3.$eval('#modele', (n) => n.value)).includes(attendu)
+        && (await page3.url()) === URL + '/',
+      `→ ${await page3.url()}`);
+  }
 
   verifie('aucune erreur sur les pages de modèle', incidents3.length === 0, '→ ' + incidents3.join(' | '));
   await page3.close();
@@ -683,7 +833,7 @@ console.log('\n\x1b[1mTexte de fond\x1b[0m');
     MODELES.every((m) => FOND[m.cle]), '→ ' + MODELES.filter((m) => !FOND[m.cle]).map((m) => m.cle));
 
   for (const m of MODELES) {
-    const chemin = m.cle === 'logement' ? '/' : '/' + m.slug;
+    const chemin = cheminDe(m);
     // Sans JavaScript : c'est la seule partie de la page qu'un moteur de
     // recherche peut lire, et un visiteur sans JS aussi.
     await p7.setJavaScriptEnabled(false);
@@ -697,8 +847,10 @@ console.log('\n\x1b[1mTexte de fond\x1b[0m');
     await p7.setJavaScriptEnabled(true);
   }
 
-  // Le balisage minimal doit être rendu, pas affiché tel quel.
-  await p7.goto(URL + '/', { waitUntil: 'networkidle0' });
+  // Le balisage minimal doit être rendu, pas affiché tel quel. On le vérifie
+  // sur « louer ou acheter », qui porte à la fois du `code`, du gras et le bloc
+  // d'exemple — le modèle d'accueil, lui, peut changer d'une session à l'autre.
+  await p7.goto(URL + cheminDe(MODELES.find((m) => m.cle === 'logement')), { waitUntil: 'networkidle0' });
   const rendu = await p7.evaluate(() => {
     const f = document.querySelector('.fond');
     return { texte: f.innerText, gras: f.querySelectorAll('b').length,
@@ -768,7 +920,7 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
   await p9.setViewport({ width: 1000, height: 900 });
   let liees = 0;
   for (const m of MODELES) {
-    await p9.goto(URL + (m.cle === 'logement' ? '/' : '/' + m.slug), { waitUntil: 'domcontentloaded' });
+    await p9.goto(URL + cheminDe(m), { waitUntil: 'domcontentloaded' });
     if (await p9.$('footer a[href="/la-methode"]')) liees++;
   }
   verifie('toutes les pages de modèle y mènent', liees === MODELES.length, `→ ${liees}/${MODELES.length}`);
@@ -862,8 +1014,12 @@ console.log('\n\x1b[1mBrouillon\x1b[0m');
   await attendre(400);
   await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
   const defaut = await lireModele();
+  // L'accueil doit servir le modèle par défaut, mot pour mot : c'est la
+  // vérification qui attrape aussi bien un brouillon écrasé qu'un gabarit qui
+  // abîmerait la source en la servant.
   verifie('visiter un modèle sans y toucher ne change pas l’accueil',
-    defaut.includes('Louer ou acheter'), `→ « ${defaut.slice(0, 40)} »`);
+    defaut.trim() === MODELES.find((m) => m.cle === MODELE_PAR_DEFAUT).source.trim(),
+    `→ « ${defaut.slice(0, 40)} »`);
 
   await pb.evaluate(() => {
     const t = document.querySelector('#modele');
@@ -898,7 +1054,7 @@ console.log('\n\x1b[1mIndexation\x1b[0m');
   const plan = await p4.goto(URL + '/sitemap.xml', { waitUntil: 'domcontentloaded' });
   const xml = await plan.text();
   verifie('le plan du site liste toutes les pages',
-    MODELES.every((m) => xml.includes(m.cle === 'logement' ? '<loc>' + URL + '/</loc>' : '/' + m.slug))
+    MODELES.every((m) => xml.includes(m.cle === MODELE_PAR_DEFAUT ? '<loc>' + URL + '/</loc>' : '/' + m.slug))
     && xml.includes('/la-methode'),
     `→ ${(xml.match(/<loc>/g) || []).length} adresses`);
   await p4.close();

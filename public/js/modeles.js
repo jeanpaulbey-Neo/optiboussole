@@ -512,4 +512,13 @@ benefice = clients * panier * marge`,
   },
 ];
 
-export const MODELE_PAR_DEFAUT = 'logement';
+// Le modèle qui s'ouvre à la racine. C'est la première chose qu'un inconnu lit
+// du site, et pendant treize sessions c'était « louer ou acheter » — dont le
+// verdict est « À égalité ». La vitrine disait donc : je n'ai rien à vous dire.
+// Le premier visiteur extérieur l'a trouvée « abrupte et peu claire ».
+//
+// « Garder ou changer de voiture » ouvre sur une réponse : une branche nommée,
+// un seuil dans son unité, et une chose à aller chercher qui ne coûte rien —
+// vos factures de garage. Sujet universel, mise modeste, aucun prérequis.
+// « Louer ou acheter » n'a rien perdu : il a gagné son adresse indexable.
+export const MODELE_PAR_DEFAUT = 'voiture';

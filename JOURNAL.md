@@ -40,6 +40,161 @@ faut la peser à ce qu'elle vaut :
 Je l'enregistre sans la retraduire en quelque chose de plus confortable. Trois
 mots comptent : *abrupt*, *peu clair*, *quoi en faire*.
 
+### Ce qu'on voyait vraiment, en regardant la page comme lui
+
+J'ai ouvert l'accueil en capture, à 1 440 px et à 390 px, sans rien savoir du
+projet. Voici ce qu'un inconnu lisait, dans l'ordre :
+
+1. Le nom « Boussole », qui ne dit rien.
+2. Une phrase définie par la négative — *elle ne vous dit pas quoi décider* —
+   suivie d'une seconde abstraction.
+3. **Un mur de quarante lignes de code** dans une police à chasse fixe. Personne
+   n'avait demandé à programmer.
+4. Et en face, en gros et en gras, le verdict : **« Trop serré pour trancher —
+   À égalité »**.
+
+Ce quatrième point est celui qui m'a fait mal. Le modèle d'accueil était « louer
+ou acheter » depuis la session 1, et son verdict est « à égalité ». J'avais
+traité ça comme une preuve d'honnêteté intellectuelle — c'en est une. Mais
+**comme vitrine, c'est une porte fermée** : la première phrase que le site
+adresse à un inconnu est qu'il n'a rien à lui dire. Sur mobile, l'écran entier
+était occupé par ce non-verdict et par cinq paragraphes denses renvoyant à
+`revalorisation`, un identifiant tiré d'un code qu'on n'avait pas encore vu.
+
+Treize sessions à mesurer la qualité du site à la profondeur de son moteur.
+Zéro sur la porte.
+
+### Trois changements
+
+**1. La vitrine ouvre sur une réponse.** Le modèle d'accueil devient « garder ou
+changer de voiture » : une branche nommée, un seuil, une action gratuite. « Louer
+ou acheter » n'a rien perdu — il a gagné `/louer-ou-acheter`, une adresse
+indexable qu'il n'avait pas, l'accueil lui servant de domicile. L'ancienne
+adresse de la voiture redirige en 301. Les critères du choix sont écrits dans
+`ARCHITECTURE.md` et **tenus par un test** : le verdict d'accueil ne doit être ni
+« À égalité » ni « Deux réponses ».
+
+**2. L'accueil s'ouvre sur un exemple travaillé, avant la moindre ligne de
+code.** Cinquante mots, avec les chiffres du modèle qui tourne juste en dessous :
+
+> Vous hésitez à changer de voiture, sans savoir ce que l'ancienne coûtera en
+> pannes : entre 400 et 1 800 € par an. Écrivez la fourchette, pas un chiffre
+> inventé. Réponse : **au-dessus de 1 109 € par an, changez** — cela arrive
+> 3 fois sur 10. Et **ressortir vos factures de garage vaut 631 €** : c'est le
+> seul travail qui change quelque chose ici.
+
+Ces chiffres sont épinglés par des tests, comme ceux de `/la-methode` : s'ils
+divergent du modèle, c'est la page qu'on corrige.
+
+**3. Le lexique — 91 entrées, et c'est le vrai travail de la session.** Le site
+écrivait :
+
+> « L'hypothèse qui pèse le plus est `reparations`. Le verdict passe à
+> "Changer" au-dessus de 1 109. Lever le doute dessus vaut 631 € — c'est là
+> qu'il faut passer votre temps, pas ailleurs. »
+
+Trois défauts dans une phrase. `reparations` est un identifiant, pas un mot.
+« 1 109 » n'a pas d'unité, donc ne veut rien dire. Et « passer votre temps » ne
+dit pas *à quoi*. Il écrit maintenant :
+
+> « L'hypothèse qui pèse le plus sur ce choix est `reparations`, ce que
+> l'ancienne vous coûtera en pannes et en entretien. Le verdict passe à
+> « Changer » au-dessus de **1 109 €/an**, ce qui arrive 3 fois sur 10. Lever le
+> doute dessus vaut environ 631 €.
+>
+> **Où le trouver.** Vos factures de garage des trois dernières années,
+> additionnées puis divisées par trois. C'est une heure de travail, et c'est la
+> mieux payée de cette décision. »
+
+`lexique.js` donne à chacune des 91 hypothèses de la bibliothèque son mot
+français, son unité et son adresse. Un modèle écrit par le visiteur n'en a pas,
+et **rien ne s'affiche** : le site ne devine pas ce que veut dire un nom qu'il
+n'a pas écrit.
+
+### La faute de méthode que ça met au jour
+
+L'unité manquante n'était pas un oubli. Elle était **écrite dans
+`ARCHITECTURE.md` comme un principe**, depuis des sessions, avec une
+justification qui tient debout :
+
+> « `unité: €` décrit le résultat du modèle, pas ses hypothèses […]. La seule
+> unité qu'on connaisse avec certitude pour une hypothèse est le pourcentage. »
+
+C'est vrai qu'on ne peut pas la *déduire*. Mais on peut l'*écrire* — et
+personne, moi compris, n'avait reposé la question, parce qu'elle avait cessé
+d'être une lacune pour devenir une contrainte documentée. **Une limitation, une
+fois inscrite dans le fichier d'architecture avec un motif plausible, arrête
+d'être interrogée.** C'est le même défaut que la bande de pastilles de la
+session 12, qu'on a « su » impossible à améliorer pendant deux sessions avant
+que dix minutes de mesure ne tranchent. La leçon se répète, donc je l'écris en
+gras : *ce que ce fichier appelle une contrainte mérite d'être rouvert une fois
+par an.*
+
+### Deux choses que le travail a fait apparaître
+
+**1. L'ouverture pouvait mentir.** Elle dit « celui qui tourne ci-dessous », avec
+ses chiffres. Or l'accueil restitue le brouillon du visiteur qui revient
+(session 10) : la phrase devient alors fausse. Elle se retire dans ce cas, et
+« Réinitialiser » la ramène avec le modèle d'origine. Trouvé parce qu'un test
+antérieur avait laissé un brouillon en `localStorage` et que mes nouvelles
+vérifications ont lu la mauvaise page — la contamination entre tests a servi de
+révélateur.
+
+**2. Une hypothèse décisive peut n'avoir aucune adresse.** Mon test « l'hypothèse
+désignée dit toujours où la trouver » a échoué sur `derive`, la hausse future du
+prix de l'électricité — l'hypothèse la plus décisive du modèle solaire. Le test
+avait raison de tirer, mais la conclusion n'était pas celle que j'attendais :
+il n'y a pas d'adresse, et **c'est la réponse**. Le site l'écrit maintenant :
+
+> **Où le trouver.** Nulle part, et c'est une réponse : ce chiffre-là ne
+> s'enquête pas, il se juge. Aucun relevé, aucun devis ne vous le donnera avant
+> que vous ayez à décider — ce qui veut dire qu'il ne sert à rien d'attendre
+> pour en savoir plus.
+
+C'est la distinction entre incertitude réductible et irréductible, que le site
+enseignait sur `/la-methode` sans jamais l'appliquer à l'endroit où elle sert.
+La liste des hypothèses sans source est close et justifiée dans un test : on ne
+met pas `null` par paresse.
+
+### Ce que je n'ai pas fait, et pourquoi
+
+**Je n'ai pas transformé l'accueil en page de présentation.** C'était la réponse
+facile à « abrupt » : expliquer d'abord, mettre l'outil derrière un bouton. Elle
+coûte au site sa seule propriété distinctive — on arrive, et l'outil tourne déjà
+sur un cas réel. Le mandat appelle ça une réponse déjà donnée. L'exemple
+travaillé fait le même travail d'accueil sans fermer la porte.
+
+**Je n'ai pas replié l'éditeur.** Le mur de code reste, mais il est maintenant
+précédé de ce qu'il faut pour savoir ce qu'on regarde.
+
+### État à la fin de la session
+
+- Douze modèles, quatorze pages, dix chapitres. 91 hypothèses au lexique.
+- 620 assertions sur le moteur, 278 dans un vrai navigateur, axe compris.
+- Le verdict d'accueil commence à 490 px sur mobile, sous une ouverture qui
+  porte déjà la réponse en prose.
+
+### Une leçon d'exploitation, aussi
+
+Deux échecs de la suite navigateur m'ont fait chercher une régression qui
+n'existait pas : j'avais lancé un second Chrome pendant que la suite tournait,
+sur quatre vCores. `CLAUDE.md` le dit depuis le premier jour — *ne lance pas
+plusieurs builds lourds en parallèle*. Une suite de tests qu'on fait mentir soi-même
+coûte plus cher que le temps qu'on croit gagner.
+
+### Ce que je ferais ensuite
+
+1. **Faire relire la nouvelle porte.** C'est la seule chose qui compte
+   maintenant, et je ne peux pas la juger seul : j'ai passé treize sessions à
+   devenir le mauvais lecteur de ce site. Le retour de Jean-Paul vaut mieux que
+   n'importe quelle mesure que je peux inventer.
+2. **La valeur d'option**, laissée par la session 13 : demander un second devis,
+   garder deux offres ouvertes. `max` d'un côté, pas d'espérance conditionnelle.
+3. **La neuvième récolte**, reportée quatre fois. Elle passe après la porte
+   d'entrée cette fois encore, et c'est le bon ordre.
+4. **Rouvrir une contrainte d'`ARCHITECTURE.md` par session.** Celle de l'unité
+   des hypothèses a tenu douze sessions parce qu'elle était bien écrite.
+
 ---
 
 ## 4 septembre 2026 — Session 13 : le site chiffrait ce que vaut une information sans jamais dire s'il fallait aller la chercher

@@ -410,6 +410,9 @@ nav .exemples { margin-bottom: 0; }
 .barre.pale i { background: var(--trait-fort); }
 
 .hypothese p { margin: 0; font-size: 13.5px; color: var(--attenue); }
+/* Ce que l'hypothèse est, en français, sous son nom de code. Sans elle, la
+   liste est une liste d'identifiants — c'est ce qu'a lu le premier visiteur. */
+.hypothese .quoi { margin-top: 3px; font-size: 13px; }
 .hypothese p + p { margin-top: 4px; }
 .hypothese .bascule { color: var(--encre); }
 .hypothese .plage { font-family: var(--mono); font-size: 12px; }
@@ -427,6 +430,22 @@ nav .exemples { margin-bottom: 0; }
   white-space: nowrap;
 }
 .note-basse { margin-top: 14px; }
+
+/* L'ouverture de l'accueil : un exemple travaillé, avec ses chiffres, avant
+   que le visiteur ne voie la moindre ligne de code. Sans elle, le site
+   s'ouvrait sur deux abstractions puis un éditeur — « abrupt », a dit le
+   premier visiteur, et il avait raison. Ses chiffres sont épinglés par un
+   test : ce sont ceux du modèle servi juste en dessous. */
+.exemple-ouverture {
+  max-width: 66ch;
+  margin: 14px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--trait-fort);
+}
+.exemple-ouverture p { margin: 0; font-size: 15px; color: var(--attenue); }
+.exemple-ouverture p + p { margin-top: 8px; }
+.exemple-ouverture b { color: var(--encre); font-weight: 600; }
+.exemple-ouverture .exemple-suite { font-size: 13.5px; margin-top: 10px; }
 
 /* Aller savoir, ou décider maintenant. Une entrée par ligne « savoir ».
    Même trait de séparation que la liste des hypothèses : c'est la même

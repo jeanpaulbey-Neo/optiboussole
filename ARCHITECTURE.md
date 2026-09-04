@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 4 septembre 2026 (fin de session 13).
+État au 4 septembre 2026 (fin de session 14).
 
 ## En une phrase
 
@@ -34,6 +34,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       │                   pari, prix et règle de « aller savoir »
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
 │       ├── modeles.js      bibliothèque des douze modèles de départ (plus la page blanche)
+│       ├── lexique.js     ce que chaque hypothèse veut dire, son unité, où la trouver
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
@@ -41,8 +42,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              593 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       256 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              620 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       278 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -340,6 +341,25 @@ des phrases en français
 - **`savoir` sans deux branches ne veut rien dire** et le site le dit en
   avertissement plutôt que de calculer quelque chose. Une information n'a de
   prix que par ce qu'elle change, et sans options il n'y a rien à changer.
+- **Le lexique est la seule source d'unité d'une hypothèse.** `unité: €` décrit
+  le **résultat** du modèle, pas ses hypothèses : dans un modèle en €/km,
+  `km_an` est un nombre de kilomètres. Le site n'en déduisait donc aucune et
+  affichait « au-dessus de 1 109 » — un nombre nu. `lexique.js` donne à chaque
+  hypothèse des modèles de la bibliothèque son mot français, son unité et
+  l'endroit où la chercher ; `uniteDe()` le consulte d'abord et retombe sur le
+  pourcentage. **Un modèle écrit par le visiteur n'a pas de lexique, et rien ne
+  s'affiche** : le site ne devine pas ce que veut dire un nom qu'il n'a pas
+  écrit, et un test le vérifie.
+- **`ou: null` veut dire « nulle part », et le site le dit.** C'est une réponse,
+  pas une lacune : le prix futur de l'électricité est l'hypothèse la plus
+  décisive du modèle solaire et personne ne peut vous la vendre. La phrase
+  affichée en tire la conséquence utile — *il ne sert à rien d'attendre pour en
+  savoir plus*. Un test tient la liste close des `null` avec leur justification,
+  pour qu'on ne les mette pas par paresse.
+- **Trois tests tiennent le lexique** : toute hypothèse de tout modèle a son
+  entrée, aucune entrée n'est orpheline, et aucun chiffre ne s'y glisse. Le
+  dernier compte : le site ne connaît **aucune** donnée, et ce fichier ne doit
+  pas devenir la porte par laquelle il prétendrait en avoir.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
@@ -367,6 +387,39 @@ Le repère pour une prochaine session : regrouper le jour où le verdict passe
 sous 500 px à 1100 px de large. La treizième pastille a coûté une ligne à 1440 et
 1280 px sans rien coûter ailleurs — le titre « Installer des panneaux solaires »
 est long. Il reste 137 px de marge, soit trois lignes : vers seize pastilles.
+
+## La porte d'entrée
+
+Le modèle qui s'ouvre à la racine est `MODELE_PAR_DEFAUT`, dans `modeles.js`.
+C'est **la première chose qu'un inconnu lit du site**, et pendant treize
+sessions c'était « louer ou acheter », dont le verdict est « À égalité » : la
+vitrine annonçait qu'elle n'avait rien à dire. Le premier visiteur extérieur l'a
+trouvée « abrupte et peu claire » (session 14, voir le journal).
+
+C'est maintenant `voiture` — une branche nommée, un seuil dans son unité, et une
+chose à aller chercher qui ne coûte rien. Les critères, pour une prochaine
+session qui voudrait en changer, et qu'un test vérifie :
+
+- le verdict **nomme une branche** — ni « À égalité », ni « Deux réponses » ;
+- une hypothèse décide, avec un **seuil** et une **adresse** dans le lexique ;
+- le sujet ne demande **aucun prérequis** et la mise reste modeste.
+
+L'ouverture de l'accueil (`gabarit.js`) est un exemple travaillé qui reprend les
+chiffres de ce modèle : seuil 1 109 €/an, 631 € à gagner, fourchette 400 à
+1 800. **Ils sont épinglés par des tests** : s'ils divergent, c'est la page
+qu'on corrige. Changer de modèle d'accueil veut donc dire réécrire cette
+ouverture — c'est voulu, elle ne doit jamais décrire autre chose que ce qui
+tourne en dessous.
+
+Changer `MODELE_PAR_DEFAUT` déplace deux adresses : l'ancien défaut gagne son
+slug, le nouveau le perd. `npm run pages` n'efface pas l'ancien fichier —
+**supprimez-le à la main**, sinon il sert une copie de l'accueil sous une autre
+adresse et l'indexation se dédouble. Et ajoutez une redirection dans le
+Caddyfile, l'ancienne adresse ayant pu être partagée :
+
+```
+redir /garder-ou-changer-de-voiture / permanent
+```
 
 ## Une adresse par modèle
 

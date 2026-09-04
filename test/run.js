@@ -1740,5 +1740,132 @@ groupe('Installer des panneaux solaires');
     `→ ${r.sources[1].nom}`);
 }
 
+// --- Le lexique des hypothèses ----------------------------------------------
+//
+// Le premier visiteur extérieur du site (session 14) l'a trouvé « peu clair ».
+// Il lisait « L'hypothèse qui pèse le plus est reparations. Le verdict passe à
+// "Changer" au-dessus de 1 109 » : un identifiant de code et un nombre sans
+// unité. `lexique.js` donne à chaque hypothèse de la bibliothèque son mot
+// français, son unité et l'endroit où aller la chercher.
+groupe('Le lexique des hypothèses');
+{
+  const { LEXIQUE, hypothese } = await import('../public/js/lexique.js');
+
+  // La garantie qui compte : aucune hypothèse affichée ne peut rester un
+  // identifiant nu. Si une ligne est ajoutée à un modèle sans son entrée ici,
+  // le site réaffiche du code et on revient au point de départ.
+  let sansEntree = [], orphelines = [];
+  for (const m of MODELES) {
+    const r = analyserModele(m.source);
+    const noms = new Set(r.sources.map((x) => x.nom));
+    const cles = new Set(Object.keys(LEXIQUE[m.cle] || {}));
+    for (const n of noms) if (!cles.has(n)) sansEntree.push(`${m.cle}.${n}`);
+    for (const c of cles) if (!noms.has(c)) orphelines.push(`${m.cle}.${c}`);
+  }
+  verifie('toute hypothèse de la bibliothèque a son entrée',
+    sansEntree.length === 0, `→ ${sansEntree.join(', ')}`);
+  verifie('… et aucune entrée ne désigne une hypothèse disparue',
+    orphelines.length === 0, `→ ${orphelines.join(', ')}`);
+
+  // Une entrée mal formée passerait inaperçue à l'écran : « undefined » dans
+  // une phrase, ou une unité collée à un nombre qui n'en a pas.
+  let malformees = [];
+  for (const [cle, entrees] of Object.entries(LEXIQUE)) {
+    for (const [nom, e] of Object.entries(entrees)) {
+      const [quoi, unite, ou] = e;
+      if (e.length !== 3) malformees.push(`${cle}.${nom} : ${e.length} champs`);
+      else if (typeof quoi !== 'string' || quoi.length < 3) malformees.push(`${cle}.${nom} : quoi`);
+      else if (typeof unite !== 'string') malformees.push(`${cle}.${nom} : unité`);
+      else if (ou !== null && (typeof ou !== 'string' || ou.length < 10)) malformees.push(`${cle}.${nom} : où`);
+      else if (/^[A-Z]/.test(quoi)) malformees.push(`${cle}.${nom} : « quoi » commence par une majuscule`);
+      else if (/\.$/.test(quoi)) malformees.push(`${cle}.${nom} : « quoi » finit par un point`);
+    }
+  }
+  verifie('les entrées sont bien formées', malformees.length === 0, `→ ${malformees.join(' | ')}`);
+
+  // Le site ne connaît aucune donnée, et ce fichier ne doit pas devenir la
+  // porte par laquelle il prétendrait en avoir : pas de chiffre dans un « où ».
+  const chiffres = [];
+  for (const [cle, entrees] of Object.entries(LEXIQUE)) {
+    for (const [nom, e] of Object.entries(entrees)) {
+      if (e[2] && /\d+\s*(€|%|kWh|km|kg)/.test(e[2])) chiffres.push(`${cle}.${nom}`);
+    }
+  }
+  verifie('aucun barème chiffré ne s’est glissé dans le lexique',
+    chiffres.length === 0, `→ ${chiffres.join(', ')}`);
+
+  // « où » vaut null quand il n'existe pas de source honnête — le site le dit
+  // alors, au lieu de se taire. C'est une réponse, pas une lacune, mais elle ne
+  // doit pas servir de facilité : la liste est close et justifiée ici.
+  //
+  //   prix_energie, derive  le prix futur de l'énergie. Personne ne le vend.
+  //   gros_pepin, rechute,  des tirages tout ou rien : ils arrivent ou non,
+  //   remporte              et rien ne les lève avant qu'on ait à décider.
+  //   retard_pepin          l'ampleur d'un incident qui n'a pas encore eu lieu.
+  const SANS_SOURCE = new Set([
+    'combles.prix_energie', 'solaire.derive',
+    'projet.gros_pepin', 'projet.retard_pepin',
+    'reparer.rechute', 'offres.remporte',
+  ]);
+  const nuls = [];
+  for (const [cle, entrees] of Object.entries(LEXIQUE)) {
+    for (const [nom, e] of Object.entries(entrees)) if (e[2] === null) nuls.push(`${cle}.${nom}`);
+  }
+  verifie('les hypothèses sans source sont exactement celles qu’on a justifiées',
+    nuls.length === SANS_SOURCE.size && nuls.every((n) => SANS_SOURCE.has(n)),
+    `→ ${nuls.filter((n) => !SANS_SOURCE.has(n)).join(', ') || 'il en manque'}`);
+
+  // L'hypothèse que le verdict désigne doit toujours produire une phrase — soit
+  // une adresse, soit « nulle part, et c'est une réponse ». Ce qui n'est jamais
+  // acceptable, c'est le silence : c'est lui que le premier visiteur a lu.
+  const muettes = [];
+  for (const m of MODELES) {
+    const r = analyserModele(m.source);
+    if (!r.modeDecision || r.options.acquise) continue;
+    const decisif = r.sources.filter((x) => x.valeurInfo >= Math.max(r.options.evpi * 0.01, 1e-9));
+    const designee = decisif[0] && decisif[0].binaire ? decisif.find((x) => !x.binaire) : decisif[0];
+    if (!designee) continue;
+    if (!hypothese(m.cle, designee.nom)) muettes.push(`${m.cle}.${designee.nom}`);
+  }
+  verifie('l’hypothèse désignée par le verdict a toujours quelque chose à dire',
+    muettes.length === 0, `→ ${muettes.join(', ')}`);
+
+  // Le modèle vierge est un gabarit : ses trois lignes méritent des sources
+  // honnêtes elles aussi, plutôt qu'un haussement d'épaules.
+  verifie('« Partir de zéro » dit aussi où chercher',
+    Object.values(LEXIQUE.vierge).every((e) => typeof e[2] === 'string'));
+  verifie('un modèle inconnu ne renvoie rien', hypothese('pas-un-modele', 'x') === null);
+  verifie('une hypothèse inconnue non plus', hypothese('voiture', 'pas_une_hypothese') === null);
+}
+
+// --- Les chiffres cités par la page d'accueil -------------------------------
+//
+// L'ouverture de l'accueil est un exemple travaillé, avec ses chiffres. Ce sont
+// ceux du modèle servi juste en dessous : s'ils divergent, c'est la page qu'on
+// corrige, pas le test qu'on assouplit.
+groupe('Les chiffres cités par l’ouverture de l’accueil');
+{
+  const { MODELE_PAR_DEFAUT } = await import('../public/js/modeles.js');
+  verifie('le modèle d’accueil est « garder ou changer de voiture »',
+    MODELE_PAR_DEFAUT === 'voiture', `→ ${MODELE_PAR_DEFAUT}`);
+
+  const r = analyserModele(MODELES.find((m) => m.cle === MODELE_PAR_DEFAUT).source);
+  verifie('… et son verdict nomme une branche, il ne dit pas « à égalité »',
+    r.options.liste[r.options.recommande].pGagne >= 0.62 && !r.options.desaccord,
+    `→ ${(r.options.liste[r.options.recommande].pGagne * 100).toFixed(0)} %`);
+  verifie('… « Garder l’actuelle » l’emporte',
+    r.options.liste[r.options.recommande].nom === 'Garder l’actuelle');
+
+  const rep = r.sources.find((x) => x.nom === 'reparations');
+  verifie('… et c’est « reparations » qui décide', r.sources[0].nom === 'reparations',
+    `→ ${r.sources[0].nom}`);
+  proche('l’accueil cite un seuil à 1 109 €/an', rep.bascules[0].valeur, 1109, 25);
+  verifie('… qui bascule vers « Changer »', rep.bascules[0].vers === 'Changer');
+  proche('… ce qui arrive 3 fois sur 10', rep.bascules[0].proba, 0.3, 0.05);
+  proche('l’accueil cite 631 € à gagner en le sachant', rep.valeurInfo, 631, 30);
+  proche('… sur une fourchette écrite « 400 à 1 800 »', rep.stats.p05, 400, 25);
+  proche('… et fermée à 1 800', rep.stats.p95, 1800, 60);
+}
+
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);
 process.exit(ko === 0 ? 0 : 1);

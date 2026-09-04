@@ -9,6 +9,7 @@ import { analyserModele, analyserRobustesse, histogramme } from './moteur.js';
 import { analyserContreArgument } from './contre.js';
 import { ErreurModele } from './lang.js';
 import { MODELES, MODELE_PAR_DEFAUT } from './modeles.js';
+import { hypothese } from './lexique.js';
 
 const $ = (s) => document.querySelector(s);
 const zoneModele = $('#modele');
@@ -17,6 +18,14 @@ const zoneResultats = $('#resultats');
 const listeExemples = $('#exemples');
 
 const CLE_STOCKAGE = 'boussole.modele';
+
+// L'exemple travaillé en tête d'accueil décrit le modèle servi juste en
+// dessous, avec ses chiffres. Il n'a de sens que tant que c'est bien celui-là
+// qui tourne : on le retire dès qu'on restitue un brouillon.
+function masquerOuverture(masquer) {
+  const n = document.querySelector('.exemple-ouverture');
+  if (n) n.hidden = masquer;
+}
 let cleCourante = document.body.dataset.modele || MODELE_PAR_DEFAUT;
 
 // --- Mise en forme des nombres ----------------------------------------------
@@ -203,6 +212,10 @@ function ligneHypothese(s, r, indice) {
 
   const bloc = el('li', { class: 'hypothese' }, [
     el('div', { class: 'hypothese-tete' }, [nomBouton, chiffre]),
+    // Un identifiant de code n'est pas un mot. `reparations`, `tjm`,
+    // `par_km_thermique` ne disent rien à qui n'a pas lu le modèle — et le
+    // premier visiteur extérieur du site n'avait pas lu le modèle.
+    quoiDe(s) ? el('p', { class: 'quoi', text: quoiDe(s) }) : null,
     jauge(r.modeDecision ? s.valeurInfo / (r.options.evpi || 1) : s.part,
           indice > 0 && (r.modeDecision ? s.valeurInfo === 0 : s.part < 0.08)),
   ]);
@@ -236,15 +249,46 @@ function ligneHypothese(s, r, indice) {
   return bloc;
 }
 
-// L'unité du modèle décrit le résultat, pas forcément chaque hypothèse : un
-// taux reste un pourcentage même dans un modèle en euros.
-// « unité: € » décrit le résultat du modèle, pas ses hypothèses : dans un
-// modèle en €/km, `km_an` est un nombre de kilomètres et `reparations` des
-// euros par an. Afficher « 7 977 €/km » serait faux. La seule unité qu'on
-// connaisse avec certitude pour une hypothèse est le pourcentage, parce que
-// l'auteur l'a écrit tel quel.
+// L'unité du modèle décrit le résultat, pas forcément chaque hypothèse : dans
+// un modèle en €/km, `km_an` est un nombre de kilomètres et `reparations` des
+// euros par an. Afficher « 7 977 €/km » serait faux. Le site n'en déduisait
+// donc aucune, et affichait « au-dessus de 1 109 » — un nombre nu, que le
+// premier visiteur extérieur a lu sans savoir de quoi il parlait.
+//
+// Pour les modèles de la bibliothèque, l'unité de chaque hypothèse est écrite à
+// la main dans `lexique.js` : c'est la seule source fiable, personne ne peut la
+// déduire du texte. Ailleurs, on ne connaît toujours avec certitude que le
+// pourcentage, parce que l'auteur l'a écrit tel quel.
 function uniteDe(s) {
+  const h = hypothese(cleCourante, s.nom);
+  if (h && h.unite) return h.unite;
   return s.pourcent ? '%' : '';
+}
+
+// Le mot que le visiteur emploierait, à la place de l'identifiant de code.
+const quoiDe = (s) => {
+  const h = hypothese(cleCourante, s.nom);
+  return h ? h.quoi : null;
+};
+
+// Où aller chercher le chiffre, dans le monde. C'est la réponse à « et
+// maintenant, qu'est-ce que j'en fais ? », et le site avait tout pour la donner
+// sans jamais l'écrire.
+function phraseOu(s) {
+  const h = hypothese(cleCourante, s.nom);
+  if (!h) return null;
+  // Un tirage tout ou rien : le verdict a déjà dit qu'aucune enquête ne le
+  // lèverait, inutile de le redire ici.
+  if (s.binaire) return null;
+  // Pas de source honnête, et le dire vaut mieux que se taire : c'est la
+  // différence entre une incertitude qu'on lève et une qu'on subit.
+  if (!h.ou) {
+    return phrase(el('b', { text: 'Où le trouver. ' }),
+      'Nulle part, et c’est une réponse : ce chiffre-là ne s’enquête pas, il se juge. ',
+      'Aucun relevé, aucun devis ne vous le donnera avant que vous ayez à décider — ',
+      'ce qui veut dire qu’il ne sert à rien d’attendre pour en savoir plus.');
+  }
+  return phrase(el('b', { text: 'Où le trouver. ' }), h.ou[0].toUpperCase() + h.ou.slice(1) + '.');
 }
 
 // --- Verdict ----------------------------------------------------------------
@@ -471,7 +515,8 @@ function blocDecision(r) {
     if (verifiable) {
       const b = verifiable.bascules[0];
       segments.push(' Parmi ce que vous pouvez encore vérifier, c’est ', ['code', verifiable.nom],
-        ' qui compte le plus. ');
+        quoiDe(verifiable) ? ' — ' + quoiDe(verifiable) + ' — ' : ' ',
+        'qui compte le plus. ');
       if (b) {
         segments.push(`Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb `
           + `${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} `
@@ -488,11 +533,15 @@ function blocDecision(r) {
       decisif.length === 1
         ? 'Une seule hypothèse peut renverser ce choix : '
         : 'L’hypothèse qui pèse le plus sur ce choix est ',
-      ['code', verifiable.nom], '. ',
+      ['code', verifiable.nom],
+      quoiDe(verifiable) ? ', ' + quoiDe(verifiable) + '. ' : '. ',
       b
         ? `Le verdict passe à \u00ab\u202f${b.vers}\u202f\u00bb ${b.sens === 'hausse' ? 'au-dessus de' : 'en dessous de'} ${valeur(b.valeur, uniteDe(verifiable))}, ce qui arrive ${foisSur10(b.proba)}. `
         : '',
-      `Lever le doute dessus vaut environ ${valeur(verifiable.valeurInfo, unite)} — c’est là qu’il faut passer votre temps, pas ailleurs.`));
+      `Lever le doute dessus vaut environ ${valeur(verifiable.valeurInfo, unite)}`,
+      // « C'est là qu'il faut passer votre temps » ne sert plus à rien quand la
+      // phrase suivante dit précisément où aller : on ne le dit qu'à défaut.
+      phraseOu(verifiable) ? '.' : ' — c’est là qu’il faut passer votre temps, pas ailleurs.'));
   } else {
     verdict.appendChild(phrase(
       'Aucune de vos hypothèses ne renverse ce choix sur sa plage plausible',
@@ -502,6 +551,13 @@ function blocDecision(r) {
       'Chercher des valeurs plus précises ne changerait pas votre décision — ',
       'c’est le moment d’arrêter d’enquêter et de décider.'));
   }
+
+  // « Et maintenant, qu'est-ce que j'en fais ? » — la question que le premier
+  // visiteur extérieur s'est posée sans trouver de réponse. Le site désignait
+  // l'hypothèse à lever et s'arrêtait là. L'endroit où aller la chercher est
+  // écrit, hypothèse par hypothèse, dans lexique.js.
+  const ou = verifiable ? phraseOu(verifiable) : null;
+  if (ou) verdict.appendChild(ou);
 
   // Les branches comparées.
   const options = el('section', { class: 'panneau bloc' }, el('h2', { text: 'Les branches' }));
@@ -555,7 +611,9 @@ function blocEstimation(r) {
 
   if (tete && tete.part > 0.05) {
     verdict.appendChild(phrase(
-      ['code', tete.nom], ' porte ', pourcent(tete.part),
+      ['code', tete.nom],
+      quoiDe(tete) ? ' — ' + quoiDe(tete) + ' — ' : ' ',
+      'porte ', pourcent(tete.part),
       ' de cette incertitude à elle seule. Si vous la connaissiez exactement, la fourchette se resserrerait à ',
       valeur(tete.largeurResiduelle, unite), ' de large, contre ', valeur(r.largeurTotale, unite),
       ' aujourd’hui. Commencez par là.'));
@@ -563,6 +621,11 @@ function blocEstimation(r) {
     verdict.appendChild(phrase(
       'Aucune hypothèse ne domine : l’incertitude est répartie. ',
       'Précisez-en une seule et la fourchette bougera à peine — il faudrait toutes les resserrer.'));
+  }
+
+  if (tete && tete.part > 0.05) {
+    const ou = phraseOu(tete);
+    if (ou) verdict.appendChild(ou);
   }
 
   verdict.appendChild(courbe(st, unite, r.seuil));
@@ -1163,6 +1226,11 @@ window.addEventListener('popstate', () => {
     if (garde && typeof garde.source === 'string' && garde.source.trim()) {
       zoneModele.value = garde.source;
       cleCourante = MODELES.some((m) => m.cle === garde.cle) ? garde.cle : '';
+      // L'ouverture de l'accueil raconte, chiffres à l'appui, « celui qui
+      // tourne ci-dessous ». Quand on restitue le brouillon du visiteur, ce
+      // n'est plus vrai : la retirer vaut mieux que de laisser une phrase
+      // fausse. Elle revient avec « Réinitialiser », qui efface le brouillon.
+      masquerOuverture(true);
       marquerPastille(cleCourante);
       calculer();
       return;
@@ -1188,6 +1256,7 @@ $('#reinit').addEventListener('click', () => {
   // Réinitialiser, c'est renoncer au brouillon : il ne doit pas revenir au
   // prochain passage sur l'accueil.
   try { localStorage.removeItem(CLE_STOCKAGE); } catch { /* sans importance */ }
+  masquerOuverture(false);
   chargerModele(cleCourante || document.body.dataset.modele || MODELE_PAR_DEFAUT);
   history.replaceState(null, '', location.pathname);
 });
