@@ -354,6 +354,60 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   verifie('… et elle précède le modèle', ordre.ouverture < ordre.editeur,
     `→ ${Math.round(ordre.ouverture)} vs ${Math.round(ordre.editeur)}`);
 
+  // Second passage du même lecteur (session 15) : « treize pastilles avant
+  // d'avoir compris ce que je choisis, et le code occupe encore la moitié
+  // gauche en lecture prioritaire ». Les trois vérifications qui suivent
+  // tiennent la disposition qu'on lui oppose — sur un large écran, là où le
+  // problème se posait, la colonne unique ayant déjà le bon ordre.
+  const page1 = await pa.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    return {
+      titre: document.querySelector('h1').textContent.trim(),
+      resultatsX: r('.resultats').left, editeurX: r('.editeur').left,
+      resultatsY: r('.resultats').top + scrollY, editeurY: r('.editeur').top + scrollY,
+      pastillesY: r('.exemples').top + scrollY,
+      largeur: innerWidth,
+    };
+  });
+  verifie('l’accueil se nomme par sa question, comme une page de modèle',
+    page1.titre === 'Garder ou changer de voiture', `→ « ${page1.titre} »`);
+  verifie('… la réponse occupe la moitié gauche, pas le code',
+    page1.largeur > 940 && page1.resultatsX < page1.editeurX,
+    `→ résultats ${Math.round(page1.resultatsX)} vs éditeur ${Math.round(page1.editeurX)}`);
+  const ordreDom = await pa.evaluate(() => {
+    const a = document.querySelector('.resultats'), b = document.querySelector('.editeur');
+    return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  verifie('… et elle vient avant lui dans l’ordre du document', ordreDom);
+  verifie('les pastilles viennent après la réponse',
+    page1.pastillesY > page1.resultatsY,
+    `→ pastilles ${Math.round(page1.pastillesY)} vs réponse ${Math.round(page1.resultatsY)}`);
+  const intro = await pa.$eval('.autres-intro', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('… et une phrase dit ce qu’on y choisit', intro.length > 40, `→ ${intro}`);
+
+  // L'incohérence rapportée : un encadré qui parle de voiture au-dessus d'un
+  // modèle d'immobilier. Elle ne doit plus pouvoir exister, quel que soit le
+  // texte à l'écran et quel que soit le chemin par lequel il y est arrivé.
+  const coherence = [];
+  for (const cle of ['logement', 'combles', '']) {
+    const etat = await pa.evaluate(async (c) => {
+      const t = document.querySelector('#modele');
+      const m = c ? [...document.querySelectorAll('.puce')].find((a) => a.dataset.cle === c) : null;
+      if (m) m.click(); else { t.value = 'a = 1 à 2\nb = a * 3'; t.dispatchEvent(new Event('input', { bubbles: true })); }
+      await new Promise((r) => setTimeout(r, 800));
+      return { ouverture: !document.querySelector('.exemple-ouverture').hidden,
+               premiere: document.querySelector('#modele').value.split('\n')[1] || '' };
+    }, cle);
+    coherence.push(etat);
+  }
+  verifie('l’ouverture ne survit jamais à un autre modèle que celui qu’elle décrit',
+    coherence.every((e) => !e.ouverture), `→ ${JSON.stringify(coherence)}`);
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  await pa.evaluate(() => localStorage.clear());
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+
   // Le verdict d'accueil doit nommer une branche, pas dire « à égalité ».
   const t = await pa.$eval('.verdict-titre', (n) => n.textContent.trim());
   verifie('l’accueil ouvre sur une réponse, pas sur « À égalité »',
@@ -406,9 +460,10 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   verifie('un modèle inconnu ne se voit rien inventer',
     perso.quoi === 0 && perso.ou === false, `→ ${JSON.stringify(perso)}`);
 
-  // Le brouillon d'un visiteur qui revient : l'ouverture décrirait alors un
-  // modèle qui n'est plus à l'écran. Elle se retire, et « Réinitialiser » la
-  // ramène avec le modèle d'origine.
+  // Le brouillon d'un visiteur qui revient (session 15). La règle a changé :
+  // l'accueil est la vitrine du site, le modèle servi gagne, et le brouillon
+  // est proposé derrière un bouton. Un lecteur venu deux fois voyait sinon le
+  // modèle qu'il avait laissé pendant que l'ouverture parlait d'un autre.
   await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
   await pa.waitForSelector('.verdict-titre');
   await pa.evaluate(() => {
@@ -419,20 +474,41 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   await new Promise((r) => setTimeout(r, 700));
   await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
   await pa.waitForSelector('.verdict-titre');
-  const avecBrouillon = await pa.evaluate(() => ({
+  const lireAccueil = () => pa.evaluate(() => ({
     ouverture: !document.querySelector('.exemple-ouverture').hidden,
     note: document.querySelector('#modele').value.includes('une note du visiteur'),
+    reprise: !document.querySelector('#reprise').hidden,
+    verdict: document.querySelector('.verdict-titre').textContent.trim(),
   }));
-  verifie('un brouillon restitué retire l’exemple d’ouverture',
-    avecBrouillon.note && !avecBrouillon.ouverture, `→ ${JSON.stringify(avecBrouillon)}`);
+  const auRetour = await lireAccueil();
+  verifie('un brouillon n’écrase pas la vitrine',
+    !auRetour.note && auRetour.ouverture, `→ ${JSON.stringify(auRetour)}`);
+  verifie('… mais il est proposé, pas perdu', auRetour.reprise,
+    `→ ${JSON.stringify(auRetour)}`);
+  verifie('… et le verdict servi reste celui de la vitrine',
+    auRetour.verdict !== 'À égalité' && auRetour.verdict !== 'Deux réponses',
+    `→ « ${auRetour.verdict} »`);
+
+  await pa.click('#reprise-oui');
+  await new Promise((r) => setTimeout(r, 700));
+  const apresReprise = await lireAccueil();
+  verifie('« Le reprendre » rend son travail au visiteur…',
+    apresReprise.note && !apresReprise.reprise, `→ ${JSON.stringify(apresReprise)}`);
+  verifie('… et retire l’exemple d’ouverture, qui décrirait un autre modèle',
+    !apresReprise.ouverture, `→ ${JSON.stringify(apresReprise)}`);
+
   await pa.click('#reinit');
-  await new Promise((r) => setTimeout(r, 500));
-  const apresReinit = await pa.evaluate(() => ({
-    ouverture: !document.querySelector('.exemple-ouverture').hidden,
-    note: document.querySelector('#modele').value.includes('une note du visiteur'),
-  }));
-  verifie('… et « Réinitialiser » la ramène avec le modèle d’origine',
-    apresReinit.ouverture && !apresReinit.note, `→ ${JSON.stringify(apresReinit)}`);
+  await new Promise((r) => setTimeout(r, 700));
+  const apresReinit = await lireAccueil();
+  verifie('… et « Réinitialiser » ramène le modèle d’origine et son ouverture',
+    apresReinit.ouverture && !apresReinit.note && !apresReinit.reprise,
+    `→ ${JSON.stringify(apresReinit)}`);
+  await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await pa.waitForSelector('.verdict-titre');
+  const apresReinitRetour = await lireAccueil();
+  verifie('… pour de bon : le brouillon ne revient plus',
+    !apresReinitRetour.reprise && !apresReinitRetour.note,
+    `→ ${JSON.stringify(apresReinitRetour)}`);
   await pa.evaluate(() => localStorage.clear());
 
   verifie('aucune erreur en arrivant sans contexte', inca.length === 0, '→ ' + inca.join(' | '));
@@ -999,8 +1075,10 @@ console.log('\n\x1b[1mAccessibilité\x1b[0m');
 }
 
 // --- Le brouillon du visiteur ---------------------------------------------------
-// L'accueil rend au visiteur ce qu'il était en train d'écrire. Regarder un
-// autre modèle en passant ne doit pas l'effacer ; « Réinitialiser », si.
+// Le travail en cours du visiteur n'est jamais perdu (session 10), mais il ne
+// remplace plus la page à son insu (session 15) : il l'attend derrière un
+// bouton, sur la page où il a été écrit. Regarder un autre modèle en passant ne
+// doit pas l'effacer ; « Réinitialiser », si.
 console.log('\n\x1b[1mBrouillon\x1b[0m');
 {
   const pb = await navigateur.newPage();
@@ -1031,14 +1109,23 @@ console.log('\n\x1b[1mBrouillon\x1b[0m');
   await attendre(500);
   verifie('la pastille a bien chargé l’autre modèle', (await lireModele()).includes('combles'));
   await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await attendre(400);
+  verifie('la vitrine est servie telle quelle au visiteur qui revient',
+    !(await lireModele()).includes('# mon brouillon'));
+  verifie('… et son brouillon lui est proposé',
+    await pb.$eval('#reprise', (n) => !n.hidden));
+  await pb.click('#reprise-oui');
+  await attendre(500);
   verifie('le brouillon survit à la visite d’un autre modèle',
     (await lireModele()).includes('# mon brouillon'));
 
   await pb.click('#reinit');
   await attendre(400);
   await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
+  await attendre(400);
   verifie('« Réinitialiser » efface le brouillon pour de bon',
-    !(await lireModele()).includes('# mon brouillon'));
+    !(await lireModele()).includes('# mon brouillon')
+    && await pb.$eval('#reprise', (n) => n.hidden));
   await pb.evaluate(() => localStorage.clear());
   await pb.close();
 }

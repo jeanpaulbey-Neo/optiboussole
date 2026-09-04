@@ -329,38 +329,38 @@ export function page({ modele, modeles, defaut, accueil }) {
       <path d="M16 3 L19.2 14.4 L16 16 Z" fill="currentColor"/>
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
-    ${accueil ? '<h1>Boussole</h1>' : '<a class="retour" href="/">Boussole</a>'}
+    ${accueil ? '<span class="marque-nom">Boussole</span>' : '<a class="retour" href="/">Boussole</a>'}
   </div>
+  <h1 class="baseline titre-modele">${echappe(modele.titre)}</h1>
+  <p class="sous-baseline">${echappe(modele.question)}</p>
   ${accueil
-    ? `<p class="baseline">Elle ne vous dit pas quoi décider. Elle vous dit <em>ce qu’il faut aller vérifier</em>.</p>
-  <div class="exemple-ouverture">
+    ? `<div class="exemple-ouverture">
     <p>
-      <b>Celui qui tourne ci-dessous.</b> Vous hésitez à changer de voiture, sans savoir ce que
-      l’ancienne coûtera en pannes : entre 400 et 1 800 € par an. Écrivez la fourchette, pas un
-      chiffre inventé.
-    </p>
-    <p>
-      Réponse : <b>au-dessus de 1 109 € par an, changez</b> — cela arrive 3 fois sur 10. Et
-      <b>ressortir vos factures de garage vaut 631 €</b> : c’est le seul travail qui change
-      quelque chose ici.
+      Vous ne savez pas ce que l’ancienne coûtera en pannes : écrivez la fourchette —
+      <b>entre 400 et 1 800 € par an</b> — plutôt qu’un chiffre inventé. Réponse :
+      <b>au-dessus de 1 109 € par an, changez</b>, ce qui arrive 3 fois sur 10 ; et
+      <b>ressortir vos factures de garage vaut 631 €</b>, c’est le seul travail qui
+      change quelque chose ici.
     </p>
     <p class="exemple-suite">
-      Remplacez les chiffres par les vôtres, ou prenez un autre sujet. Rien n’est envoyé nulle part.
+      Ce sont les chiffres du modèle ci-dessous. Remplacez-les par les vôtres, ou prenez
+      un autre sujet plus bas. Rien n’est envoyé nulle part.
     </p>
   </div>`
-    : `<h1 class="baseline titre-modele">${echappe(modele.titre)}</h1>
-  <p class="sous-baseline">${echappe(modele.question)}</p>`}
+    : ''}
 </header>
-
-<nav aria-label="Modèles">
-<ul class="exemples" id="exemples">
-${chips(modeles, modele.cle, defaut)}
-</ul>
-</nav>
 
 <main id="contenu" tabindex="-1">
 <div class="atelier">
 
+  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
+       le verdict. La zone entière en aria-live aurait relu toute la page à
+       chaque frappe. -->
+  <p class="annonce" id="annonce" aria-live="polite"></p>
+  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
+
+  <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
+       personne n'a demandé à programmer en arrivant. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -370,19 +370,27 @@ ${chips(modeles, modele.cle, defaut)}
         <button type="button" id="reinit">Réinitialiser</button>
       </span>
     </div>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
+    <p class="reprise" id="reprise" hidden>
+      <span id="reprise-texte"></span>
+      <button type="button" id="reprise-oui">Le reprendre</button>
+      <button type="button" id="reprise-non">L’oublier</button>
+    </p>
+    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
       aria-label="Description du modèle">${echappe(modele.source)}</textarea>
     <p class="erreur" id="erreur" hidden role="status"></p>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
-  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
-       le verdict. La zone entière en aria-live aurait relu toute la page à
-       chaque frappe. -->
-  <p class="annonce" id="annonce" aria-live="polite"></p>
-  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
-
 </div>
+
+<nav class="autres" aria-label="Modèles">
+  <p class="autres-intro">Boussole ne vous dit pas quoi décider. Elle vous dit
+    <em>ce qu’il faut aller vérifier</em> — ici comme sur ${modeles.length - 1} autres décisions
+    déjà écrites, ou sur la vôtre.</p>
+  <ul class="exemples" id="exemples">
+${chips(modeles, modele.cle, defaut)}
+  </ul>
+</nav>
 
 ${fond(modele)}
 

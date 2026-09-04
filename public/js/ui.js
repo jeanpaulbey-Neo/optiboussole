@@ -19,12 +19,17 @@ const listeExemples = $('#exemples');
 
 const CLE_STOCKAGE = 'boussole.modele';
 
-// L'exemple travaillé en tête d'accueil décrit le modèle servi juste en
-// dessous, avec ses chiffres. Il n'a de sens que tant que c'est bien celui-là
-// qui tourne : on le retire dès qu'on restitue un brouillon.
-function masquerOuverture(masquer) {
+// L'exemple travaillé en tête d'accueil décrit le modèle servi juste en dessous,
+// avec ses chiffres. Il n'est vrai que tant que c'est bien ce texte-là qui est à
+// l'écran. Il l'était par une suite d'appels bien placés — un oubli suffisait à
+// laisser un encadré qui parle de voiture au-dessus d'un modèle d'immobilier.
+// C'est maintenant une question posée à chaque calcul, à laquelle il n'y a
+// qu'une réponse possible : le texte affiché est-il celui que la page sert ?
+function ajusterOuverture() {
   const n = document.querySelector('.exemple-ouverture');
-  if (n) n.hidden = masquer;
+  if (!n) return;
+  const servi = MODELES.find((m) => m.cle === (document.body.dataset.modele || MODELE_PAR_DEFAUT));
+  n.hidden = !servi || zoneModele.value.trim() !== servi.source.trim();
 }
 let cleCourante = document.body.dataset.modele || MODELE_PAR_DEFAUT;
 
@@ -1106,6 +1111,7 @@ let minuteurRobustesse = null;
 
 function calculer() {
   const source = zoneModele.value;
+  ajusterOuverture();
   clearTimeout(minuteurRobustesse);
   try {
     const r = analyserModele(source, { N: 20000 });
@@ -1179,6 +1185,9 @@ function marquerPastille(cle) {
 function chargerModele(cle, { remplacerTexte = true } = {}) {
   const m = MODELES.find((x) => x.cle === cle);
   cleCourante = m ? cle : '';
+  brouillonEnAttente = null;
+  const barre = $('#reprise');
+  if (barre) barre.hidden = true;
   if (m && remplacerTexte) zoneModele.value = m.source;
   marquerPastille(cleCourante);
   calculer();
@@ -1190,14 +1199,64 @@ listeExemples.addEventListener('click', (e) => {
   e.preventDefault();
   history.pushState({ cle: a.dataset.cle }, '', a.getAttribute('href'));
   chargerModele(a.dataset.cle);
+  proposerBrouillon();
   zoneResultats.scrollIntoView({ block: 'nearest' });
 });
 
 window.addEventListener('popstate', () => {
   const chemin = location.pathname.replace(/\/$/, '');
   const m = MODELES.find((x) => adresse(x).replace(/\/$/, '') === chemin);
-  if (m) chargerModele(m.cle);
+  if (m) { chargerModele(m.cle); proposerBrouillon(); }
 });
+
+// --- Le brouillon d'un visiteur qui revient ------------------------------------
+//
+// Session 10 : le travail en cours d'un visiteur lui revient au passage suivant.
+// Session 14 : la page d'accueil est devenue la vitrine du site, et son modèle
+// est ce que le site montre de lui-même à un inconnu.
+//
+// Les deux règles s'appliquaient au même endroit, et la seconde perdait en
+// silence : un lecteur venu deux fois voyait le modèle qu'il avait laissé, pas
+// celui que le site sert. Le journal disait une chose, la page en affichait une
+// autre, et rien dans le code ne rendait cet écart visible.
+//
+// La règle est maintenant explicite, et elle vaut sur toutes les pages : **le
+// modèle servi gagne, le brouillon est proposé.** Il n'est pas perdu — il
+// attend derrière un bouton, sur la page où il a été écrit. Une page dont le
+// contenu dépend de l'historique du visiteur ne peut pas être une vitrine.
+
+let brouillonEnAttente = null;
+
+function proposerBrouillon() {
+  const barre = $('#reprise');
+  if (!barre) return;
+  let garde = null;
+  try { garde = JSON.parse(localStorage.getItem(CLE_STOCKAGE) || 'null'); } catch { garde = null; }
+  if (!garde || typeof garde.source !== 'string' || !garde.source.trim()) return;
+  // Le brouillon revient là où il a été écrit, pas ailleurs : un modèle
+  // commencé sur « louer ou acheter » n'a rien à faire sur la page d'accueil.
+  if (garde.cle !== cleCourante) return;
+  if (garde.source.trim() === zoneModele.value.trim()) return;
+  brouillonEnAttente = garde.source;
+  $('#reprise-texte').textContent =
+    'Vous aviez commencé à modifier ce modèle lors d\u2019une visite précédente.';
+  barre.hidden = false;
+}
+
+function reprendreBrouillon() {
+  if (brouillonEnAttente === null) return;
+  zoneModele.value = brouillonEnAttente;
+  brouillonEnAttente = null;
+  $('#reprise').hidden = true;
+  calculer();
+}
+
+function oublierBrouillon() {
+  brouillonEnAttente = null;
+  const barre = $('#reprise');
+  if (barre) barre.hidden = true;
+  try { localStorage.removeItem(CLE_STOCKAGE); } catch { /* sans importance */ }
+}
 
 // --- Démarrage ----------------------------------------------------------------
 //
@@ -1220,25 +1279,9 @@ window.addEventListener('popstate', () => {
     } catch { /* fragment illisible : on retombe sur le comportement normal */ }
   }
 
-  if (document.body.dataset.accueil) {
-    let garde = null;
-    try { garde = JSON.parse(localStorage.getItem(CLE_STOCKAGE) || 'null'); } catch { garde = null; }
-    if (garde && typeof garde.source === 'string' && garde.source.trim()) {
-      zoneModele.value = garde.source;
-      cleCourante = MODELES.some((m) => m.cle === garde.cle) ? garde.cle : '';
-      // L'ouverture de l'accueil raconte, chiffres à l'appui, « celui qui
-      // tourne ci-dessous ». Quand on restitue le brouillon du visiteur, ce
-      // n'est plus vrai : la retirer vaut mieux que de laisser une phrase
-      // fausse. Elle revient avec « Réinitialiser », qui efface le brouillon.
-      masquerOuverture(true);
-      marquerPastille(cleCourante);
-      calculer();
-      return;
-    }
-  }
-
   // Le HTML servi contient déjà la source du modèle : on ne la réécrit pas.
   chargerModele(document.body.dataset.modele || MODELE_PAR_DEFAUT, { remplacerTexte: false });
+  proposerBrouillon();
 })();
 
 zoneModele.addEventListener('input', programmer);
@@ -1255,11 +1298,13 @@ zoneModele.addEventListener('keydown', (e) => {
 $('#reinit').addEventListener('click', () => {
   // Réinitialiser, c'est renoncer au brouillon : il ne doit pas revenir au
   // prochain passage sur l'accueil.
-  try { localStorage.removeItem(CLE_STOCKAGE); } catch { /* sans importance */ }
-  masquerOuverture(false);
+  oublierBrouillon();
   chargerModele(cleCourante || document.body.dataset.modele || MODELE_PAR_DEFAUT);
   history.replaceState(null, '', location.pathname);
 });
+
+$('#reprise-oui').addEventListener('click', reprendreBrouillon);
+$('#reprise-non').addEventListener('click', oublierBrouillon);
 
 // --- Le verdict en texte ------------------------------------------------------
 //

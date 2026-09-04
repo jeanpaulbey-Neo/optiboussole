@@ -18,7 +18,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 ```
 /srv/optiboussole/
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
-│   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
+│   ├── index.html          ⚙ généré — accueil, modèle « garder ou changer de voiture »
 │   ├── <slug>.html         ⚙ générés — une page par modèle (12 fichiers)
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
@@ -209,12 +209,18 @@ des phrases en français
   gabarit.js) : espace fine insécable devant `%`, `:`, `;`, `?`, `!` et dans
   les guillemets, hors des `<code>` — ce qu'on y lit doit se recopier tel
   quel. ui.js fait la même chose de son côté pour les phrases dynamiques.
-- **Le brouillon n'est enregistré que s'il diffère du modèle de bibliothèque.**
-  `calculer()` écrit dans `localStorage` à chaque exécution, y compris au
-  chargement d'une page et au clic d'une pastille : sans la garde, regarder un
-  autre modèle écrasait ce que le visiteur avait écrit sur l'accueil. Et
-  « Réinitialiser » efface le brouillon. Quatre vérifications navigateur
-  tiennent le scénario.
+- **Le modèle servi gagne ; le brouillon est proposé, jamais imposé.** Le
+  travail en cours du visiteur est enregistré dans `localStorage` par
+  `calculer()`, et seulement s'il diffère du modèle de bibliothèque — sans cette
+  garde, regarder un autre modèle écrasait ce qu'il avait écrit. Au retour, il
+  ne remplace plus la page : `proposerBrouillon()` affiche une barre
+  « Le reprendre / L'oublier » au-dessus de l'éditeur, sur **la page où il a été
+  écrit** (`garde.cle === cleCourante`). « Réinitialiser » l'efface pour de bon.
+  La raison est dans le journal de la session 15 : une page dont le contenu
+  dépend de l'historique du visiteur ne peut pas être une vitrine, et le lecteur
+  revenu une seconde fois voyait le modèle qu'il avait laissé pendant que le
+  journal affirmait en servir un autre. Huit vérifications navigateur tiennent
+  le scénario.
 - **Deux règles de décision cohabitent, et il faut les nommer.** La branche
   retenue (`options.recommande`) est celle de **meilleure espérance** ; la
   phrase du verdict raconte celle qui **gagne le plus souvent**
@@ -366,8 +372,20 @@ des phrases en français
 
 ## La bande de modèles
 
+**Elle est passée sous la réponse (session 15)**, à la fin de l'atelier, sous
+une phrase (`.autres-intro`) qui dit ce qu'on y choisit. Le lecteur extérieur :
+« je vois treize pastilles avant d'avoir compris ce que je choisis ». Le tableau
+ci-dessous mesurait le coût en hauteur d'une bande *en tête de page* ; il n'a
+plus cours, et il est gardé parce qu'il documente ce que la mesure avait
+tranché, et que le raisonnement — « grouper ajouterait des étiquettes, donc de
+la hauteur » — resservira si la bande remonte un jour. Le gain observé après
+déplacement, à 390 px : le verdict commence à 246 px sur une page de modèle
+(contre 270 px avec la bande au-dessus, et sans la ligne de flottaison chargée
+d'un choix qu'on ne peut pas encore faire) et à 540 px sur l'accueil, qui porte
+en plus son exemple travaillé.
+
 Treize pastilles (douze modèles plus la page blanche), mesurées sur la page
-`/installer-des-panneaux-solaires` :
+`/installer-des-panneaux-solaires`, **du temps où la bande était en tête** :
 
 | largeur | lignes | le verdict commence à |
 |---|---|---|
@@ -404,12 +422,33 @@ session qui voudrait en changer, et qu'un test vérifie :
 - une hypothèse décide, avec un **seuil** et une **adresse** dans le lexique ;
 - le sujet ne demande **aucun prérequis** et la mise reste modeste.
 
-L'ouverture de l'accueil (`gabarit.js`) est un exemple travaillé qui reprend les
-chiffres de ce modèle : seuil 1 109 €/an, 631 € à gagner, fourchette 400 à
-1 800. **Ils sont épinglés par des tests** : s'ils divergent, c'est la page
+**L'accueil se nomme par sa question, comme n'importe quelle page de modèle**
+(session 15). Son `<h1>` est le titre du modèle servi — « Garder ou changer de
+voiture » — et non « Boussole », qui reste en petit au-dessus, avec la rose des
+vents. Le sous-titre est le champ `question` du modèle, le même texte que sur sa
+page dédiée. C'est le second retour du lecteur extérieur qui a tranché ceci :
+« la page *Isoler ses combles* est claire et je saurais quoi en faire, l'accueil
+non ». La seule différence entre les deux pages était là — un nom de marque et
+une phrase définie par la négative d'un côté, une question nommée de l'autre.
+Une conséquence : le gabarit produit le même en-tête partout, et rien dans
+l'accueil n'est plus écrit à la main sauf son exemple travaillé.
+
+L'ouverture de l'accueil (`gabarit.js`) est cet exemple travaillé, qui reprend
+les chiffres du modèle servi : seuil 1 109 €/an, 631 € à gagner, fourchette 400
+à 1 800. **Ils sont épinglés par des tests** : s'ils divergent, c'est la page
 qu'on corrige. Changer de modèle d'accueil veut donc dire réécrire cette
 ouverture — c'est voulu, elle ne doit jamais décrire autre chose que ce qui
-tourne en dessous.
+tourne en dessous. Elle ne le peut d'ailleurs plus : `ajusterOuverture()` est
+appelée à **chaque** calcul et compare le texte affiché à la source servie.
+C'était auparavant une suite d'appels bien placés, et il en manquait un.
+
+**La réponse occupe la colonne de gauche, l'éditeur celle de droite** (54/46), et
+c'est l'ordre du DOM qui le porte : la tabulation et les lecteurs d'écran
+suivent la même route que l'œil. Le principe — « la réponse passe avant l'outil
+qui la produit » — était écrit dans `app.css` depuis la session 6, mais dans une
+règle `@media (max-width: 940px)` : au-delà, le code occupait la moitié gauche,
+c'est-à-dire la place qu'on lit en premier. Il n'y avait aucune raison à cette
+frontière, seulement l'ordre dans lequel le HTML avait été écrit.
 
 Changer `MODELE_PAR_DEFAUT` déplace deux adresses : l'ancien défaut gagne son
 slug, le nouveau le perd. `npm run pages` n'efface pas l'ancien fichier —
@@ -438,14 +477,16 @@ modification de l'un ou de l'autre :
 npm run pages
 ```
 
-Le modèle par défaut (`logement`) vit à la racine et n'a **pas** de seconde
-adresse : ce serait la même page à deux endroits.
+Le modèle par défaut (`voiture` depuis la session 14, voir `MODELE_PAR_DEFAUT`)
+vit à la racine et n'a **pas** de seconde adresse : ce serait la même page à
+deux endroits.
 
 Côté client, `ui.js` lit `document.body.dataset.modele` pour savoir quel modèle
 afficher. Les pastilles sont de vrais `<a href>` interceptés pour naviguer sans
 rechargement (`pushState` + `popstate`) ; elles fonctionnent sans JavaScript.
-Priorité au démarrage : fragment d'URL partagé > modèle de la page >
-`localStorage` (sur l'accueil seulement) > défaut.
+Priorité au démarrage : fragment d'URL partagé > modèle de la page > défaut.
+Le `localStorage` n'y figure plus : il alimente la barre de reprise, pas le
+contenu servi.
 
 ## Déploiement
 

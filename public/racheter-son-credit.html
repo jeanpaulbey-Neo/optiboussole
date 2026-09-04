@@ -30,29 +30,20 @@
   </div>
   <h1 class="baseline titre-modele">Racheter son crédit ?</h1>
   <p class="sous-baseline">Faire racheter son crédit immobilier par une autre banque : à partir de quel taux, et avec quels frais, l’opération rapporte-t-elle vraiment ? Le calcul qui manque à tous les simulateurs de courtier n’est pas le gain à un taux donné, c’est le taux à partir duquel il n’y a plus rien à gagner.</p>
+  
 </header>
-
-<nav aria-label="Modèles">
-<ul class="exemples" id="exemples">
-  <li><a class="puce" href="/louer-ou-acheter" data-cle="logement" title="Sur 10 ans, patrimoine net dans chaque cas.">Louer ou acheter</a></li>
-  <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
-  <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
-  <li><a class="puce" href="/" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
-  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
-  <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
-  <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
-  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu’on croit.">Réduire son empreinte : quoi d’abord ?</a></li>
-  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu’il reste à vivre à l’appareil.">Réparer ou remplacer ?</a></li>
-  <li><a class="puce" href="/racheter-son-credit" data-cle="rachat" title="À partir de quel taux, et avec quels frais." aria-current="page">Racheter son crédit ?</a></li>
-  <li><a class="puce" href="/repondre-a-un-appel-d-offres" data-cle="offres" title="Une mise certaine contre un gain rare et gros.">Répondre à un appel d’offres ?</a></li>
-  <li><a class="puce" href="/installer-des-panneaux-solaires" data-cle="solaire" title="Sur 20 ans, et ce que vaut une étude de toit.">Installer des panneaux solaires</a></li>
-  <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
-</ul>
-</nav>
 
 <main id="contenu" tabindex="-1">
 <div class="atelier">
 
+  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
+       le verdict. La zone entière en aria-live aurait relu toute la page à
+       chaque frappe. -->
+  <p class="annonce" id="annonce" aria-live="polite"></p>
+  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
+
+  <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
+       personne n'a demandé à programmer en arrivant. -->
   <section class="panneau editeur" aria-label="Le modèle">
     <div class="editeur-entete">
       <span>Le modèle</span>
@@ -62,7 +53,12 @@
         <button type="button" id="reinit">Réinitialiser</button>
       </span>
     </div>
-    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off"
+    <p class="reprise" id="reprise" hidden>
+      <span id="reprise-texte"></span>
+      <button type="button" id="reprise-oui">Le reprendre</button>
+      <button type="button" id="reprise-non">L’oublier</button>
+    </p>
+    <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
       aria-label="Description du modèle">unité: €
 # Faire racheter son crédit immobilier par une autre banque ?
 # On compare ce qu'il reste à payer d'intérêts, avec et sans, sur la
@@ -98,13 +94,28 @@ option "Racheter" = -(interets_nouveaux + frais)</textarea>
     <ul class="avertissements" id="avertissements" hidden></ul>
   </section>
 
-  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
-       le verdict. La zone entière en aria-live aurait relu toute la page à
-       chaque frappe. -->
-  <p class="annonce" id="annonce" aria-live="polite"></p>
-  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
-
 </div>
+
+<nav class="autres" aria-label="Modèles">
+  <p class="autres-intro">Boussole ne vous dit pas quoi décider. Elle vous dit
+    <em>ce qu’il faut aller vérifier</em> — ici comme sur 12 autres décisions
+    déjà écrites, ou sur la vôtre.</p>
+  <ul class="exemples" id="exemples">
+  <li><a class="puce" href="/louer-ou-acheter" data-cle="logement" title="Sur 10 ans, patrimoine net dans chaque cas.">Louer ou acheter</a></li>
+  <li><a class="puce" href="/isoler-ses-combles" data-cle="combles" title="Un investissement qui se rembourse, ou pas.">Isoler ses combles</a></li>
+  <li><a class="puce" href="/freelance-ou-salarie" data-cle="freelance" title="Revenu net sur trois ans, intercontrats compris.">Freelance ou salarié</a></li>
+  <li><a class="puce" href="/" data-cle="voiture" title="La vieille voiture coûte cher. La neuve aussi.">Garder ou changer de voiture</a></li>
+  <li><a class="puce" href="/prix-du-kilometre" data-cle="kilometre" title="Ce que votre voiture coûte réellement, tout compris.">Le vrai prix du kilomètre</a></li>
+  <li><a class="puce" href="/tresorerie-combien-de-mois" data-cle="tresorerie" title="Combien de mois avant de toucher le fond.">La trésorerie tiendra-t-elle ?</a></li>
+  <li><a class="puce" href="/projet-livre-a-temps" data-cle="projet" title="Ce que les plannings oublient de compter.">Ce projet sera-t-il prêt à temps ?</a></li>
+  <li><a class="puce" href="/reduire-son-empreinte-carbone" data-cle="carbone" title="Les ordres de grandeur ne sont pas ceux qu’on croit.">Réduire son empreinte : quoi d’abord ?</a></li>
+  <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu’il reste à vivre à l’appareil.">Réparer ou remplacer ?</a></li>
+  <li><a class="puce" href="/racheter-son-credit" data-cle="rachat" title="À partir de quel taux, et avec quels frais." aria-current="page">Racheter son crédit ?</a></li>
+  <li><a class="puce" href="/repondre-a-un-appel-d-offres" data-cle="offres" title="Une mise certaine contre un gain rare et gros.">Répondre à un appel d’offres ?</a></li>
+  <li><a class="puce" href="/installer-des-panneaux-solaires" data-cle="solaire" title="Sur 20 ans, et ce que vaut une étude de toit.">Installer des panneaux solaires</a></li>
+  <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe.">Partir de zéro</a></li>
+  </ul>
+</nav>
 
 <div class="panneau fond">
     <section class="fond-part">
