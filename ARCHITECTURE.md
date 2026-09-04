@@ -512,6 +512,43 @@ Priorité au démarrage : fragment d'URL partagé > modèle de la page > défaut
 Le `localStorage` n'y figure plus : il alimente la barre de reprise, pas le
 contenu servi.
 
+## Ce que le site sait d'un modèle qu'il n'a pas écrit
+
+`lexique.js` donne à chacune des 91 hypothèses de la bibliothèque son mot
+français, son unité et son adresse. Il est écrit à la main, et un test vérifie
+qu'aucune hypothèse n'y manque.
+
+Il ne peut rien dire du modèle qu'un visiteur écrit — et la session 14 en avait
+fait un principe : *« un modèle écrit par le visiteur n'en a pas, et rien ne
+s'affiche : le site ne devine pas ce que veut dire un nom qu'il n'a pas
+écrit »*. C'était juste, et ce n'était pas la question. Le site perdait le
+français **au moment précis où quelqu'un se sert de l'outil pour lui-même**, ce
+qu'un lecteur extérieur a fini par nommer (session 17) : « quand j'écris mon
+propre modèle, je n'ai plus que des identifiants sans unité ».
+
+Il n'y a rien à deviner. Deux choses sont déjà écrites dans le texte du modèle,
+et le site les jetait toutes les deux :
+
+- **le commentaire de fin de ligne** est une glose, en français, par l'auteur :
+  `reparations = 400 à 1800   # par an, et ça monte avec l'âge`. Gardé par le
+  lexer dans `ast.commentaires`, par numéro de ligne. Un commentaire **seul** sur
+  sa ligne est un titre de section et ne glose rien — sans cette règle,
+  `# --- Garder l'actuelle ---` devenait la définition de la ligne suivante ;
+- **le symbole ou le mot d'unité posé après un nombre** : `900 €`, `1,60 €/L`,
+  `3 ans`. Le lexer connaissait déjà l'emplacement exact du symbole décoratif et
+  ne le conservait pas ; le parseur collectait déjà les mots dans `n.unites` pour
+  le seul plaisir d'avertir qu'il les ignorait.
+
+`moteur.js` en fait une glose par ligne, reportée sur chaque source. `ui.js`
+consulte **le lexique d'abord** — écrit à la main, relu, et seul à dire *où*
+trouver le chiffre — puis le modèle. Le site n'invente toujours rien : il rend
+au visiteur ce qu'il a écrit, à l'endroit où ça sert.
+
+**Ce que cela n'autorise pas** : deviner une unité à partir d'un nom
+(`prix_*` → €), ni une glose à partir d'un identifiant. La règle reste que le
+site n'affiche que ce que quelqu'un a écrit — l'auteur du modèle ou celui du
+lexique.
+
 ## Déploiement
 
 Il n'y en a pas. Écrire dans `public/` **est** le déploiement — Caddy sert les
@@ -565,6 +602,15 @@ Le balisage accepté y est minimal : `` `code` ``, `**gras**`, et un bloc
 ` ```…``` `. Toute clé de `MODELES` doit avoir son entrée dans `FOND` ; un test
 le vérifie.
 
+`/un-cas` est la même décision que l'accueil, racontée du devis du garage au
+tiroir à factures : ce qu'on écrit, ce que le site répond, ce qu'on va chercher,
+ce que ça change, et ce qui restait hors du modèle. Elle existe depuis la
+session 17 — « je ne trouve nulle part de cas d'usage raconté du début à la
+fin » — et **tous ses chiffres sont épinglés par des tests**, y compris ceux de
+l'issue qu'elle ne raconte pas (si le tiroir avait donné 900 à 1 600, le verdict
+basculait à 58 %, donc « à égalité »). Écrire cette seconde issue n'est pas une
+précaution de style : sans elle, la page serait une démonstration flatteuse.
+
 `/le-langage` est la référence de la syntaxe, générée par `pageLangage()`.
 Elle existe depuis la session 16 : le même contenu était recopié en entier dans
 le dépliant d'aide de chacune des quinze pages, où il pesait le tiers du texte
@@ -612,10 +658,23 @@ sudo systemctl status caddy
     une branche qui gagne souvent et petit puis perd rarement et gros se voit
     d'un coup d'œil et ne se lit dans aucun des chiffres. Elle n'est pas dessinée
     quand zéro tombe hors du cadre — il n'y aurait pas de partage à montrer, et
-    le dessin mentirait par cadrage.
+    le dessin mentirait par cadrage ;
+  - **sous chaque hypothèse**, sa fourchette et le seuil qui la coupe
+    (`bandeFourchette()`, session 17). Densité, rectangle pâle sur la fourchette
+    à 90 %, repère de médiane, trait du seuil, et l'aire au-delà en ocre.
   La règle pour la suite : **un dessin doit porter une information que le texte
-  ne porte pas**, et la page doit rester juste sans lui. Les deux sont sous la
-  phrase qu'elles montrent, jamais à sa place.
+  ne porte pas**, et la page doit rester juste sans lui. Les trois sont sous la
+  phrase qu'ils montrent, jamais à sa place.
+
+  **Et une règle de justesse, apprise deux fois.** La bande de fourchette a
+  d'abord été une barre pleine sur une échelle de valeurs, la portion au-delà du
+  seuil en couleur. C'était joli et faux : sur « 398 à 1 794 », le seuil de 1 109
+  tombe à 51 % de la longueur alors qu'il n'est franchi que 3 fois sur 10. *Une
+  surface colorée est lue comme une fréquence* — donc elle doit en être une, ce
+  qui impose une densité et une coupure interpolée à l'aplomb du trait, jamais au
+  bord d'une barre d'histogramme. C'est exactement la précaution que
+  `courbePari()` avait prise la session d'avant, et que j'ai dû réapprendre en
+  regardant une capture d'écran.
 - **Pas de base de données.** Rien à stocker : le modèle du visiteur vit dans
   son `localStorage` et dans le fragment de l'URL qu'il partage.
 - **Pas d'API, pas de backend.** Aucun appel de modèle de langage au runtime —

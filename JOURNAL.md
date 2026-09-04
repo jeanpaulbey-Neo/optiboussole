@@ -8,6 +8,185 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 4 septembre 2026 — Session 17 : le site parlait français, sauf à qui s'en sert
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — quatrième passage du même lecteur
+
+Premier passage sur un site à jour : les trois précédents jugeaient une page
+figée par un cache. Six observations, consignées mot pour mot :
+
+> 1. Je n'ai compris qu'à la fin de la page que « 100 à 400 » vaut 200 et non
+>    250 — c'est le principe de départ et je l'ai lu après les résultats.
+> 2. Quand j'écris mon propre modèle, les explications en français
+>    disparaissent : je n'ai plus que des identifiants sans unité.
+> 3. La page d'accueil me demande d'apprendre un langage alors qu'elle dit ne
+>    rien demander.
+> 4. Je ne trouve nulle part de cas d'usage raconté du début à la fin.
+> 5. Aucune représentation visuelle d'une fourchette ou d'un seuil.
+> 6. Mon impression générale reste : ce site est fait pour être exécuté, pas
+>    pour être lu par un humain.
+
+La sixième est le résumé des cinq autres, et c'est la plus dure : après trois
+sessions passées sur la porte d'entrée, le jugement de fond n'a pas bougé.
+
+### 2. Le défaut le plus grave, et il était écrit comme un principe
+
+Le site sait dire « `reparations`, ce que l'ancienne vous coûtera en pannes »,
+« au-dessus de 1 109 **€/an** », « vos factures de garage des trois dernières
+années ». Tout cela vient de `lexique.js`, 91 entrées écrites à la main pour les
+douze modèles de la bibliothèque.
+
+Pour le modèle qu'un visiteur écrit, il n'y a rien — et la session 14 en avait
+fait une règle, que j'ai relue ce matin :
+
+> « Un modèle écrit par le visiteur n'en a pas, et **rien ne s'affiche** : le
+> site ne devine pas ce que veut dire un nom qu'il n'a pas écrit. »
+
+C'est juste, et ce n'est pas la question. La conséquence est que **le site
+devient muet exactement au moment où quelqu'un s'en sert pour lui-même.** On lui
+vend un outil pour sa décision ; dès qu'il écrit sa décision, il retombe sur ce
+que le premier retour de la session 14 avait qualifié d'abrupt. Toute la
+clarté du site est réservée à des exemples.
+
+Et il n'y a rien à deviner. C'est ce qui rend cette entrée pénible à écrire :
+
+```
+loyer = 900 à 1150 €     # ce que je paie chaque mois
+```
+
+Le mot français est là. L'unité est là. **Le site jetait les deux.** Le
+commentaire était supprimé par le lexer trois caractères après avoir été lu ; le
+symbole `€` était repéré au caractère près — le code s'appelle *décoratif* — puis
+oublié ; les mots d'unité étaient collectés dans `n.unites` pour le seul plaisir
+d'afficher un avertissement disant qu'on les ignorait.
+
+Trois modifications de quelques lignes chacune, et le site parle sur n'importe
+quel modèle : le commentaire de fin de ligne devient la glose, le symbole ou le
+mot d'unité devient l'unité de l'hypothèse. Le lexique reste prioritaire là où il
+existe — il est relu, et lui seul dit *où* trouver le chiffre.
+
+Une règle pour ne pas déraper : **rien ne s'infère.** Pas d'unité déduite d'un
+nom (`prix_*` → €), pas de glose fabriquée à partir d'un identifiant. Le site
+n'affiche que ce que quelqu'un a écrit — l'auteur du modèle, ou celui du lexique.
+
+Un détail qui compte : un commentaire **seul** sur sa ligne est un titre de
+section. Sans cette règle, `# --- Garder l'actuelle ---` devenait la définition
+de la ligne suivante.
+
+**La leçon, et c'est la quatrième fois.** Session 14 : une limitation écrite dans
+`ARCHITECTURE.md` cesse d'être interrogée. Session 15 : un principe rangé dans
+une media query. Session 16 : un test qui garantissait l'absence de graphique.
+Aujourd'hui : une phrase de journal, bien tournée, qui décrivait une lacune comme
+une position. Le motif ne varie pas — *une chose qu'on a écrite une fois cesse
+d'être vue* — mais je peux enfin le formuler utilement : **la prochaine session
+doit relire les principes que le journal énonce, pas seulement ceux
+qu'`ARCHITECTURE.md` documente.**
+
+### 5 et 1. La fourchette, le seuil, et la barre pleine qui mentait
+
+« Le résultat bascule vers "Changer" si `reparations` dépasse 1 109 €/an — 3 fois
+sur 10 d'après votre fourchette. » Cette phrase décrit une étendue, un point
+dessus, et la part au-delà du point. Elle était écrite depuis quinze sessions et
+n'avait jamais été dessinée.
+
+J'ai d'abord fait une barre pleine sur une échelle de valeurs, la portion au-delà
+du seuil en ocre. Le résultat était joli, et je l'ai gardé dix minutes, jusqu'à
+regarder la capture : **le seuil de 1 109 tombe à 51 % de la longueur alors qu'il
+n'est franchi que 3 fois sur 10.** La couleur promettait une fréquence que la
+longueur ne tenait pas. C'est précisément le défaut que `courbePari()` avait pris
+soin d'éviter la session dernière en coupant sa ligne à l'aplomb de zéro, et je
+venais de le refaire à l'identique, quarante minutes après avoir écrit la règle
+dans `ARCHITECTURE.md`.
+
+C'est donc une densité. L'aire au-delà du trait **est** la proportion annoncée à
+côté. Et elle porte gratuitement le point 1 : le repère de médiane tombe
+visiblement à gauche du milieu du rectangle pâle, parce qu'une fourchette à
+bornes positives est lognormale. Le lecteur a mis une page entière à comprendre
+que « 100 à 400 » vaut 200 ; ici ça se voit avant de se lire. Un test navigateur
+tient ce décalage, ce qui revient à épingler le principe fondateur du site dans
+une assertion de position.
+
+La ligne de texte au-dessus dit désormais « aujourd'hui : 398 → 1 794 €/an,
+**médiane 845 €/an** ». Le fait le plus contre-intuitif du site vivait sur deux
+pages de fond qu'on n'atteint qu'après les résultats. Il est maintenant sous les
+chiffres qu'il explique.
+
+Une reprise, en regardant encore : j'avais étiqueté les deux bouts du cadre, qui
+va du demi-centile au 99,5ᵉ pour que les aires soient justes. « 262 à 2 771 »
+n'est pas la fourchette du visiteur, et l'annoncer comme telle contredisait la
+ligne juste au-dessus. Les étiquettes se posent maintenant à l'aplomb de ce
+qu'elles nomment — les deux bornes écrites, et le seuil — et une borne qui
+viendrait chevaucher le seuil s'efface.
+
+### 4. Une page qui se lise
+
+Rien sur ce site ne montrait quelqu'un qui s'en sert. Quinze pages décrivent un
+outil, une méthode, une syntaxe.
+
+**`/un-cas`** suit la décision de l'accueil du devis du garage au tiroir à
+factures : ce qu'on écrit et pourquoi une fourchette plutôt qu'un chiffre, ce que
+le site répond et dans quel ordre le lire, l'heure passée à additionner trois
+factures, ce que ça change, et ce qui restait hors du modèle. Tous ses chiffres
+sortent du moteur et sont épinglés par des tests.
+
+Le passage qui justifie la page est celui du milieu, et il tient en deux
+verdicts : 67 % avant le tiroir, 89 % après, et surtout **la valeur de
+l'information qui tombe de 857 € à 110 €** — c'est-à-dire « il n'y a plus rien à
+aller chercher, décidez ». C'est ce que ce site sait faire et qu'aucun
+simulateur ne dit.
+
+J'ai aussi écrit l'autre issue, celle que la page ne raconte pas : si le tiroir
+avait donné 900 à 1 600 €/an, le verdict basculait vers « Changer » à 58 %, donc
+« à égalité ». **Sans ce paragraphe, la page serait une démonstration
+flatteuse** — le chiffre qu'on va chercher peut envoyer d'un côté comme de
+l'autre, et c'est exactement pour ça qu'il valait 631 €. Les deux issues sont
+testées.
+
+### 3. Ce que la page demande vraiment
+
+« Elle me demande d'apprendre un langage alors qu'elle dit ne rien demander. »
+L'ouverture disait « Remplacez-les par les vôtres », ce qui est vrai, et laissait
+croire que c'était tout. Elle dit maintenant les deux choses : se servir du
+modèle servi, c'est remplacer des nombres et rien d'autre ; écrire le sien depuis
+une page blanche demande une dizaine de lignes de syntaxe. Et elle propose
+d'aller lire le cas plutôt que d'écrire.
+
+Ce que je n'ai pas fait, pour la troisième session de suite : replier l'éditeur
+derrière un bouton. Qu'on arrive et que l'outil tourne déjà sur un cas réel est
+la seule chose que ce projet ait qui ne soit pas ailleurs.
+
+### État à la fin de la session
+
+- **664** assertions sur le moteur (contre 627), **322** dans un vrai navigateur
+  (contre 313) : vingt-quatre sur le cas raconté, huit sur la glose et l'unité
+  tirées du modèle, cinq sur la bande de fourchette, quatre sur un modèle inédit
+  tapé dans l'éditeur.
+- Douze modèles, **seize** pages, dix chapitres, 91 hypothèses au lexique.
+- Accueil : 7 126 caractères de texte servi, sous le budget de 7 500.
+- Le site répond, `npm test` et `npm run test:navigateur` sont verts.
+
+### Ce que je ferais ensuite
+
+1. **Relire les principes que ce journal énonce**, et pas seulement ceux
+   d'`ARCHITECTURE.md`. Quatre sessions de suite, le défaut signalé de
+   l'extérieur était protégé par une phrase que j'avais bien écrite. Le repère :
+   chercher dans le journal les formules qui commencent par « le site ne… » et
+   demander si c'est encore un choix.
+2. **La valeur d'option**, laissée par la session 13 et reportée quatre fois.
+   C'est le dernier point de liste qui n'a jamais bougé : soit elle passe, soit
+   je la retire et j'écris pourquoi.
+3. **Écrire de travers, encore** — mais cette fois en écrivant un modèle
+   *entier* de zéro, comme quelqu'un qui découvre, et non en tapant des lignes
+   fautives isolées. La glose par commentaire vient de là ; il y a
+   probablement autre chose à récolter au même endroit.
+4. **Un cinquième passage.** Les quatre premiers ont chacun désigné quelque
+   chose que je ne pouvais pas voir seul, et le sixième point n'a pas encore
+   bougé.
+
+---
+
 ## 4 septembre 2026 — Session 16 : le site était juste sur le disque et faux à l'écran
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*

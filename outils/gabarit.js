@@ -7,6 +7,7 @@
 
 import { FOND } from './fond.js';
 import { METHODE } from './methode.js';
+import { CAS } from './cas.js';
 
 const SITE = 'https://optiboussole.fr';
 
@@ -150,7 +151,7 @@ const pied = () => `<footer>
     Construit par Claude. Aucun compte, aucun traceur, aucun cookie&nbsp;: le modèle et la simulation
     ne quittent pas votre navigateur, et le lien de partage contient le modèle lui-même.
   </p>
-  <p><a href="/la-methode">La méthode, en détail</a> · <a href="/le-langage">Le langage</a></p>
+  <p><a href="/un-cas">Un cas, du début à la fin</a> · <a href="/la-methode">La méthode</a> · <a href="/le-langage">Le langage</a></p>
 </footer>`;
 
 // La page 404 : la même enveloppe, la bande de modèles complète, rien d’autre.
@@ -202,9 +203,11 @@ ${pied()}
 }
 
 // Une page de contenu : la même enveloppe, sans l’atelier. Sert /la-methode.
-export function pageMethode() {
-  const m = METHODE;
-  const corps = m.sections.map((sec) => `  <section class="chapitre">
+// Une page de contenu : /la-methode et /un-cas. Le gabarit était écrit deux
+// fois avant que la seconde n'existe ; c'est la façon la plus sûre de laisser
+// une des deux dériver.
+function pageContenu(c, slug, type = 'article') {
+  const corps = c.sections.map((sec) => `  <section class="chapitre">
     <h2>${typographie(echappe(sec.titre))}</h2>
 ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
   </section>`).join('\n\n');
@@ -214,15 +217,15 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${echappe(m.titre)} — Boussole</title>
-<meta name="description" content="${attr(m.question)}">
-<link rel="canonical" href="${SITE}/la-methode">
+<title>${echappe(c.titre)} — Boussole</title>
+<meta name="description" content="${attr(c.question)}">
+<link rel="canonical" href="${SITE}/${slug}">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="${attr(m.titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(m.question)}">
-<meta property="og:type" content="article">
-<meta property="og:url" content="${SITE}/la-methode">
+<meta property="og:title" content="${attr(c.titre + ' — Boussole')}">
+<meta property="og:description" content="${attr(c.question)}">
+<meta property="og:type" content="${type}">
+<meta property="og:url" content="${SITE}/${slug}">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
 </head>
@@ -240,12 +243,12 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
     <a class="retour" href="/">Boussole</a>
     <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
   </div>
-  <h1 class="baseline titre-modele">${echappe(m.titre)}</h1>
+  <h1 class="baseline titre-modele">${echappe(c.titre)}</h1>
 </header>
 
 <main id="contenu" tabindex="-1">
 <article class="panneau article">
-${m.intro.map((b) => '  ' + riche(b)).join('\n')}
+${c.intro.map((b) => '  ' + riche(b)).join('\n')}
 
 ${corps}
 
@@ -260,6 +263,9 @@ ${pied()}
 </html>
 `;
 }
+
+export const pageMethode = () => pageContenu(METHODE, 'la-methode');
+export const pageCas = () => pageContenu(CAS, 'un-cas');
 
 export function page({ modele, modeles, defaut, accueil }) {
   const titre = accueil
@@ -313,8 +319,11 @@ export function page({ modele, modeles, defaut, accueil }) {
       change quelque chose ici.
     </p>
     <p class="exemple-suite">
-      Ce sont les chiffres du modèle ci-dessous. Remplacez-les par les vôtres, ou prenez
-      un autre sujet plus bas. Rien n’est envoyé nulle part.
+      Ce sont les chiffres du modèle ci-dessous&nbsp;: <b>pour vous en servir, il suffit de
+      remplacer des nombres</b> — il n’y a rien à apprendre pour ça. Écrire le vôtre depuis
+      une page blanche demande, lui, une dizaine de lignes de syntaxe, et elles sont
+      dépliables plus bas. Rien n’est envoyé nulle part.
+      <a href="/un-cas">Voir plutôt ce cas raconté du début à la fin →</a>
     </p>
   </div>`
     : ''}

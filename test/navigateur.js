@@ -110,6 +110,54 @@ verifie('… dont les deux bornes partagent une échelle',
   pari && (pari.axe[0].match(/[kMG]/) || [''])[0] === (pari.axe[1].match(/[kMG]/) || [''])[0],
   `→ ${pari && pari.axe.join(' | ')}`);
 
+// --- La fourchette et le seuil, dessinés ------------------------------------
+//
+// « Aucune représentation visuelle d'une fourchette ou d'un seuil » : quatrième
+// passage du lecteur extérieur. Ce qui est vérifié ici n'est pas qu'il y a un
+// dessin — c'est qu'il dit la vérité. Sur une densité, l'aire au-delà du trait
+// vaut la proportion annoncée ; sur la barre pleine que j'avais dessinée
+// d'abord, elle ne la valait pas.
+const bande = await page.evaluate(() => {
+  const f = [...document.querySelectorAll('.fourchette')]
+    .find((n) => n.querySelector('.seuil'));
+  if (!f) return null;
+  const svg = f.querySelector('svg');
+  const r = svg.getBoundingClientRect();
+  const vb = parseFloat(svg.getAttribute('viewBox').split(/\s+/)[2]);
+  const seuil = svg.querySelector('.seuil');
+  const mediane = svg.querySelector('.mediane');
+  const central = svg.querySelector('.central');
+  const et = f.querySelector('.fourchette-etiquette.seuil');
+  const er = et ? et.getBoundingClientRect() : null;
+  return {
+    hauteur: r.height,
+    aires: svg.querySelectorAll('.aire, .aire-bascule').length,
+    bascule: svg.querySelectorAll('.aire-bascule').length,
+    contour: svg.querySelectorAll('.contour').length,
+    seuilX: parseFloat(seuil.getAttribute('x1')) / vb,
+    medianeX: parseFloat(mediane.getAttribute('x1')) / vb,
+    centralG: central ? parseFloat(central.getAttribute('x')) / vb : null,
+    centralD: central ? (parseFloat(central.getAttribute('x')) + parseFloat(central.getAttribute('width'))) / vb : null,
+    etiquetteX: er ? (er.left + er.width / 2 - r.left) / r.width : null,
+  };
+});
+verifie('la fourchette d’une hypothèse est dessinée', bande !== null);
+verifie('… à hauteur visible', bande && bande.hauteur > 14, `→ ${bande && bande.hauteur}px`);
+verifie('… en densité coupée par le seuil, pas en barre pleine',
+  bande && bande.aires === 2 && bande.bascule === 1 && bande.contour === 1,
+  `→ ${bande && bande.aires} aires dont ${bande && bande.bascule} au-delà`);
+// L'étiquette du seuil se pose à son aplomb : une légende décalée est pire
+// qu'une légende absente.
+verifie('… avec l’étiquette du seuil à l’aplomb de son trait',
+  bande && bande.etiquetteX !== null && Math.abs(bande.etiquetteX - bande.seuilX) < 0.04,
+  `→ étiquette ${bande && (bande.etiquetteX * 100).toFixed(1)} %, trait ${bande && (bande.seuilX * 100).toFixed(1)} %`);
+// Et le fait le plus contre-intuitif du site, rendu visible : sur une
+// fourchette à bornes positives, la médiane n'est pas au milieu.
+verifie('… et la médiane visiblement à gauche du milieu de la fourchette',
+  bande && bande.centralG !== null
+    && bande.medianeX < (bande.centralG + bande.centralD) / 2 - 0.02,
+  `→ médiane ${bande && (bande.medianeX * 100).toFixed(1)} %, milieu ${bande && ((bande.centralG + bande.centralD) / 2 * 100).toFixed(1)} %`);
+
 // Pas de débordement horizontal.
 const debordement = await page.evaluate(() =>
   document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -158,6 +206,55 @@ await new Promise((r) => setTimeout(r, 900));
 const apresEdition = await page.$eval('.verdict-titre', (n) => n.textContent);
 verifie('modifier une hypothèse recalcule', apresEdition !== avantEdition,
   `→ « ${avantEdition} » puis « ${apresEdition} »`);
+
+// --- Le modèle de quelqu'un d'autre --------------------------------------------
+//
+// Le test qui compte le plus de cette session. Jusqu'ici, tout ce que le site
+// dit en français venait de `lexique.js`, écrit à la main pour les douze
+// modèles de la bibliothèque. Un visiteur qui écrit le sien retombait sur des
+// identifiants nus — c'est-à-dire que le site devenait muet au moment précis où
+// quelqu'un s'en sert pour lui-même. On tape donc ici un modèle que le site n'a
+// jamais vu, et on vérifie qu'il parle encore.
+console.log('\n\x1b[1mUn modèle écrit par le visiteur\x1b[0m');
+{
+  const inedit = [
+    'unité: €',
+    'loyer = 900 à 1150 €           # ce que je paie chaque mois',
+    'travaux = 2000 à 9000 €        # la remise en état si on achète',
+    'mensualite = 1180 €',
+    'annees = 8',
+    'option "Louer" = -loyer * 12 * annees',
+    'option "Acheter" = -mensualite * 12 * annees - travaux',
+  ].join('\n');
+  await page.evaluate((texte) => {
+    const t = document.querySelector('#modele');
+    t.value = texte;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  }, inedit);
+  await new Promise((r) => setTimeout(r, 1200));
+
+  const vu = await page.evaluate(() => ({
+    erreur: document.querySelector('#erreur').hidden ? '' : document.querySelector('#erreur').textContent,
+    verdict: (document.querySelector('.verdict-titre') || {}).textContent || '',
+    gloses: [...document.querySelectorAll('.hypothese .quoi')].map((n) => n.textContent),
+    plages: [...document.querySelectorAll('.hypothese .plage')].map((n) => n.textContent),
+  }));
+  verifie('un modèle inédit se calcule sans erreur', !vu.erreur && vu.verdict.length > 0,
+    `→ « ${vu.verdict} »${vu.erreur ? ', erreur: ' + vu.erreur : ''}`);
+  // La glose vient du commentaire que le visiteur a lui-même écrit.
+  verifie('… et les hypothèses sont nommées en français',
+    vu.gloses.some((g) => g.includes('ce que je paie chaque mois')),
+    `→ ${JSON.stringify(vu.gloses)}`);
+  // L'unité vient du symbole qu'il a collé à son nombre.
+  verifie('… avec l’unité qu’il a écrite, pas un nombre nu',
+    vu.plages.some((t) => /\d\u202f€/.test(t) || /\d €/.test(t)),
+    `→ ${JSON.stringify(vu.plages)}`);
+  verifie('… et leur fourchette est dessinée comme pour la bibliothèque',
+    await page.$$eval('.fourchette', (n) => n.length) > 0);
+
+  await page.click('#reinit');
+  await new Promise((r) => setTimeout(r, 900));
+}
 
 // --- Le détail des calculs -----------------------------------------------------
 console.log('\n\x1b[1mLe détail des calculs\x1b[0m');

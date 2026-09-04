@@ -1867,6 +1867,113 @@ groupe('Les chiffres cités par l’ouverture de l’accueil');
   proche('… et fermée à 1 800', rep.stats.p95, 1800, 60);
 }
 
+// --- Le cas raconté ----------------------------------------------------------
+//
+// « Je ne trouve nulle part de cas d'usage raconté du début à la fin. » La page
+// /un-cas suit une décision du devis du garage au tiroir à factures. Chacun de
+// ses chiffres sort du moteur, et chacun est épinglé ici : si le modèle bouge,
+// c'est la page qu'on corrige, pas le test qu'on assouplit. Le dispositif a
+// déjà attrapé deux fautes de fond sur /la-methode.
+groupe('Les chiffres du cas raconté');
+{
+  const source = MODELES.find((m) => m.cle === 'voiture').source;
+  const r = analyserModele(source);
+  const rec = r.options.liste[r.options.recommande];
+
+  verifie('le cas part de « Garder l’actuelle »', rec.nom === 'Garder l’actuelle');
+  proche('… qui l’emporte 67 % du temps', rec.pGagne, 0.67, 0.02);
+  proche('… soit 3 fois sur 10 où le conseil est mauvais', r.options.pari.pPerte, 0.325, 0.02);
+  proche('le pari : 2 776 € de mieux quand on a raison', r.options.pari.gainMedian, 2776, 60);
+  proche('… 1 920 € de moins quand on a tort', r.options.pari.perteMediane, 1920, 60);
+  proche('… et jusqu’à 7 650 € dans le pire vingtième', r.options.pari.pertePire, 7650, 200);
+
+  const rep = r.sources[0];
+  verifie('c’est « reparations » qui décide', rep.nom === 'reparations', `→ ${rep.nom}`);
+  proche('… et porte 55 % de l’écart entre les branches', rep.part, 0.55, 0.04);
+  proche('… avec un seuil à 1 109 €/an', rep.bascules[0].valeur, 1109, 25);
+  proche('… franchi 3 fois sur 10', rep.bascules[0].proba, 0.28, 0.04);
+  proche('… et 631 € à gagner en le sachant', rep.valeurInfo, 631, 30);
+  proche('tout savoir vaudrait 857 €', r.options.evpi, 857, 40);
+
+  // La page dit que les autres hypothèses ne valent pas le déplacement. C'est
+  // une affirmation chiffrée, donc elle se vérifie.
+  const vi = (nom) => r.sources.find((x) => x.nom === nom).valeurInfo;
+  proche('… la décote ne vaut que 86 €', vi('decote'), 86, 25);
+  proche('… le prix de l’occasion 43 €', vi('prix_nouvelle'), 43, 20);
+  proche('… la consommation 29 €', vi('conso_actuelle'), 29, 15);
+  verifie('… toutes très loin derrière « reparations »',
+    vi('decote') < rep.valeurInfo / 4, `→ ${vi('decote').toFixed(0)} contre ${rep.valeurInfo.toFixed(0)}`);
+
+  // Le tiroir à factures : la fourchette devinée devient une fourchette datée.
+  const apres = (plage) => analyserModele(
+    source.replace(/reparations = 400 à 1800.*/, `reparations = ${plage}   # relevé sur trois ans`));
+
+  const bon = apres('500 à 900');
+  const recBon = bon.options.liste[bon.options.recommande];
+  verifie('après les factures, « Garder » tient', recBon.nom === 'Garder l’actuelle');
+  proche('… à 89 % au lieu de 67 %', recBon.pGagne, 0.89, 0.03);
+  proche('… 3 002 € de mieux quand on a raison', bon.options.pari.gainMedian, 3002, 90);
+  proche('… 783 € de moins quand on a tort', bon.options.pari.perteMediane, 783, 60);
+  proche('… et la valeur de l’information tombe à 110 €', bon.options.evpi, 110, 45);
+  verifie('… donc plus rien à aller chercher', bon.options.evpi < r.options.evpi / 4,
+    `→ ${bon.options.evpi.toFixed(0)} contre ${r.options.evpi.toFixed(0)}`);
+
+  // L'autre issue possible, que la page raconte aussi : sans elle, ce serait
+  // une démonstration flatteuse.
+  const mauvais = apres('900 à 1600');
+  const recMauvais = mauvais.options.liste[mauvais.options.recommande];
+  verifie('l’autre issue bascule vers « Changer »', recMauvais.nom === 'Changer', `→ ${recMauvais.nom}`);
+  proche('… mais à 58 %, donc « à égalité »', recMauvais.pGagne, 0.58, 0.03);
+  verifie('… ce que le site refuse de trancher', recMauvais.pGagne < 0.62,
+    `→ ${(recMauvais.pGagne * 100).toFixed(0)} %`);
+  proche('… à 466 € près sur six ans', mauvais.options.ecart.p50, 466, 130);
+}
+
+// --- Ce que le site sait d'un modèle qu'il n'a pas écrit ----------------------
+//
+// La session 14 avait posé en principe que « le site ne devine pas ce que veut
+// dire un nom qu'il n'a pas écrit », et c'était juste. Mais il n'y a rien à
+// deviner : « reparations = 400 à 1800 € # par an » porte déjà le mot et
+// l'unité. Le site les jetait tous les deux, et devenait donc muet au moment
+// précis où quelqu'un se sert de l'outil pour lui-même — quatrième retour du
+// lecteur extérieur : « quand j'écris mon propre modèle, je n'ai plus que des
+// identifiants sans unité ».
+groupe('La glose et l’unité écrites dans le modèle');
+{
+  const r = analyserModele(`unité: €
+loyer = 900 à 1150 €          # ce que je paie chaque mois
+carburant = 1,60 à 2,20 €/L   # le prix à la pompe
+duree = 3 à 8 ans             # combien de temps je reste
+taux = 2 % à 4 %              # le crédit
+# --- une ligne de titre, qui ne décrit aucune hypothèse ------------------
+x = loyer * duree + carburant * 1000 + taux`);
+  const par = Object.fromEntries(r.sources.map((s) => [s.nom, s]));
+
+  verifie('le commentaire de fin de ligne devient la glose',
+    par.loyer.quoi === 'ce que je paie chaque mois', `→ ${par.loyer.quoi}`);
+  verifie('le symbole collé au nombre devient l’unité', par.loyer.unite === '€', `→ ${par.loyer.unite}`);
+  verifie('… une unité composée aussi', par.carburant.unite === '€/L', `→ ${par.carburant.unite}`);
+  verifie('… et le mot posé après le nombre', par.duree.unite === 'ans', `→ ${par.duree.unite}`);
+  verifie('un pourcentage reste un pourcentage', par.taux.pourcent === true);
+  verifie('… et garde sa glose', par.taux.quoi === 'le crédit', `→ ${par.taux.quoi}`);
+
+  // Un commentaire seul sur sa ligne est un titre de section : il ne doit
+  // décrire aucune hypothèse, sinon « --- Garder l'actuelle --- » deviendrait
+  // la définition de la ligne suivante.
+  verifie('une ligne de commentaire seule ne glose rien',
+    !Object.values(par).some((s) => (s.quoi || '').includes('une ligne de titre')));
+
+  // Le lexique reste prioritaire là où il existe : il est écrit à la main,
+  // relu, et dit en plus où trouver le chiffre.
+  const v = analyserModele(MODELES.find((m) => m.cle === 'voiture').source);
+  const rep = v.sources.find((s) => s.nom === 'reparations');
+  verifie('sur un modèle de la bibliothèque, la glose du modèle existe aussi',
+    rep.quoi === 'par an, et ça monte avec l’âge', `→ ${rep.quoi}`);
+  const { hypothese } = await import('../public/js/lexique.js');
+  verifie('… mais le lexique dit mieux, et c’est lui qui s’affiche',
+    hypothese('voiture', 'reparations').quoi.length > 0);
+}
+
 // --- Le poids de la page servie ---------------------------------------------
 //
 // Un lecteur extérieur a compté ce que l'accueil lui mettait sous les yeux :
@@ -1902,6 +2009,13 @@ groupe('Le texte servi par les pages');
 
   // La référence du langage a sa page. Elle était recopiée en entier sur les
   // quinze pages du site, où elle pesait le tiers du texte de l'accueil.
+  const { pageCas } = await import('../outils/gabarit.js');
+  const cas = pageCas();
+  verifie('le cas raconté est une page à lui seul',
+    cas.includes('Un cas, du début à la fin') && cas.includes('canonical" href="https://optiboussole.fr/un-cas'));
+  verifie('… vers laquelle l’accueil renvoie dès son ouverture',
+    accueil.indexOf('href="/un-cas"') > 0 && accueil.indexOf('href="/un-cas"') < accueil.indexOf('<textarea'));
+
   const langage = pageLangage();
   verifie('la référence du langage vit sur /le-langage',
     langage.includes('Les fonctions') && langage.includes('lognormale'));

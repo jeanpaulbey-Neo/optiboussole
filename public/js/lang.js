@@ -268,9 +268,10 @@ export function lexer(source) {
       // sur tout copier-coller venu d'ailleurs. L'unité du résultat, elle, se
       // déclare toujours en tête.
       let deco = false;
+      let symDebut = -1;
       let u = j;
       while (u < n && (source[u] === ' ' || source[u] === '\u00a0' || source[u] === '\u202f')) u++;
-      if ('€$£¥₽¢°'.includes(source[u] || '')) { j = u + 1; deco = true; }
+      if ('€$£¥₽¢°'.includes(source[u] || '')) { j = u + 1; deco = true; symDebut = u; }
       // Le dénominateur d'une unité composée : « €/mois », « %/an ». Collé,
       // sans espace, et suivi de lettres — jamais confondu avec une division.
       if ((deco || pourcent) && source[j] === '/' && EST_LETTRE.test(source[j + 1] || '')) {
@@ -280,6 +281,11 @@ export function lexer(source) {
       pousser('nombre', valeur);
       jetons[jetons.length - 1].pourcent = pourcent;
       jetons[jetons.length - 1].suffixe = suffixe;
+      // Le symbole reste décoratif pour le calcul — il n'y a pas
+      // d'arithmétique des euros — mais il dit dans quelle unité l'auteur a
+      // écrit cette ligne-là, et c'est la seule chose que le site sache d'un
+      // modèle qu'il n'a pas écrit. On le garde au lieu de le jeter.
+      if (symDebut >= 0) jetons[jetons.length - 1].symbole = source.slice(symDebut, j).trim();
       if (ambigu) jetons[jetons.length - 1].ambigu = source.slice(i, j).trim();
       if (million) jetons[jetons.length - 1].million = million;
       i = j;
@@ -741,6 +747,7 @@ class Parseur {
     if (t.type === 'nombre') {
       this.avance();
       const noeud = { k: 'nombre', v: t.valeur, pourcent: t.pourcent, suffixe: t.suffixe || 1, ligne: t.ligne };
+      if (t.symbole) noeud.symbole = t.symbole;
       if (t.ambigu) noeud.ambigu = t.ambigu;
       if (t.million) noeud.million = t.million;
       this.unites(noeud);
@@ -804,6 +811,27 @@ export function analyser(sourceBrute) {
   }
   const p = new Parseur(jetons, declares);
   const lignesBrutes = source.split('\n').map((l) => l.replace(/#.*$|\/\/.*$/, '').trim());
+
+  // Le commentaire de fin de ligne est une glose écrite par l'auteur du modèle,
+  // en français, pour l'hypothèse qui la précède : « reparations = 400 à 1800
+  // # par an, et ça monte avec l'âge ». Le site le jetait, et n'affichait donc
+  // rien pour les modèles qu'il n'avait pas écrits lui-même — c'est-à-dire
+  // exactement quand le visiteur écrit le sien. On le garde, par ligne.
+  //
+  // Seulement les commentaires de **fin** de ligne : un commentaire seul sur sa
+  // ligne est un titre de section (« # --- Garder l'actuelle --- ») et ne
+  // décrit aucune hypothèse.
+  const commentaires = new Map();
+  source.split('\n').forEach((brute, k) => {
+    const coupe = brute.search(/#|\/\//);
+    if (coupe <= 0) return;
+    if (!brute.slice(0, coupe).trim()) return;
+    const texte = brute.slice(coupe).replace(/^(#|\/\/)+/, '')
+      // Les tirets de décoration d'un séparateur, et la ponctuation finale :
+      // la glose s'insère dans une phrase du site, elle n'en est pas une.
+      .replace(/^[\s\-–—=*]+|[\s\-–—=*.;]+$/g, '').trim();
+    if (texte.length >= 3 && /\p{L}/u.test(texte)) commentaires.set(k + 1, texte);
+  });
   const declarations = [];
   const options = [];
   const attentes = [];
@@ -997,5 +1025,5 @@ export function analyser(sourceBrute) {
     sortie = { expr: { k: 'var', nom: derniere.nom, ligne: derniere.ligne }, ligne: derniere.ligne, implicite: true };
   }
 
-  return { declarations, options, attentes, sortie, unite, seuil, objectifDeduit, sortiesIgnorees };
+  return { declarations, options, attentes, sortie, unite, seuil, objectifDeduit, sortiesIgnorees, commentaires };
 }

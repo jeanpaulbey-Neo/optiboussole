@@ -528,8 +528,9 @@ function avertissements(ast) {
     const mots = [...unites.keys()].map((u) => `« ${u} »`).join(', ');
     liste.push({
       ligne: Math.min(...unites.values()),
-      texte: `${mots} ${unites.size > 1 ? 'sont lus comme des unités et ignorés' : 'est lu comme une unité et ignoré'}. `
-        + 'Le calcul ne porte que sur les nombres ; l’unité du résultat se déclare avec « unité: … ».',
+      texte: `${mots} ${unites.size > 1 ? 'sont lus comme des unités' : 'est lu comme une unité'} : `
+        + 'le calcul ne porte que sur les nombres, mais le site s’en sert pour afficher '
+        + 'l’hypothèse dans son unité. L’unité du résultat, elle, se déclare avec « unité: … ».',
     });
   }
 
@@ -592,6 +593,33 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
 
   const modeDecision = r.options.length >= 2;
   const notes = avertissements(ast);
+
+  // Ce que l'auteur du modèle a écrit lui-même sur chacune de ses lignes : le
+  // commentaire de fin de ligne, et le mot d'unité posé après un nombre.
+  //
+  // `lexique.js` donne tout cela, à la main, pour les douze modèles de la
+  // bibliothèque. Il ne peut rien donner pour le modèle qu'un visiteur écrit —
+  // et la session 14 en avait fait un principe : « le site ne devine pas ce que
+  // veut dire un nom qu'il n'a pas écrit ». C'était juste et ce n'était pas la
+  // question. Il n'y a rien à deviner : « reparations = 400 à 1800 € par an »
+  // dit déjà le mot et l'unité. Le site les jetait tous les deux, et ne
+  // devenait muet qu'au moment précis où le visiteur se sert de l'outil.
+  const glose = new Map();
+  const noterUnite = (ligne, n) => {
+    // Le symbole collé au nombre d'abord — « 900 € », « 1,60 €/L » —, puis le
+    // mot posé après — « 3 ans », « 7 à 9 L ». Le premier est sans ambiguïté,
+    // le second peut être une faute de frappe, et le site le signale déjà.
+    const u = n.symbole || (n.unites && n.unites.length ? n.unites[0] : null);
+    if (!u) return;
+    if (!glose.has(ligne)) glose.set(ligne, {});
+    const g = glose.get(ligne);
+    if (!g.unite) g.unite = u;
+  };
+  for (const d of ast.declarations) parcourir(d.expr, (n) => noterUnite(d.ligne, n));
+  for (const [ligne, texte] of (ast.commentaires || new Map())) {
+    if (!glose.has(ligne)) glose.set(ligne, {});
+    glose.get(ligne).quoi = texte;
+  }
 
   // Rien à montrer : une seule branche, et aucune expression de résultat.
   if (!modeDecision && !r.sortie) {
@@ -699,6 +727,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
+        ...(glose.get(s.ligne) || {}),
         binaire: s.binaire, pourcent: !!s.pourcent, elargissable: !!s.elargissable,
         part: effetPrincipal(idx, rangEcarts, variance(rangEcarts), moyenne(rangEcarts), bins),
         valeurInfo: evppi(idx, optsA, bins, valeurSansInfo),
@@ -767,6 +796,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       }
       resultat.sources.push({
         id: s.id, nom: s.nom, ligne: s.ligne, stats: s.stats,
+        ...(glose.get(s.ligne) || {}),
         binaire: s.binaire, pourcent: !!s.pourcent, elargissable: !!s.elargissable,
         part: effetPrincipal(idx, rangSortie, varR, moyenne(rangSortie), bins),
         largeurResiduelle: resid,

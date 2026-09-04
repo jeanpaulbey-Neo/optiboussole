@@ -300,6 +300,129 @@ function courbePari(r) {
   ]);
 }
 
+// La fourchette d'une hypothèse, et le seuil qui la coupe.
+//
+// « Le résultat bascule vers "Changer" si reparations dépasse 1 109 €/an — 3
+// fois sur 10 d'après votre fourchette. » Cette phrase décrit une étendue, un
+// point dessus, et la part qui est au-delà du point. Elle était écrite ; on ne
+// la voyait pas. Un lecteur extérieur, quatrième passage : « aucune
+// représentation visuelle d'une fourchette ou d'un seuil ».
+//
+// **Une densité, et non un segment colorié.** J'ai d'abord dessiné la
+// fourchette comme une barre pleine sur une échelle linéaire, la portion au-delà
+// du seuil en ocre. C'était joli et faux d'un genre précis : sur « 398 à
+// 1 794 », le seuil de 1 109 tombe à 51 % de la longueur alors qu'il n'est
+// dépassé que 3 fois sur 10. La couleur promettait une fréquence que la longueur
+// ne tenait pas — exactement le défaut que la courbe de l'écart avait pris soin
+// d'éviter en coupant sa ligne à l'aplomb de zéro. Sur une densité, l'aire
+// au-delà du trait **est** la proportion annoncée à côté.
+//
+// La bande porte aussi, sans le dire, le fait le plus contre-intuitif du site :
+// le repère de médiane tombe visiblement à gauche du milieu, parce qu'une
+// fourchette à bornes positives est lognormale. Le même lecteur a mis une page
+// entière à comprendre que « 100 à 400 » vaut 200 et non 250. Ici, ça se voit
+// avant de se lire.
+function bandeFourchette(s, r) {
+  if (s.binaire) return null;
+  const st = s.stats;
+  if (!st.tri || !st.tri.length) return null;
+  if (!Number.isFinite(st.p05) || !Number.isFinite(st.p95) || st.p95 <= st.p05) return null;
+  const u = uniteDe(s);
+  const bascule = s.bascules.length === 1 ? s.bascules[0] : null;
+
+  const h = histogramme(st.tri, 48);
+  if (!(h.b > h.a)) return null;
+  const L = 300, H = 22;
+  let pic = 0;
+  for (const b of h.barres) if (b > pic) pic = b;
+  pic = pic || 1;
+  const x = (v) => ((v - h.a) / (h.b - h.a)) * L;
+  const y = (c) => H - (c / pic) * H;
+
+  const pts = [];
+  for (let i = 0; i < h.barres.length; i++) {
+    const g = i > 0 ? h.barres[i - 1] : h.barres[i];
+    const d = i < h.barres.length - 1 ? h.barres[i + 1] : h.barres[i];
+    pts.push([(i + 0.5) * (L / h.barres.length), y((g + 2 * h.barres[i] + d) / 4)]);
+  }
+  const ligne = (liste) => liste.map(([px, py], i) =>
+    `${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+  const aire = (liste) => liste.length < 2 ? null
+    : `M${liste[0][0].toFixed(1)},${H} ${ligne(liste).slice(1)} L${liste[liste.length - 1][0].toFixed(1)},${H} Z`;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${L} ${H}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+
+  // La fourchette à 90 % que le visiteur a écrite, en fond : c'est *son*
+  // chiffre, et le reste de la densité est ce que le site en a déduit.
+  const bg = Math.max(0, x(st.p05)), bd = Math.min(L, x(st.p95));
+  if (bd > bg) svg.appendChild(svgEl('rect', { class: 'central', x: bg, y: 0, width: bd - bg, height: H }));
+
+  // Le seuil coupe la ligne à son aplomb, par interpolation : au bord d'une
+  // barre d'histogramme, l'aire colorée cesserait de valoir la proportion.
+  const xs = bascule ? x(bascule.valeur) : null;
+  const coupe = bascule && xs > 0 && xs < L;
+  if (coupe) {
+    let ys = pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i - 1][0] <= xs && pts[i][0] >= xs) {
+        const t = (xs - pts[i - 1][0]) / ((pts[i][0] - pts[i - 1][0]) || 1);
+        ys = pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1]);
+        break;
+      }
+    }
+    const gauche = pts.filter((q) => q[0] <= xs).concat([[xs, ys]]);
+    const droite = [[xs, ys]].concat(pts.filter((q) => q[0] > xs));
+    const versLeHaut = bascule.sens === 'hausse' || bascule.sens === 'au-dessus';
+    const dG = aire(gauche), dD = aire(droite);
+    if (dG) svg.appendChild(svgEl('path', { class: versLeHaut ? 'aire' : 'aire-bascule', d: dG }));
+    if (dD) svg.appendChild(svgEl('path', { class: versLeHaut ? 'aire-bascule' : 'aire', d: dD }));
+  } else {
+    const d = aire(pts);
+    if (d) svg.appendChild(svgEl('path', { class: 'aire', d }));
+  }
+  svg.appendChild(svgEl('path', { class: 'contour', d: ligne(pts) }));
+  svg.appendChild(svgEl('line', { class: 'mediane', x1: x(st.p50), x2: x(st.p50), y1: 0, y2: H }));
+  if (coupe) svg.appendChild(svgEl('line', { class: 'seuil', x1: xs, x2: xs, y1: 0, y2: H }));
+
+  // Les étiquettes sont posées à l'aplomb de ce qu'elles nomment, jamais aux
+  // extrémités du cadre : le cadre va du demi-centile au 99,5ᵉ pour que les
+  // aires soient justes, et l'annoncer comme « la fourchette » contredirait la
+  // ligne de texte juste au-dessus. Ce qui est nommé, c'est donc les deux bornes
+  // que le visiteur a écrites — le rectangle pâle — et le seuil.
+  const etiquette = (v, classe, contenu) => {
+    const px = (x(v) / L) * 100;
+    if (px < -2 || px > 102) return null;
+    const c = Math.max(3, Math.min(97, px));
+    return el('span', {
+      class: 'fourchette-etiquette' + (classe ? ' ' + classe : '')
+        + (c > 70 ? ' a-droite' : c < 30 ? ' a-gauche' : ''),
+      style: { left: c.toFixed(2) + '%' },
+    }, contenu);
+  };
+
+  // Une étiquette de borne qui viendrait se poser sur celle du seuil est
+  // retirée : sa valeur est de toute façon écrite en toutes lettres une ligne
+  // plus haut, celle du seuil ne l'est qu'ici et dans la phrase d'action.
+  const loin = (v) => !coupe || Math.abs(x(v) - xs) / L > 0.14;
+  const sous = el('div', { class: 'fourchette-sous' }, [
+    loin(st.p05) ? etiquette(st.p05, null, valeur(st.p05, u)) : null,
+    coupe ? etiquette(bascule.valeur, 'seuil', [el('b', { text: valeur(bascule.valeur, u) })]) : null,
+    loin(st.p95) ? etiquette(st.p95, null, valeur(st.p95, u)) : null,
+  ]);
+
+  const lignes = [
+    el('div', { class: 'fourchette-rang' }, el('div', { class: 'fourchette-piste' }, svg)),
+    sous,
+  ];
+
+  return el('div', {
+    class: 'fourchette',
+    // Le dessin ne dit rien que les phrases voisines ne disent : il montre ce
+    // qu'elles décrivent. Le relire à voix haute serait du bruit.
+    'aria-hidden': 'true',
+  }, lignes);
+}
+
 // --- Rendu d'une hypothèse --------------------------------------------------
 
 // Une hypothèse est « notable » si la connaître changerait quelque chose.
@@ -359,9 +482,18 @@ function ligneHypothese(s, r, indice) {
       `Le connaître exactement resserrerait la fourchette de ${pourcent(s.gainLargeur)}, à environ ${valeur(s.largeurResiduelle, unite)} de large.`));
   }
 
-  const detail = 'aujourd’hui : ' + plage(s.stats.p05, s.stats.p95, uniteDe(s));
+  // La médiane écrite à côté des bornes, et c'est délibéré : sur « 400 à 1 800 »
+  // elle vaut 849, pas 1 100. C'est le principe de départ du site — une
+  // fourchette à bornes positives est lognormale — et il était expliqué sur deux
+  // pages de fond que personne n'atteint avant d'avoir lu les résultats. Écrit
+  // ici, il est au seul endroit où il sert : sous les chiffres qu'il explique.
+  const detail = 'aujourd’hui : ' + plage(s.stats.p05, s.stats.p95, uniteDe(s))
+    + ', médiane ' + valeur(s.stats.p50, uniteDe(s));
   bloc.appendChild(el('p', { class: 'plage' },
     r.modeDecision ? `${detail} · porte ${pourcent(s.part)} de l’écart entre les branches` : detail));
+
+  const bande = bandeFourchette(s, r);
+  if (bande) bloc.appendChild(bande);
 
   return bloc;
 }
@@ -379,13 +511,26 @@ function ligneHypothese(s, r, indice) {
 function uniteDe(s) {
   const h = hypothese(cleCourante, s.nom);
   if (h && h.unite) return h.unite;
-  return s.pourcent ? '%' : '';
+  if (s.pourcent) return '%';
+  // À défaut du lexique : le mot d'unité que l'auteur a écrit après son nombre,
+  // « reparations = 400 à 1800 €/an ». C'est la seule unité qu'on connaisse
+  // pour un modèle qu'on n'a pas écrit, et elle vaut mieux qu'un nombre nu —
+  // un lecteur extérieur, quatrième passage : « quand j'écris mon propre
+  // modèle, je n'ai plus que des identifiants sans unité ».
+  return s.unite || '';
 }
 
 // Le mot que le visiteur emploierait, à la place de l'identifiant de code.
+//
+// Le lexique d'abord — écrit à la main, relu, testé. Puis, à défaut, la glose
+// que l'auteur du modèle a lui-même mise en commentaire de fin de ligne. Le
+// site n'invente toujours rien : il rend au visiteur ce qu'il a écrit, à
+// l'endroit où ça sert. Sur un modèle de la bibliothèque les deux existent et
+// le lexique gagne ; sur le modèle de quelqu'un d'autre, il n'y avait rien.
 const quoiDe = (s) => {
   const h = hypothese(cleCourante, s.nom);
-  return h ? h.quoi : null;
+  if (h && h.quoi) return h.quoi;
+  return s.quoi || null;
 };
 
 // Où aller chercher le chiffre, dans le monde. C'est la réponse à « et
