@@ -1,7 +1,7 @@
 // Génère public/index.html et une page par modèle. `npm run pages`
 import { writeFileSync } from 'node:fs';
 import { MODELES, MODELE_PAR_DEFAUT } from '../public/js/modeles.js';
-import { page, pageMethode, page404, lien } from './gabarit.js';
+import { page, pageMethode, pageLangage, page404, lien } from './gabarit.js';
 
 const options = { modeles: MODELES, defaut: MODELE_PAR_DEFAUT };
 const ecrites = [];
@@ -19,6 +19,9 @@ for (const m of MODELES) {
 
 writeFileSync('public/la-methode.html', pageMethode());
 ecrites.push(['/la-methode', 'la-methode.html']);
+
+writeFileSync('public/le-langage.html', pageLangage());
+ecrites.push(['/le-langage', 'le-langage.html']);
 
 // La 404 n'est pas dans le plan du site : elle est là pour qui se trompe d'adresse.
 writeFileSync('public/404.html', page404(options));

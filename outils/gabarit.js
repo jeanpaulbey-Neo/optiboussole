@@ -58,8 +58,14 @@ ${colonne('Où trouver vos chiffres', f.chiffres)}
 </div>`;
 }
 
+// Le langage a sa page, /le-langage. Ce dépliant-ci n'en garde que le tableau
+// qu'on relit en écrivant une ligne. Le reste — ce que le lexer accepte, les
+// fonctions, la loi qu'une fourchette produit — était recopié sur les quatorze
+// pages du site, et pesait à lui seul le tiers du texte servi sur l'accueil.
+// Un lecteur extérieur a nommé cet empilement : « démo, référence du langage,
+// lois, indicateurs, limites, tout au même endroit ».
 const AIDE = `<details class="panneau aide">
-  <summary>La syntaxe tient en dix lignes</summary>
+  <summary>Écrire son propre modèle : la syntaxe tient en dix lignes</summary>
   <div class="aide-corps">
     <table>
       <tr><td>prix = 250k</td><td>Une valeur que vous connaissez. <code>k</code>, <code>M</code>, <code>Md</code>, <code>12 %</code>, <code>1 234,5</code> et <code>3 millions</code> s’écrivent comme on les dit.</td></tr>
@@ -72,98 +78,60 @@ const AIDE = `<details class="panneau aide">
       <tr><td>prix &lt;= budget</td><td>Une contrainte plutôt qu’un calcul : le site calcule <code>prix</code> et mesure la probabilité de rester sous <code>budget</code>. C’est une écriture raccourcie de <code>seuil: &lt;= budget</code>.</td></tr>
       <tr><td># commentaire</td><td>Ignoré. La dernière ligne sans <code>=</code>, ou la dernière variable définie, est le résultat.</td></tr>
     </table>
-    <p class="aide-note">
-      Le site accepte ce qu’on écrit vraiment : les symboles collés aux nombres
-      (<code>900 €</code>, <code>30 k€</code>, <code>3 %/an</code>), les mots d’unité après un nombre
-      (<code>3 ans</code>, <code>40 h/semaine</code> — lus, ignorés, et signalés), l’échelle donnée à une
-      seule borne (<code>15 à 30 %</code>, <code>1 à 3 millions</code>), <code>1000 ± 10 %</code>,
-      la croix de l’école (<code>loyer x 12</code>), l’espace insécable et l’espace des milliers,
-      le point-virgule à la mode tableur (<code>max(1;2)</code>), les accents dans les noms,
-      et les mots-clés en anglais (<code>to</code>, <code>if … then … else</code>, <code>unit:</code>,
-      <code>threshold:</code>). Un nom d’hypothèse, lui, s’écrit d’un seul tenant :
-      <code>prix_du_kilo</code>, pas <code>prix du kilo</code>.
-    </p>
-
-    <h3>Fonctions disponibles</h3>
-    <table>
-      <tr><td>min max abs racine exp log arrondi plancher plafond mod signe</td><td>Les habituelles.</td></tr>
-      <tr><td>si … alors … sinon …</td><td>Condition. Avec <code>et</code>, <code>ou</code>, <code>non</code> et les comparaisons.</td></tr>
-      <tr><td>cumul(taux, années)</td><td><code>1 + (1+t) + … + (1+t)^(a-1)</code>. Pour capitaliser un versement annuel constant.</td></tr>
-      <tr><td>serie(placement, croissance, années)</td><td>Un versement qui croît de <code>g</code> chaque année et se place à <code>r</code>. Pour comparer un loyer qui monte à un capital qui rapporte.</td></tr>
-      <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
-      <tr><td>proba(condition)<br>esperance(x) · mediane(x) · ecart_type(x)</td><td>Résument toute la simulation en un seul nombre.</td></tr>
-    </table>
-
-    <h3>Comment une fourchette devient une loi</h3>
-    <p>
-      <code>100 à 400</code> avec deux bornes positives donne une <b>lognormale</b> : la médiane est
-      la moyenne géométrique (200, pas 250), et le résultat ne peut pas devenir négatif.
-      C’est le bon réflexe pour des prix, des durées, des quantités.
-      <code>−2 % à 5 %</code>, dont les bornes changent de signe, donne une <b>normale</b>.
-      <code>0 à 100</code> donne une normale repliée sur les positifs : écrire zéro comme borne basse
-      veut dire qu’on exclut le négatif.
-    </p>
-
-    <h3>Ce que veulent dire les trois chiffres affichés</h3>
-    <p>
-      <b>La part</b> est la fraction de l’incertitude du résultat qu’une hypothèse porte à elle seule.
-      Elle est calculée sur les rangs et non sur les valeurs : sur des grandeurs à queue longue, un
-      indice de variance classique est confisqué par quelques tirages extrêmes.
-      <b>Le seuil de bascule</b> est obtenu en figeant toutes les autres hypothèses à leur médiane et
-      en balayant celle-là — c’est donc un seuil « toutes choses égales par ailleurs », pas une frontière exacte.
-      <b>La valeur de l’information</b> est ce que vous gagneriez, en moyenne et dans l’unité du modèle,
-      à connaître exactement cette hypothèse-là avant de choisir. Quand elle vaut zéro, l’hypothèse
-      peut être très incertaine et rester sans intérêt : elle ne change pas la décision.
-    </p>
-
-    <h3>« Et si vos fourchettes étaient trop étroites ? »</h3>
-    <p>
-      C’est la question que le site vous retourne en dernier, et c’est la plus importante.
-      Tout le reste suppose que vos fourchettes sont honnêtes — or c’est exactement ce que
-      les humains font le plus mal : quand on demande à quelqu’un un intervalle dans lequel
-      il est <em>sûr à 90 %</em> que la vraie valeur se trouve, elle y tombe en réalité
-      autour d’une fois sur deux. Le résultat est robuste, il s’observe chez les experts
-      comme chez les novices, et sur leur propre domaine.
-      Le site élargit donc toutes vos fourchettes d’un facteur croissant — médiane
-      inchangée, jamais de valeur négative là où vous n’en vouliez pas — et regarde à
-      partir de quand votre conclusion ne tient plus. Un verdict qui survit à des
-      fourchettes trois fois plus larges ne dépend pas de la justesse de vos fourchettes ;
-      un verdict qui tombe à 1,3 n’est pas un verdict. Les lois discrètes
-      (<code>bernoulli</code>, <code>poisson</code>) ne sont pas élargies : une probabilité
-      ne s’étire pas comme une fourchette.
-    </p>
-
-    <h3>Le contre-argument</h3>
-    <p>
-      Le seuil de bascule déplace <em>une</em> hypothèse. Quand aucune ne renverse le verdict
-      à elle seule, le site cherche le jeu d’hypothèses le plus proche du vôtre qui donnerait
-      la conclusion contraire, et vous le montre chiffré : voilà ce qu’il faudrait croire.
-      La distance est mesurée dans l’unité de vos propres fourchettes — zéro à la médiane,
-      1,645 au bord. Si aucun scénario plausible ne renverse le verdict, le site le dit :
-      votre désaccord, s’il en reste un, n’est pas dans les chiffres du modèle mais dans
-      ce qui n’y figure pas.
-    </p>
-
-    <h3>Le détail des calculs, et le verdict en texte</h3>
-    <p>
-      Sous les résultats, un panneau dépliant donne chaque valeur calculée — médiane, fourchette à 90 %,
-      et les hypothèses qui portent son incertitude — et décompose les sommes en termes, avec le poids de
-      chaque poste à sa valeur médiane. C’est ce qu’un tableur montre cellule par cellule : de quoi vérifier
-      son modèle autrement qu’en le croyant. Et « Copier le verdict » produit ce que la page affiche, en
-      texte, précédé d’un lien qui contient le modèle : à coller dans une discussion, pour décider à
-      plusieurs.
-    </p>
-
-    <h3>Ce que ce site ne fait pas</h3>
-    <p>
-      Il ne connaît aucune donnée de marché, aucun barème, aucun taux réel : tous les chiffres sont
-      ceux que vous écrivez, et les modèles de départ sont des ordres de grandeur à remplacer par les vôtres.
-      Il suppose vos hypothèses indépendantes, sauf là où vous les liez explicitement par une formule.
-      Il ne remplace pas un conseil professionnel. Et il ne saura jamais ce qui, dans votre décision,
-      ne s’écrit pas en chiffres.
+    <p class="aide-renvoi">
+      Le détail — tout ce que le site accepte de votre écriture, les fonctions, la loi qu’une
+      fourchette produit&nbsp;: <a href="/le-langage"><b>le langage</b></a>. Ce que veulent dire les
+      chiffres de la réponse&nbsp;: <a href="/la-methode"><b>la méthode</b></a>.
     </p>
   </div>
 </details>`;
+
+// Les morceaux longs, sortis du dépliant : ils vivent sur /le-langage.
+const LANGAGE_TABLE = `  <table>
+    <tr><td>prix = 250k</td><td>Une valeur que vous connaissez. <code>k</code>, <code>M</code>, <code>Md</code>, <code>12 %</code>, <code>1 234,5</code> et <code>3 millions</code> s’écrivent comme on les dit.</td></tr>
+    <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu’il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C’est tout ce que le site vous demande de savoir. S’écrit aussi <code>1000 ± 100</code>, <code>entre 900 et 1150</code>, ou <code>900 .. 1150</code>.</td></tr>
+    <tr><td>total = prix + loyer * 12</td><td>De l’arithmétique ordinaire. Une variable réutilisée garde la même valeur tirée : <code>a - a</code> fait toujours zéro.</td></tr>
+    <tr><td>option "Acheter" = …<br>option "Louer" = …</td><td>Deux lignes <code>option</code> ou plus, et le site passe en mode décision : il compare, recommande, et cherche les seuils de bascule.</td></tr>
+    <tr><td>savoir devis = 400 €<br>attendre production</td><td>Une hypothèse qu’un diagnostic, un devis ou quelques semaines d’attente lèveraient <b>avant</b> que vous ayez à choisir, et ce que ça vous coûte. Le site répond en euros : ce que l’information rapporte, si elle se paie, et la règle à appliquer une fois qu’on saura. Sans coût écrit, elle est gratuite. <code>attendre</code> et <code>savoir</code> disent la même chose.</td></tr>
+    <tr><td>unité: €</td><td>Le libellé du <b>résultat</b>, pas des hypothèses — dans un modèle en <code>€/km</code>, un nombre de kilomètres reste un nombre de kilomètres. Libre : <code>€/km</code>, <code>mois</code>, <code>kg CO₂e</code>. Une hypothèse écrite <code>3 % à 5 %</code> s’affiche en pourcentage parce que vous l’avez écrite ainsi.</td></tr>
+    <tr><td>seuil: 12<br>seuil: &lt;= 90</td><td>En mode estimation : la valeur que vous visez. Sans signe, elle se lit « au moins 12 » ; avec <code>&lt;=</code>, « au plus 90 » — une durée, un budget ou une dose se visent par le haut. Le site calcule la probabilité de tenir l’objectif, et à partir de quelle hypothèse vous passez du mauvais côté.</td></tr>
+    <tr><td>prix &lt;= budget</td><td>Une contrainte plutôt qu’un calcul : le site calcule <code>prix</code> et mesure la probabilité de rester sous <code>budget</code>. C’est une écriture raccourcie de <code>seuil: &lt;= budget</code>.</td></tr>
+    <tr><td># commentaire</td><td>Ignoré. La dernière ligne sans <code>=</code>, ou la dernière variable définie, est le résultat.</td></tr>
+  </table>`;
+const LANGAGE_NOTE = `  <p class="aide-note">
+    Le site accepte ce qu’on écrit vraiment : les symboles collés aux nombres
+    (<code>900 €</code>, <code>30 k€</code>, <code>3 %/an</code>), les mots d’unité après un nombre
+    (<code>3 ans</code>, <code>40 h/semaine</code> — lus, ignorés, et signalés), l’échelle donnée à une
+    seule borne (<code>15 à 30 %</code>, <code>1 à 3 millions</code>), <code>1000 ± 10 %</code>,
+    la croix de l’école (<code>loyer x 12</code>), l’espace insécable et l’espace des milliers,
+    le point-virgule à la mode tableur (<code>max(1;2)</code>), les accents dans les noms,
+    et les mots-clés en anglais (<code>to</code>, <code>if … then … else</code>, <code>unit:</code>,
+    <code>threshold:</code>). Un nom d’hypothèse, lui, s’écrit d’un seul tenant :
+    <code>prix_du_kilo</code>, pas <code>prix du kilo</code>.
+  </p>`;
+const LANGAGE_FONCTIONS = `  <h3>Fonctions disponibles</h3>
+  <table>
+    <tr><td>min max abs racine exp log arrondi plancher plafond mod signe</td><td>Les habituelles.</td></tr>
+    <tr><td>si … alors … sinon …</td><td>Condition. Avec <code>et</code>, <code>ou</code>, <code>non</code> et les comparaisons.</td></tr>
+    <tr><td>cumul(taux, années)</td><td><code>1 + (1+t) + … + (1+t)^(a-1)</code>. Pour capitaliser un versement annuel constant.</td></tr>
+    <tr><td>serie(placement, croissance, années)</td><td>Un versement qui croît de <code>g</code> chaque année et se place à <code>r</code>. Pour comparer un loyer qui monte à un capital qui rapporte.</td></tr>
+    <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
+    <tr><td>proba(condition)<br>esperance(x) · mediane(x) · ecart_type(x)</td><td>Résument toute la simulation en un seul nombre.</td></tr>
+  </table>`;
+const LANGAGE_LOIS = `  <h3>La fourchette et la loi</h3>
+  <p>
+    <code>100 à 400</code>, deux bornes positives, donne une <b>lognormale</b> : la médiane est la
+    moyenne géométrique (200, pas 250) et le résultat ne devient jamais négatif — le bon réflexe
+    pour un prix, une durée, une quantité. <code>−2 % à 5 %</code>, dont les bornes changent de
+    signe, donne une <b>normale</b>. <code>0 à 100</code> donne une normale repliée : écrire zéro
+    comme borne basse, c’est dire qu’on exclut le négatif.
+  </p>`;
+const LANGAGE_RENVOI = `  <p class="aide-renvoi">
+    Ce que veulent dire les chiffres de la réponse — la part d’incertitude, le seuil de bascule,
+    la valeur de l’information, l’épreuve des fourchettes élargies, le contre-argument — et ce que
+    cette méthode ne sait pas faire&nbsp;: <a href="/la-methode">tout est sur <b>La méthode</b></a>,
+    avec un exemple calculé à chaque idée.
+  </p>`;
 
 // Le modèle par défaut vit à la racine : on ne lui fabrique pas de seconde
 // adresse, ce serait la même page à deux endroits.
@@ -182,7 +150,7 @@ const pied = () => `<footer>
     Construit par Claude. Aucun compte, aucun traceur, aucun cookie&nbsp;: le modèle et la simulation
     ne quittent pas votre navigateur, et le lien de partage contient le modèle lui-même.
   </p>
-  <p><a href="/la-methode">La méthode, en détail</a></p>
+  <p><a href="/la-methode">La méthode, en détail</a> · <a href="/le-langage">Le langage</a></p>
 </footer>`;
 
 // La page 404 : la même enveloppe, la bande de modèles complète, rien d’autre.
@@ -270,6 +238,7 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     <a class="retour" href="/">Boussole</a>
+    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
   </div>
   <h1 class="baseline titre-modele">${echappe(m.titre)}</h1>
 </header>
@@ -330,6 +299,7 @@ export function page({ modele, modeles, defaut, accueil }) {
       <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
     </svg>
     ${accueil ? '<span class="marque-nom">Boussole</span>' : '<a class="retour" href="/">Boussole</a>'}
+    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
   </div>
   <h1 class="baseline titre-modele">${echappe(modele.titre)}</h1>
   <p class="sous-baseline">${echappe(modele.question)}</p>
@@ -383,24 +353,99 @@ export function page({ modele, modeles, defaut, accueil }) {
 
 </div>
 
+${fond(modele)}
+
+${AIDE}
+
 <nav class="autres" aria-label="Modèles">
-  <p class="autres-intro">Boussole ne vous dit pas quoi décider. Elle vous dit
-    <em>ce qu’il faut aller vérifier</em> — ici comme sur ${modeles.length - 1} autres décisions
-    déjà écrites, ou sur la vôtre.</p>
+  <p class="autres-intro">La même méthode sur ${modeles.length - 1} autres décisions déjà écrites
+    — ou sur la vôtre, à écrire dans le cadre ci-dessus.</p>
   <ul class="exemples" id="exemples">
 ${chips(modeles, modele.cle, defaut)}
   </ul>
 </nav>
-
-${fond(modele)}
-
-${AIDE}
 </main>
 
 ${pied()}
 
 </div>
 <script type="module" src="/js/ui.js"></script>
+</body>
+</html>
+`;
+}
+
+// La référence du langage, à son adresse. Elle était recopiée en entier dans le
+// dépliant de chacune des quatorze pages : lue par personne, comptée par tout
+// le monde. Une page indexable est aussi le seul endroit où quelqu'un qui
+// cherche « comment écrire une fourchette » peut tomber.
+export function pageLangage() {
+  const titre = 'Le langage';
+  const question = 'Dix lignes de syntaxe pour décrire une décision incertaine : une fourchette, '
+    + 'des options, une unité. Tout ce que Boussole accepte de votre écriture, et la loi de '
+    + 'probabilité qu’une fourchette produit.';
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${titre} — Boussole</title>
+<meta name="description" content="${attr(question)}">
+<link rel="canonical" href="${SITE}/le-langage">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="${attr(titre + ' — Boussole')}">
+<meta property="og:description" content="${attr(question)}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${SITE}/le-langage">
+<link rel="icon" href="/boussole.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<a class="saut" href="#contenu">Aller au contenu</a>
+<div class="enveloppe">
+
+<header>
+  <div class="marque">
+    <svg class="rose" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-opacity=".28"/>
+      <path d="M16 3 L19.2 14.4 L16 16 Z" fill="currentColor"/>
+      <path d="M16 29 L12.8 17.6 L16 16 Z" fill="currentColor" fill-opacity=".35"/>
+    </svg>
+    <a class="retour" href="/">Boussole</a>
+    <span class="marque-quoi">ne dit pas quoi décider&nbsp;: elle dit <em>ce qu’il faut aller vérifier</em></span>
+  </div>
+  <h1 class="baseline titre-modele">${titre}</h1>
+  <p class="sous-baseline">${typographie(question)}</p>
+</header>
+
+<main id="contenu" tabindex="-1">
+<article class="panneau article aide-corps">
+  <p>
+    Un modèle Boussole est un texte. Chaque ligne nomme une quantité ; celles que vous ne
+    connaissez pas s’écrivent en fourchette plutôt qu’en chiffre inventé. Il n’y a rien
+    d’autre à apprendre&nbsp;: le tableau ci-dessous est le langage entier.
+  </p>
+
+  <h2>Les dix lignes</h2>
+${LANGAGE_TABLE}
+${LANGAGE_NOTE}
+
+  <h2>Les fonctions</h2>
+${LANGAGE_FONCTIONS.replace('<h3>Fonctions disponibles</h3>\n', '')}
+
+  <h2>La fourchette et la loi</h2>
+${LANGAGE_LOIS.replace('<h3>La fourchette et la loi</h3>\n', '')}
+
+${LANGAGE_RENVOI}
+
+  <p class="retour-outil"><a href="/">← Revenir à l’outil</a></p>
+</article>
+</main>
+
+${pied()}
+
+</div>
 </body>
 </html>
 `;

@@ -1,10 +1,226 @@
 # Journal de bord — optiboussole.fr
 
 **Qui écrit.** Les sessions 1 à 5 (contre-argument compris) ont été écrites par
-Claude Opus 5. Les sessions 6 à 12 par Claude Fable 5.1. La session 13 est de
-nouveau écrite par Claude Opus 5. Précision apportée par Jean-Paul au début de
+Claude Opus 5. Les sessions 6 à 12 par Claude Fable 5.1. Les sessions 13 et
+suivantes sont de nouveau écrites par Claude Opus 5. Précision apportée par Jean-Paul au début de
 la session 6 : les entrées précédentes ne nommaient pas leur auteur, elles sont
 donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a écrite.
+
+---
+
+## 4 septembre 2026 — Session 16 : le site était juste sur le disque et faux à l'écran
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — troisième passage du même lecteur
+
+Jean-Paul est revenu, toujours sans contexte. Cinq observations, consignées mot
+pour mot avant d'y répondre :
+
+> 1. Sur mon navigateur habituel, l'accueil affichait encore « Louer ou acheter /
+>    À égalité » et des boutons différents des tiens : le visiteur qui revient ne
+>    voit pas tes correctifs de porte d'entrée.
+> 2. En fenêtre neuve, la page d'accueil fait environ 11 800 caractères de texte :
+>    démo, référence du langage, lois, indicateurs, limites, tout au même endroit.
+> 3. La phrase qui dit à quoi sert le site arrive après les 40 lignes de code.
+> 4. « Ce que ce modèle compte / ignore / Où trouver vos chiffres » est ce que
+>    j'ai trouvé de plus utile.
+> 5. Il n'y a toujours aucune représentation visuelle d'une distribution ou d'un
+>    poids.
+
+La première dit que la session 15 n'a **toujours pas eu lieu** pour lui, alors
+qu'elle était consacrée exactement à ce symptôme. La cinquième dit qu'une
+discipline que je tiens depuis quinze sessions n'en est plus une.
+
+### 1. La correction de la session dernière était juste et n'a rien réparé
+
+La session 15 avait attribué la vitrine périmée au brouillon en `localStorage` et
+avait corrigé la politique : le modèle servi gagne, le brouillon est proposé.
+C'était vrai, testé, déployé — et le lecteur voyait toujours l'ancienne page,
+**pastilles comprises**. Or les pastilles sont écrites dans le HTML servi, pas
+produites par le JavaScript : aucun brouillon ne peut les changer. Le détail
+qu'il donne sans y toucher — « des boutons différents des tiens » — désigne la
+cause à un étage que je n'avais pas regardé.
+
+`curl -I` sur l'accueil : **pas de `Cache-Control` du tout**. Le Caddyfile en
+posait un sur `/js/*` et `app.css`, jamais sur le HTML. Sans en-tête, un
+navigateur applique sa *fraîcheur heuristique* — un dixième de l'âge du fichier —
+et sert sa copie **sans rien demander au serveur**. Sur un site où déployer
+consiste à écrire un fichier, où aucune URL ne porte de version et où rien ne
+peut donc invalider quoi que ce soit, cela suffit à figer une page d'accueil
+pendant des heures. Le HTML périmé désigne son modèle par `data-modele`, et tout
+le reste suit : le verdict, l'éditeur, les pastilles.
+
+`Cache-Control: no-cache` partout. Il ne dit pas « ne garde rien », il dit
+« revalide avant de servir » ; avec les ETag, une revalidation inchangée coûte un
+304. Quinze tests navigateur le vérifient maintenant en production, dont un qui
+contrôle que le 304 revient bien — sans lui, `no-cache` retéléchargerait 250 ko
+de JavaScript à chaque navigation.
+
+**Ce que je retiens, et c'est désagréable.** La session 15 avait trouvé *une*
+cause vraie et s'était arrêtée là, parce que l'histoire était complète : un
+brouillon, une politique, une correction. Elle expliquait le verdict et la
+pastille active. Elle n'expliquait pas les treize pastilles, et je n'ai pas
+cherché ce qu'elle n'expliquait pas. **Une cause qui rend compte de la plainte
+n'est pas la même chose qu'une cause qui rend compte de tous les détails du
+rapport.** Le détail en trop est le seul endroit où l'on apprend quelque chose.
+
+Et une seconde, plus large : j'ai écrit deux journaux de suite sur ce que le
+dépôt sert. Un visiteur ne voit pas ce que le dépôt sert, il voit ce que son
+navigateur a bien voulu redemander. Le cache faisait partie du système et ne
+figurait nulle part — ni dans `ARCHITECTURE.md`, ni dans un test.
+
+### 2. Onze mille huit cents caractères, dont les trois quarts recopiés
+
+J'ai compté à mon tour : 11 781 caractères de texte servi sur l'accueil. Son
+chiffre était juste à vingt caractères près.
+
+La répartition est ce qui rend le diagnostic simple. En-tête 803, l'atelier
+(verdict, modèle compris) 1 421, la bande de modèles 488, le pied 199 — et
+**8 797 pour les deux blocs du bas**, dont 6 500 pour le seul dépliant d'aide.
+Ce dépliant portait six sections de prose : les lois, le sens des trois chiffres,
+la robustesse, le contre-argument, le détail des calculs, les limites du site.
+
+Elles sont aussi, **mot pour mot, six chapitres de `/la-methode`**, écrits à la
+session 4 précisément pour qu'elles aient une page. Je ne les avais jamais
+retirées de l'endroit d'où elles venaient. Recopiées sur quinze pages, lues par
+personne — c'est un dépliant fermé — et comptées par tout le monde.
+
+Deux mouvements :
+
+- les six sections partent, remplacées par un lien vers `/la-methode` ;
+- la référence du langage — ce que le lexer accepte, les fonctions, la loi qu'une
+  fourchette produit — gagne sa page, **`/le-langage`**. Le dépliant ne garde que
+  le tableau des dix lignes, celui qu'on relit en écrivant. La règle est nette :
+  ce panneau sert à *écrire* une ligne, `/la-methode` sert à *comprendre* la
+  réponse, et chacun renvoie à l'autre.
+
+**11 781 → 6 910 caractères**, dont 1 336 sont le modèle lui-même dans le
+`<textarea>`. Et un budget, tenu par un test : 7 500 pour l'accueil, 9 000 pour
+une page de modèle. Ce n'est pas de l'esthétique — c'est ce qui obligera une
+prochaine session à en déplacer une pour en ajouter une.
+
+`/le-langage` n'est pas une consolation : c'est la seule page où quelqu'un qui
+cherche « comment écrire une fourchette » peut tomber. Quinzième adresse.
+
+### 3 et 4. Ce qui monte, ce qui descend
+
+La phrase qui dit à quoi sert le site vivait en introduction de la bande de
+modèles, c'est-à-dire sous l'éditeur. La session 15 l'y avait mise en croyant
+lui donner enfin un emploi : « dire ce qu'on choisit avant qu'on ait à choisir ».
+C'était juste pour la bande et faux pour la page — à cet endroit, elle arrive
+après quarante lignes de code, et c'est ce que le lecteur constate.
+
+Elle est maintenant sur la ligne de la marque : *Boussole — ne dit pas quoi
+décider : elle dit **ce qu'il faut aller vérifier***. Treize mots, avant le
+titre, sans reprendre la place que la question posée doit occuper. Un test
+vérifie qu'elle précède le `<textarea>` dans le HTML servi.
+
+Le quatrième point est le seul compliment que ce projet ait reçu en seize
+sessions, et il porte sur les trois colonnes de `fond.js`. Elles étaient
+**après** la bande de treize pastilles. On ne range pas la meilleure chose de la
+page derrière une rangée de boutons qui invitent à aller ailleurs : elles passent
+devant. Un test tient l'ordre.
+
+C'est la deuxième fois de suite qu'un retour se règle en déplaçant quelque chose
+qui existait déjà et qui était mal rangé. Je note le motif : sur ce site, les
+défauts de porte d'entrée ne sont presque jamais des manques.
+
+### 5. Les graphiques, après quinze sessions de refus
+
+Chaque entrée de ce journal depuis la première se termine par « toujours pas de
+graphiques ». C'était une position défendable : le site tient parce qu'il répond
+en français et non en tableau de bord.
+
+Sauf que ce n'est pas ce que le site faisait. Il **avait** une courbe — la
+densité du résultat, avec sa fourchette et sa médiane — et elle ne s'affiche
+qu'en mode estimation. L'accueil est en mode décision. Onze des quinze pages sont
+en mode décision. La discipline que je croyais tenir avec goût était, en
+pratique, une page vide.
+
+Le meilleur de l'affaire est dans mes propres tests. Ligne 56 de
+`test/navigateur.js`, depuis des sessions :
+
+```
+verifie('mode décision : pas de courbe (attendu)', svgOk === 'absent', …);
+```
+
+**J'avais écrit un test qui garantissait l'absence.** Ce n'était plus une
+décision, c'était un cliquet : la question ne pouvait plus se reposer sans faire
+échouer la suite. C'est exactement la faute des sessions 14 et 15 — une
+limitation inscrite dans `ARCHITECTURE.md` avec un motif plausible, un principe
+rangé dans une `@media` — sauf qu'ici je l'avais rangée dans l'endroit du dépôt
+dont le métier est précisément d'empêcher les changements.
+
+Le mode décision a donc une courbe, et j'ai cherché celle qui ne soit pas une
+décoration. Ce n'est ni la distribution de chaque branche (deux courbes
+superposées, illisibles, et trompeuses puisque les branches sont tirées
+ensemble), ni un camembert de fréquences. C'est **la distribution de l'écart
+entre la branche retenue et sa meilleure rivale**, que zéro coupe en deux :
+
+- les deux aires **sont** les deux fréquences déjà écrites au-dessus — 33 % et
+  67 % — donc la légende ne demande aucun décodage ;
+- leur étalement est l'enjeu, et c'est la seule chose que les pourcentages ne
+  peuvent pas dire : une branche qui gagne souvent et petit puis perd rarement et
+  gros se voit d'un coup d'œil ;
+- le pointillé de gauche est le pire vingtième des cas défavorables, la seule
+  phrase du bloc qui désignait un endroit précis d'une courbe qui n'existait pas.
+
+Autrement dit : c'est le paragraphe « ce que vous jouez » rendu tel quel, sous
+lui, jamais à sa place. La page reste juste sans l'image.
+
+Trois détails que je ne veux pas réapprendre :
+
+- **La ligne est coupée à l'aplomb de zéro par interpolation**, pas au bord d'une
+  barre de l'histogramme. Sans ça, la surface colorée ne vaut plus la fréquence
+  annoncée juste à côté, et la légende devient un mensonge de quelques pour cent.
+- **La légende est calée sur le partage** : chaque moitié fait la largeur de
+  l'aire qu'elle nomme. Une liste de couleurs sous une image se décode ; celle-ci
+  se lit. Un test vérifie le calage.
+- **Rien n'est dessiné quand zéro tombe hors du cadre.** Les 99 % du milieu sont
+  alors tous du même côté : il n'y a pas de partage à montrer et le dessin
+  mentirait par cadrage.
+
+Et une correction attrapée en regardant la capture, pas le code : l'axe affichait
+« −10,5 k€ » à gauche et « +8 743 € » à droite. Deux échelles sur un même axe.
+Le site a depuis longtemps ce qu'il faut — `plage()` partage un facteur entre
+deux bornes depuis la session 1 — et je ne m'en étais pas servi. J'ai aussi
+retiré une étiquette « égalité » que j'avais mise au centre de l'axe alors que le
+partage tombe à 55 % : une légende décalée de dix pour cent est pire qu'une
+légende absente.
+
+La position, réécrite dans `ARCHITECTURE.md` pour qu'elle reste une position et
+non un cliquet : **un dessin doit porter une information que le texte ne porte
+pas, et la page doit rester juste sans lui.** Il y en a deux sur ce site. C'est
+un plafond, pas un début.
+
+### Mesures, et état
+
+- 627 assertions sur le moteur (contre 620), **313** dans un vrai navigateur
+  (contre 291) : huit sur la courbe du pari — dont une qui remplace celle qui
+  garantissait son absence —, quinze sur ce qu'un navigateur a le droit de
+  garder, sept sur le poids des pages servies.
+- Accueil : 11 781 → **6 910** caractères de texte servi.
+- Douze modèles, **quinze** pages, dix chapitres, 91 hypothèses au lexique.
+- Le site répond, `npm test` et `npm run test:navigateur` sont verts.
+
+### Ce que je ferais ensuite
+
+1. **Un quatrième passage, et cette fois il verra ce qui est déployé.** C'est le
+   premier retour qui portera sur l'état réel du site : les deux précédents
+   jugeaient une page de deux sessions d'âge. Je ne peux toujours pas produire
+   cette mesure moi-même, et elle vaut mieux que tout ce que je peux inventer.
+2. **La valeur d'option**, laissée par la session 13, reportée par la 14, la 15.
+   Demander un second devis, garder deux offres ouvertes : `max` d'un côté, pas
+   d'espérance conditionnelle. Trois reports valent aveu — soit elle passe la
+   prochaine fois, soit je la retire de la liste et j'écris pourquoi.
+3. **La neuvième récolte**, reportée six fois. Écrire de travers exprès a été la
+   demi-heure la plus rentable de trois sessions ; elle est en bas de la liste
+   depuis que la porte d'entrée a un lecteur.
+4. **Chercher un second cliquet.** Celui de cette session était un test. Le
+   repère est plus précis qu'avant : chercher un endroit du dépôt qui *empêche*
+   une question de se reposer — un test qui affirme une absence, une contrainte
+   documentée, un principe enfermé dans une condition.
 
 ---
 

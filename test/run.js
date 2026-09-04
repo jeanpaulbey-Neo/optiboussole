@@ -1867,5 +1867,61 @@ groupe('Les chiffres cités par l’ouverture de l’accueil');
   proche('… et fermée à 1 800', rep.stats.p95, 1800, 60);
 }
 
+// --- Le poids de la page servie ---------------------------------------------
+//
+// Un lecteur extérieur a compté ce que l'accueil lui mettait sous les yeux :
+// « environ 11 800 caractères de texte : démo, référence du langage, lois,
+// indicateurs, limites, tout au même endroit ». Le chiffre était juste. Le
+// budget ci-dessous n'est pas une esthétique, c'est la seule chose qui empêche
+// une page d'accueil de redevenir un manuel : toute section qu'on voudra y
+// ajouter devra en déplacer une autre, ou faire tomber ce test.
+groupe('Le texte servi par les pages');
+{
+  const { page, pageLangage } = await import('../outils/gabarit.js');
+  const { MODELE_PAR_DEFAUT } = await import('../public/js/modeles.js');
+  const brut = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+  const options = { modeles: MODELES, defaut: MODELE_PAR_DEFAUT };
+  const defaut = MODELES.find((m) => m.cle === MODELE_PAR_DEFAUT);
+  const accueil = page({ modele: defaut, accueil: true, ...options });
+  const n = brut(accueil).length;
+  verifie('l’accueil tient sous 7 500 caractères de texte', n < 7500, `→ ${n}`);
+
+  // Le nom du site ne dit rien ; la phrase qui dit à quoi il sert doit être
+  // lisible avant le modèle, pas après quarante lignes de code.
+  const iQuoi = accueil.indexOf('marque-quoi');
+  const iCode = accueil.indexOf('<textarea');
+  verifie('… et dit à quoi sert le site avant la première ligne de code',
+    iQuoi > 0 && iQuoi < iCode, `→ ${iQuoi} / ${iCode}`);
+
+  // Ce que le lecteur a désigné comme le plus utile du site : on ne le range
+  // pas derrière la bande de pastilles, qui invite à partir ailleurs.
+  const iFond = accueil.indexOf('class="panneau fond"');
+  const iPastilles = accueil.indexOf('class="exemples"');
+  verifie('… et place le texte de fond avant la bande de modèles',
+    iFond > 0 && iFond < iPastilles, `→ ${iFond} / ${iPastilles}`);
+
+  // La référence du langage a sa page. Elle était recopiée en entier sur les
+  // quinze pages du site, où elle pesait le tiers du texte de l'accueil.
+  const langage = pageLangage();
+  verifie('la référence du langage vit sur /le-langage',
+    langage.includes('Les fonctions') && langage.includes('lognormale'));
+  verifie('… et n’est plus recopiée dans le dépliant des pages',
+    !accueil.includes('Fonctions disponibles') && !accueil.includes('Ce que ce site ne fait pas'));
+  verifie('… vers laquelle le dépliant renvoie', accueil.includes('href="/le-langage"'));
+
+  // Une page de modèle a droit à plus que l'accueil, et c'est délibéré : ce
+  // qu'elle porte en plus, ce sont les trois colonnes « ce que ce modèle
+  // compte / ignore / où trouver vos chiffres », que le même lecteur a
+  // désignées comme ce qu'il avait trouvé de plus utile sur le site. Le budget
+  // sert à contenir le reste, pas à rogner ça.
+  let pire = 0, pireNom = '';
+  for (const m of MODELES) {
+    if (m.cle === MODELE_PAR_DEFAUT) continue;
+    const t = brut(page({ modele: m, accueil: false, ...options })).length;
+    if (t > pire) { pire = t; pireNom = m.titre; }
+  }
+  verifie('une page de modèle tient sous 9 000 caractères', pire < 9000, `→ ${pire} (${pireNom})`);
+}
+
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);
 process.exit(ko === 0 ? 0 : 1);

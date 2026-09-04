@@ -49,11 +49,66 @@ verifie('le verdict est en gros corps (spécificité CSS)', tailleTitre >= 22, `
 const nbHypotheses = await page.$$eval('.hypothese', (n) => n.length);
 verifie('les hypothèses sont listées', nbHypotheses >= 3, `→ ${nbHypotheses}`);
 
-const svgOk = await page.evaluate(() => {
-  const s = document.querySelector('.distribution svg');
-  return s ? s.namespaceURI === 'http://www.w3.org/2000/svg' : 'absent';
+// Quinze sessions sans le moindre dessin, puis un lecteur extérieur : « il n'y
+// a toujours aucune représentation visuelle d'une distribution ou d'un poids ».
+// Le mode décision en a une maintenant, et ce n'est pas une décoration : les
+// deux aires que zéro sépare sont les deux fréquences écrites juste au-dessus.
+// Ce test vérifie l'accord entre le dessin et la phrase.
+const pari = await page.evaluate(() => {
+  const f = document.querySelector('.distribution.pari');
+  if (!f) return null;
+  const s = f.querySelector('svg');
+  const cotes = [...f.querySelectorAll('.pari-cote')];
+  const r = s.getBoundingClientRect();
+  return {
+    ns: s.namespaceURI,
+    h: r.height,
+    aires: s.querySelectorAll('.aire-gain, .aire-perte').length,
+    zero: s.querySelectorAll('.zero').length,
+    contour: s.querySelectorAll('.contour').length,
+    cotes: cotes.length,
+    pourcents: cotes.map((c) => parseFloat((c.textContent.match(/(\d+([.,]\d+)?)\s*%/) || [])[1]?.replace(',', '.'))),
+    larges: cotes.map((c) => c.getBoundingClientRect().width / r.width),
+    // Position du trait d'égalité dans le repère du dessin : c'est sur lui que
+    // la légende doit être calée, pas sur la fréquence — la fréquence est une
+    // *aire*, et l'aire d'un côté n'a aucune raison d'être sa largeur.
+    zeroX: (() => {
+      const l = s.querySelector('.zero');
+      const vb = s.getAttribute('viewBox').split(/\s+/);
+      return l ? parseFloat(l.getAttribute('x1')) / parseFloat(vb[2]) : null;
+    })(),
+    axe: [...f.querySelectorAll('.axe span')].map((n) => n.textContent),
+  };
 });
-verifie('mode décision : pas de courbe (attendu)', svgOk === 'absent', `→ ${svgOk}`);
+verifie('mode décision : la distribution de l’écart est dessinée', pari !== null);
+verifie('… en vrai SVG et à hauteur visible',
+  pari && pari.ns === 'http://www.w3.org/2000/svg' && pari.h > 60, `→ ${pari && pari.h}px`);
+verifie('… avec deux aires, un contour et le trait d’égalité',
+  pari && pari.aires === 2 && pari.contour === 1 && pari.zero === 1,
+  `→ ${pari && pari.aires} aires, ${pari && pari.zero} zéro`);
+verifie('… une légende dont les deux fréquences font 100 %',
+  pari && pari.pourcents.length === 2 && Math.abs(pari.pourcents[0] + pari.pourcents[1] - 100) <= 1,
+  `→ ${pari && pari.pourcents.join(' + ')}`);
+// Le calage est ce qui rend la légende honnête : la césure entre les deux
+// moitiés tombe à l'aplomb du trait d'égalité, si bien que chaque phrase est
+// sous l'aire qu'elle nomme. Sans ça, c'est une liste de couleurs sous une
+// image, et il faut la décoder.
+verifie('… calée sur le trait d’égalité du dessin',
+  pari && pari.zeroX !== null && Math.abs(pari.larges[0] - pari.zeroX) < 0.03,
+  `→ légende ${pari && (pari.larges[0] * 100).toFixed(1)} %, trait ${pari && (pari.zeroX * 100).toFixed(1)} %`);
+// Et la somme des deux moitiés fait bien la largeur du dessin : une légende
+// qui déborde ou qui laisse un trou ne se lit plus comme un partage.
+verifie('… et couvrant le dessin sans trou ni débordement',
+  pari && Math.abs(pari.larges[0] + pari.larges[1] - 1) < 0.02,
+  `→ ${pari && ((pari.larges[0] + pari.larges[1]) * 100).toFixed(1)} %`);
+verifie('… et une échelle chiffrée, pas une courbe sans axe',
+  pari && pari.axe.length === 2 && /\d/.test(pari.axe[0]) && /\d/.test(pari.axe[1]),
+  `→ ${pari && pari.axe.join(' | ')}`);
+// Deux bornes du même axe lues à deux échelles — « −10,5 k€ » et « +8 743 € » —
+// est une erreur de lecture offerte au visiteur. Elles partagent un suffixe.
+verifie('… dont les deux bornes partagent une échelle',
+  pari && (pari.axe[0].match(/[kMG]/) || [''])[0] === (pari.axe[1].match(/[kMG]/) || [''])[0],
+  `→ ${pari && pari.axe.join(' | ')}`);
 
 // Pas de débordement horizontal.
 const debordement = await page.evaluate(() =>
@@ -81,9 +136,9 @@ for (let i = 0; i < boutons.length; i++) {
 console.log('\n\x1b[1mMode estimation\x1b[0m');
 const iKm = MODELES.findIndex((m) => m.cle === 'kilometre');
 await boutons[iKm].click();
-await page.waitForFunction(() => document.querySelector('.distribution svg') !== null, { timeout: 8000 });
+await page.waitForFunction(() => document.querySelector('.distribution:not(.pari) svg') !== null, { timeout: 8000 });
 const infoSvg = await page.evaluate(() => {
-  const s = document.querySelector('.distribution svg');
+  const s = document.querySelector('.distribution:not(.pari) svg');
   return { ns: s.namespaceURI, h: s.getBoundingClientRect().height, chemins: s.querySelectorAll('path').length };
 });
 verifie('la courbe est un vrai SVG', infoSvg.ns === 'http://www.w3.org/2000/svg', `→ ${infoSvg.ns}`);
@@ -1176,6 +1231,46 @@ await capture('estimation', { largeur: 1440, hauteur: 1050, sombre: false, model
 await capture('mobile', { largeur: 390, hauteur: 844, sombre: false });
 
 await navigateur.close();
+
+// --- Ce que voit un visiteur qui revient -------------------------------------
+//
+// Le défaut le plus coûteux de ce projet n'était pas dans le code servi : il
+// était dans ce qu'un navigateur avait le droit de garder. Sans en-tête de
+// cache, la fraîcheur heuristique laisse un navigateur servir sa copie sans
+// rien demander — et un lecteur est revenu sur une page d'accueil vieille de
+// deux sessions, pastilles comprises. Ici, le déploiement est l'écriture d'un
+// fichier : aucune URL ne change jamais, donc rien n'invalide un cache. Le seul
+// en-tête correct est « revalide avant de servir », et il se teste.
+console.log('\n\x1b[1mCe que garde un navigateur\x1b[0m');
+for (const chemin of ['/', '/isoler-ses-combles', '/la-methode', '/le-langage', '/js/ui.js', '/app.css']) {
+  try {
+    const rep = await fetch(URL + chemin, { redirect: 'manual' });
+    const cc = rep.headers.get('cache-control') || '';
+    const etag = rep.headers.get('etag') || '';
+    verifie(`${chemin} : revalidé avant d'être servi`,
+      rep.status === 200 && /no-cache|no-store|max-age=0/.test(cc),
+      `→ ${rep.status}, cache-control « ${cc || 'absent'} »`);
+    // `no-cache` sans validateur ferait un rechargement complet à chaque page.
+    verifie(`${chemin} : … et revalidé pour rien la plupart du temps`, etag !== '',
+      `→ etag ${etag || 'absent'}`);
+  } catch (e) {
+    verifie(`${chemin} : en-têtes lisibles`, false, `→ ${e.message}`);
+  }
+}
+{
+  // Un 304 est ce qui rend « no-cache » gratuit : sans lui, chaque navigation
+  // retéléchargerait 250 ko de JavaScript.
+  const premier = await fetch(URL + '/js/ui.js');
+  const etag = premier.headers.get('etag');
+  const second = await fetch(URL + '/js/ui.js', { headers: { 'If-None-Match': etag } });
+  verifie('une revalidation inchangée répond 304, pas 200', second.status === 304, `→ ${second.status}`);
+}
+{
+  const plan = await (await fetch(URL + '/sitemap.xml')).text();
+  verifie('/le-langage est dans le plan du site', plan.includes('/le-langage'));
+  const p404 = await fetch(URL + '/le-langage-qui-nexiste-pas');
+  verifie('… et une adresse inconnue répond toujours 404', p404.status === 404, `→ ${p404.status}`);
+}
 
 verifie('aucun incident sur toute la session', incidents.length === 0, '→ ' + incidents.join(' | '));
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);

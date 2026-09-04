@@ -188,6 +188,118 @@ function courbe(stats, unite, seuil = null) {
   ]);
 }
 
+// La distribution de l'écart entre les deux branches.
+//
+// Quinze sessions durant, j'ai écrit « toujours pas de graphiques » comme une
+// discipline : le site répond en français, pas en tableau de bord. Un lecteur
+// extérieur a fini par nommer ce qui manquait — « aucune représentation
+// visuelle d'une distribution ou d'un poids » — et il a raison sur le mode
+// décision, où la seule courbe du site ne s'affiche jamais.
+//
+// Ce n'est pas une décoration ajoutée pour faire joli : c'est la phrase « ce
+// que vous jouez » rendue telle quelle. On tire vingt mille fois l'écart entre
+// la branche retenue et sa meilleure rivale ; zéro sépare les simulations où
+// le choix était bon de celles où l'autre branche l'emportait. Les deux aires
+// **sont** les deux fréquences, et leur étalement est l'enjeu — précisément ce
+// qu'un pourcentage seul ne peut pas dire. Une branche qui gagne souvent et
+// petit, et perd rarement et gros, se voit d'un coup d'œil et ne se lit dans
+// aucun des chiffres écrits au-dessus.
+function courbePari(r) {
+  const P = r.options.pari;
+  if (!P || P.pGain === 0 || P.pPerte === 0) return null;
+  const st = r.options.ecart;
+  if (!st || !st.tri || !st.tri.length) return null;
+  const unite = r.unite;
+
+  const h = histogramme(st.tri, 72);
+  // Zéro hors du cadre : les 99 % du milieu sont tous du même côté. Il n'y a
+  // pas de partage à montrer, et le dessin mentirait par cadrage.
+  if (!(h.a < 0 && h.b > 0)) return null;
+
+  const L = 300, H = 80;
+  let pic = 0;
+  for (const b of h.barres) if (b > pic) pic = b;
+  pic = pic || 1;
+  const x = (v) => ((v - h.a) / (h.b - h.a)) * L;
+  const y = (c) => H - (c / pic) * H;
+
+  // Même lissage que la courbe d'estimation : moyenne mobile sur trois barres.
+  const pts = [];
+  for (let i = 0; i < h.barres.length; i++) {
+    const g = i > 0 ? h.barres[i - 1] : h.barres[i];
+    const d = i < h.barres.length - 1 ? h.barres[i + 1] : h.barres[i];
+    pts.push([(i + 0.5) * (L / h.barres.length), y((g + 2 * h.barres[i] + d) / 4)]);
+  }
+
+  // On coupe la ligne à l'aplomb de zéro pour que les deux aires se remplissent
+  // séparément. Sans interpolation, le partage tomberait sur le bord d'une
+  // barre et la surface colorée ne vaudrait plus la fréquence annoncée.
+  const x0 = x(0);
+  let y0 = pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i - 1][0] <= x0 && pts[i][0] >= x0) {
+      const t = (x0 - pts[i - 1][0]) / ((pts[i][0] - pts[i - 1][0]) || 1);
+      y0 = pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1]);
+      break;
+    }
+  }
+  const gauche = pts.filter((q) => q[0] <= x0).concat([[x0, y0]]);
+  const droite = [[x0, y0]].concat(pts.filter((q) => q[0] > x0));
+  const ligne = (liste) => liste.map(([px, py], i) =>
+    `${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+  const aire = (liste) => liste.length < 2 ? null
+    : `M${liste[0][0].toFixed(1)},${H} ${ligne(liste).slice(1)} L${liste[liste.length - 1][0].toFixed(1)},${H} Z`;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${L} ${H}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+  const dPerte = aire(gauche), dGain = aire(droite);
+  if (dPerte) svg.appendChild(svgEl('path', { class: 'aire-perte', d: dPerte }));
+  if (dGain) svg.appendChild(svgEl('path', { class: 'aire-gain', d: dGain }));
+  svg.appendChild(svgEl('path', { class: 'contour', d: ligne(pts) }));
+
+  // La queue des pertes : « jusqu'à tant dans le pire vingtième de ces cas-là »
+  // est la seule phrase du bloc qui parle d'un endroit précis de la courbe.
+  const pire = -P.pertePire;
+  if (P.pertePire > 0 && pire > h.a && pire < 0) {
+    svg.appendChild(svgEl('line', { class: 'pire', x1: x(pire), x2: x(pire), y1: 0, y2: H }));
+  }
+  svg.appendChild(svgEl('line', { class: 'zero', x1: x0, x2: x0, y1: 0, y2: H }));
+
+  const rec = r.options.liste[r.options.recommande];
+  const part = Math.max(6, Math.min(94, (x0 / L) * 100));
+  const legende = el('div', { class: 'pari-legende' }, [
+    el('span', { class: 'pari-cote perte', style: { width: part.toFixed(1) + '%' } },
+      [el('b', { text: pourcent(P.pPerte) }), ' l’autre branche était meilleure']),
+    el('span', { class: 'pari-cote gain', style: { width: (100 - part).toFixed(1) + '%' } },
+      [el('b', { text: pourcent(P.pGain) }), ' \u00ab\u202f' + rec.nom + '\u202f\u00bb était le bon choix']),
+  ]);
+
+  // Sans échelle, une courbe est une décoration. Les deux bornes sont celles du
+  // cadre — les 99 % du milieu de l'écart —, et le trait vertical est l'égalité
+  // entre les branches, que la légende marque aussi par son changement de bord.
+  // Les deux bornes partagent une échelle, comme partout ailleurs : « −10,5 k€ »
+  // à gauche et « +8 743 € » à droite sur le même axe est une erreur de lecture
+  // offerte au visiteur.
+  const ech = echelle(Math.abs(h.a) > Math.abs(h.b) ? h.a : h.b);
+  // Pas d'étiquette « égalité » au milieu de l'axe : elle se placerait au centre
+  // de la ligne alors que le partage tombe où il tombe, et une légende décalée
+  // de dix pour cent est pire qu'une légende absente. Le trait vertical et le
+  // changement de bord de la légende marquent le zéro à sa vraie place.
+  const axe = el('div', { class: 'axe' }, [
+    el('span', { text: valeur(h.a, unite, ech) }),
+    el('span', { text: '+' + valeur(h.b, unite, ech) }),
+  ]);
+
+  return el('figure', { class: 'distribution pari' }, [
+    svg,
+    legende,
+    axe,
+    el('figcaption', { class: 'pari-note' },
+      `L’écart entre « ${rec.nom} » et l’autre branche, sur ${st.tri.length.toLocaleString('fr-FR')} `
+      + `simulations : à droite du trait, votre choix était le bon${
+        P.pertePire > 0 && pire > h.a ? ' ; le pointillé de gauche est le pire vingtième des cas défavorables' : ''}.`),
+  ]);
+}
+
 // --- Rendu d'une hypothèse --------------------------------------------------
 
 // Une hypothèse est « notable » si la connaître changerait quelque chose.
@@ -500,6 +612,12 @@ function blocDecision(r) {
 
   const pari = phrasePari(r);
   if (pari) verdict.appendChild(pari);
+  // L'image vient sous la phrase qu'elle montre, pas à la place : le texte
+  // reste la réponse, et il se lit sans elle.
+  if (pari) {
+    const dessin = courbePari(r);
+    if (dessin) verdict.appendChild(dessin);
+  }
 
   if (desaccord) {
     verdict.appendChild(phrase(

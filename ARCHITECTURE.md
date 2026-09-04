@@ -450,6 +450,30 @@ règle `@media (max-width: 940px)` : au-delà, le code occupait la moitié gauch
 c'est-à-dire la place qu'on lit en premier. Il n'y avait aucune raison à cette
 frontière, seulement l'ordre dans lequel le HTML avait été écrit.
 
+**Le texte de l'accueil a un budget, et c'est un test.** Le troisième passage
+du lecteur extérieur (session 16) a compté ce que la page lui mettait sous les
+yeux : « environ 11 800 caractères de texte : démo, référence du langage, lois,
+indicateurs, limites, tout au même endroit ». Le chiffre était exact. Trois
+quarts venaient de deux blocs recopiés sur les quinze pages du site — le
+dépliant d'aide, dont six sections répétaient mot pour mot six chapitres de
+`/la-methode`. L'accueil tient maintenant sous **7 500 caractères** de texte
+servi et une page de modèle sous **9 000** ; `test/run.js` le vérifie. Ce n'est
+pas une règle esthétique : c'est ce qui oblige une prochaine session à en
+déplacer une pour en ajouter une.
+
+Le budget est plus large sur une page de modèle **exprès**. Ce qu'elle porte en
+plus, ce sont les trois colonnes *ce que ce modèle compte / ce qu'il ignore / où
+trouver vos chiffres*, que le même lecteur a désignées comme ce qu'il avait
+trouvé de plus utile sur le site. Elles sont d'ailleurs passées **devant** la
+bande de modèles : on ne range pas la meilleure chose de la page derrière treize
+pastilles qui invitent à aller ailleurs.
+
+**La phrase qui dit à quoi sert le site est sur la ligne de la marque**
+(`.marque-quoi`), donc lue avant le titre et bien avant l'éditeur. Elle vivait
+sous les quarante lignes de code, en introduction de la bande de modèles, où le
+même lecteur a constaté qu'elle arrivait trop tard. Un test vérifie qu'elle
+précède le `<textarea>` dans le HTML servi.
+
 Changer `MODELE_PAR_DEFAUT` déplace deux adresses : l'ancien défaut gagne son
 slug, le nouveau le perd. `npm run pages` n'efface pas l'ancien fichier —
 **supprimez-le à la main**, sinon il sert une copie de l'accueil sous une autre
@@ -506,7 +530,27 @@ Les captures d'écran atterrissent dans `/tmp/boussole-captures/`.
 
 Configuration : `/etc/caddy/Caddyfile` (sauvegarde de l'originale en `.bak`).
 Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
-`nosniff`, `no-referrer`, et un `Cache-Control` court sur les fichiers statiques.
+`nosniff`, `no-referrer`, et `Cache-Control: no-cache` sur **tout**.
+
+**Le cache est le point le plus coûteux de cette configuration, et il a déjà
+menti une fois.** Ici, déployer, c'est écrire un fichier dans `public/` : aucune
+URL ne porte de version, donc rien n'invalide jamais une copie gardée par un
+navigateur. Sans en-tête, un navigateur applique sa *fraîcheur heuristique* — un
+dixième de l'âge du fichier — et sert sa copie sans rien demander au serveur. Un
+lecteur est ainsi revenu, session 16, sur une page d'accueil vieille de deux
+sessions, bande de modèles comprise : aucune des corrections faites pour lui
+n'existait à son écran, alors que le dépôt et le disque étaient justes.
+
+`no-cache` ne veut pas dire « ne garde rien » : il veut dire « revalide avant de
+servir ». Avec les ETag que Caddy calcule, une revalidation inchangée coûte un
+304 de quelques octets. C'est le seul en-tête correct pour un site sans URL
+versionnées, et **quatre tests navigateur le vérifient en production** — l'un
+d'eux contrôle qu'un 304 revient bien, faute de quoi chaque navigation
+retéléchargerait 250 ko de JavaScript.
+
+Si un jour le trafic justifie un vrai cache, la condition est de versionner les
+URL (`/js/ui.js?v=<empreinte>`), pas de rallonger `max-age` : c'est exactement
+la manœuvre qui a produit le défaut ci-dessus.
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
@@ -520,6 +564,16 @@ modèle compte, ce qu'il ignore, où trouver les chiffres — rédigé dans
 Le balisage accepté y est minimal : `` `code` ``, `**gras**`, et un bloc
 ` ```…``` `. Toute clé de `MODELES` doit avoir son entrée dans `FOND` ; un test
 le vérifie.
+
+`/le-langage` est la référence de la syntaxe, générée par `pageLangage()`.
+Elle existe depuis la session 16 : le même contenu était recopié en entier dans
+le dépliant d'aide de chacune des quinze pages, où il pesait le tiers du texte
+de l'accueil et n'était lu par personne. Le dépliant n'en garde que le tableau
+des dix lignes, celui qu'on relit en écrivant ; le reste — ce que le lexer
+accepte, les fonctions, la loi qu'une fourchette produit — est sur la page, et
+gagne au passage une adresse indexable pour qui cherche « comment écrire une
+fourchette ». **Règle** : ce dépliant sert à *écrire* une ligne ; ce qu'il faut
+pour *comprendre* la réponse est sur `/la-methode` ; les deux ont un lien.
 
 `try_files {path} {path}.html` donne les adresses sans extension. Il n'y a
 **volontairement pas** de repli sur `/index.html` : une adresse inconnue doit
@@ -544,6 +598,24 @@ sudo systemctl status caddy
 
 ## Ce qui n'existe pas (et pourquoi)
 
+- **Presque pas de graphiques, et c'est une position, pas un oubli.** Quinze
+  sessions de journal portent la mention « toujours pas de graphiques » : le
+  site tient parce qu'il répond en français et non en tableau de bord, et une
+  courbe qui illustre une phrase déjà écrite ne mérite pas les pixels qu'elle
+  prend. Il y en a exactement deux, et chacune montre quelque chose qu'aucune
+  phrase ne dit aussi bien :
+  - **en mode estimation**, la densité du résultat, avec sa fourchette à 90 %,
+    sa médiane et le seuil visé (`courbe()`) ;
+  - **en mode décision**, la distribution de l'écart entre la branche retenue et
+    sa meilleure rivale, que zéro coupe en deux (`courbePari()`). Les deux aires
+    *sont* les deux fréquences écrites au-dessus, et leur étalement est l'enjeu :
+    une branche qui gagne souvent et petit puis perd rarement et gros se voit
+    d'un coup d'œil et ne se lit dans aucun des chiffres. Elle n'est pas dessinée
+    quand zéro tombe hors du cadre — il n'y aurait pas de partage à montrer, et
+    le dessin mentirait par cadrage.
+  La règle pour la suite : **un dessin doit porter une information que le texte
+  ne porte pas**, et la page doit rester juste sans lui. Les deux sont sous la
+  phrase qu'elles montrent, jamais à sa place.
 - **Pas de base de données.** Rien à stocker : le modèle du visiteur vit dans
   son `localStorage` et dans le fragment de l'URL qu'il partage.
 - **Pas d'API, pas de backend.** Aucun appel de modèle de langage au runtime —
