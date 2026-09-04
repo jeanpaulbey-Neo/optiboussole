@@ -113,6 +113,40 @@ function evppi(idx, options, bins, valeurSansInfo) {
   return Math.max(0, acc - valeurSansInfo);
 }
 
+// Ce que vous feriez **une fois X connu** : dans chaque tranche de X, la
+// branche de meilleure espérance. C'est la même découpe que celle qui sert à
+// l'EVPPI ci-dessus, donc le prix de l'information et la règle qu'on en tire
+// sont deux lectures du même calcul — elles ne peuvent pas se contredire.
+//
+// Un balayage de seuil répondrait presque à la même question, mais en figeant
+// les autres hypothèses à leur médiane : la règle qu'il donne n'est vraie que
+// dans ce scénario-là. Ici, les autres hypothèses gardent toute leur
+// dispersion — on moyenne sur elles, ce qui est exactement ce qu'on fera le
+// jour où on connaîtra X et rien d'autre.
+function politique(idx, xEch, options, bins) {
+  const segments = [];
+  const N = idx.length;
+  for (const [d, f] of bins) {
+    if (f <= d) continue;
+    let meilleur = 0, vMax = -Infinity;
+    for (let k = 0; k < options.length; k++) {
+      let somme = 0;
+      for (let i = d; i < f; i++) somme += options[k].valeurs[idx[i]];
+      const m = somme / (f - d);
+      if (m > vMax) { vMax = m; meilleur = k; }
+    }
+    const dernier = segments[segments.length - 1];
+    if (dernier && dernier.option === meilleur) {
+      dernier.haut = xEch[idx[f - 1]];
+      dernier.n += f - d;
+    } else {
+      segments.push({ option: meilleur, bas: xEch[idx[d]], haut: xEch[idx[f - 1]], n: f - d });
+    }
+  }
+  for (const seg of segments) seg.part = seg.n / N;
+  return segments;
+}
+
 // Un tirage qui ne prend que deux valeurs (bernoulli, indicatrice) n'a pas de
 // « seuil » : on ne balaie pas une plage entre pile et face.
 function estBinaire(tri) {
@@ -548,7 +582,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   // fourchette affichée n'a pas besoin de vingt mille tirages pour être juste.
   const pas = pasAnalyse(N, r.sources.length);
   const sources = r.sources
-    .filter((s) => s.valeurs instanceof Float64Array)
+    .filter((s) => s.valeurs instanceof Float64Array && !s.horsDecision)
     .map((s) => {
       const ech = sousEchantillon(s.valeurs, pas);
       const stats = statistiques(ech);
@@ -573,7 +607,7 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
   }
 
   const resultat = {
-    ast, N, modeDecision, sources: [], avertissements: notes,
+    ast, N, modeDecision, sources: [], avertissements: notes, attentes: [],
     options: null, sortie: null, seuil, seuilSens, unite: ast.unite || '',
     nomSortie: ast.sortie && ast.sortie.expr.k === 'var' ? ast.sortie.expr.nom : null,
   };
@@ -672,6 +706,36 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
       });
     }
     resultat.sources.sort((a, b) => (b.valeurInfo - a.valeurInfo) || (b.part - a.part));
+
+    // « savoir X = coût » : ce que l'information rapporte (son EVPPI, déjà
+    // calculé), ce qu'elle coûte, et — le plus utile — ce qu'on en ferait.
+    // Le prix affiché est celui d'une information **parfaite** : une enquête
+    // réelle en apprend moins, donc rapporte moins. C'est une borne haute, et
+    // c'est ce qui la rend concluante quand elle est déjà sous le coût.
+    resultat.attentes = (r.attentes || []).map((a) => {
+      const s = sources.find((x) => x.nom === a.nom);
+      const base = { nom: a.nom, ligne: a.ligne, mot: a.mot, cout: a.cout };
+      if (!s) {
+        const existe = ast.declarations.some((d) => d.nom === a.nom)
+          || r.sources.some((x) => x.nom === a.nom);
+        return { ...base, probleme: existe ? 'certaine' : 'introuvable' };
+      }
+      const info = resultat.sources.find((x) => x.id === s.id);
+      const gain = info ? info.valeurInfo : 0;
+      return {
+        ...base,
+        id: s.id,
+        gain,
+        net: gain - a.cout,
+        binaire: s.binaire,
+        pourcent: !!s.pourcent,
+        stats: s.stats,
+        segments: politique(ordres.get(s.id), s.ech, optsA, bins),
+      };
+    });
+    // Ce qui se chiffre d'abord, les lignes en défaut ensuite.
+    resultat.attentes.sort((a, b) => (a.probleme ? 1 : 0) - (b.probleme ? 1 : 0)
+      || (b.net - a.net));
   } else if (r.sortie) {
     const st = statistiques(r.sortie);
     // Un résultat qui ne prend que deux valeurs est une comparaison qu'on a
@@ -712,6 +776,17 @@ export function analyserModele(source, { N = 20000, seuil = null } = {}) {
     }
     resultat.largeurTotale = largeurTotale;
     resultat.sources.sort((a, b) => b.part - a.part);
+  }
+
+  // Aller savoir n'a de sens que s'il y a quelque chose à faire de ce qu'on
+  // apprendrait. Sans deux branches à comparer, l'information n'a pas de prix.
+  if ((r.attentes || []).length && !modeDecision) {
+    notes.push({
+      ligne: r.attentes[0].ligne,
+      texte: 'Ce que vaut d’aller savoir ne se calcule qu’entre au moins deux '
+        + 'branches : ajoutez des lignes « option "…" = … », sinon il n’y a rien '
+        + 'que cette information puisse changer.',
+    });
   }
 
   resultat.detail = detailCalculs(r.details, pas);

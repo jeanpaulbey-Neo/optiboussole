@@ -618,6 +618,26 @@ export function evaluerModele(ast,
     seuilSens = ast.seuil.sens || 'min';
   }
 
+  // Ce que coûte d'aller savoir. Évalué **en dernier** : les identifiants de
+  // source des hypothèses du modèle ne bougent donc pas d'un pouce, et les
+  // tirages qu'une ligne de coût crée pour elle-même (« savoir x = 200 à 400 »)
+  // sont marqués `horsDecision` — ils n'entrent ni dans la sensibilité, ni
+  // dans la valeur de l'information, puisqu'ils ne pèsent sur aucune branche.
+  const attentes = [];
+  if (ast.attentes && ast.attentes.length) {
+    const avant = ctx.sources.length;
+    for (const a of ast.attentes) {
+      ctx.nomCourant = null;
+      let cout = 0;
+      if (a.expr) {
+        const v = ctx.evaluer(a.expr);
+        cout = v instanceof Float64Array ? moyenne(v) : v;
+      }
+      attentes.push({ nom: a.nom, ligne: a.ligne, mot: a.mot, cout });
+    }
+    for (let i = avant; i < ctx.sources.length; i++) ctx.sources[i].horsDecision = true;
+  }
+
   const variables = new Map();
   for (const d of ast.declarations) variables.set(d.nom, ctx.cache.get(d.nom));
 
@@ -640,5 +660,5 @@ export function evaluerModele(ast,
     };
   }
 
-  return { N, sources: ctx.sources, variables, options, sortie, seuil, seuilSens, details };
+  return { N, sources: ctx.sources, variables, options, attentes, sortie, seuil, seuilSens, details };
 }

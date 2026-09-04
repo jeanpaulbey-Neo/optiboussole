@@ -1,10 +1,201 @@
 # Journal de bord — optiboussole.fr
 
 **Qui écrit.** Les sessions 1 à 5 (contre-argument compris) ont été écrites par
-Claude Opus 5. À partir de la session 6, le modèle actif est Claude Fable 5.1.
-Précision apportée par Jean-Paul au début de la session 6 : les entrées
-précédentes ne nommaient pas leur auteur, elles sont donc à lire comme
-signées Opus 5. Chaque entrée indique désormais le modèle qui l'a écrite.
+Claude Opus 5. Les sessions 6 à 12 par Claude Fable 5.1. La session 13 est de
+nouveau écrite par Claude Opus 5. Précision apportée par Jean-Paul au début de
+la session 6 : les entrées précédentes ne nommaient pas leur auteur, elles sont
+donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a écrite.
+
+---
+
+## 4 septembre 2026 — Session 13 : le site chiffrait ce que vaut une information sans jamais dire s'il fallait aller la chercher
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### L'écart que je n'avais pas vu en douze sessions
+
+Depuis la session 4, le site sait dire « lever le doute sur `reparations` vaut
+environ 630 € ». C'est l'idée centrale de tout le projet, elle est écrite sur
+`/la-methode`, et elle **laissait le travail à moitié fait**. Un visiteur qui
+lit « 630 € » doit encore faire seul la seule opération qui décide : la comparer
+à ce que coûte d'aller chercher cette information — un diagnostic à 400 €, trois
+devis, six semaines d'attente. Le site produisait un nombre là où il fallait
+produire une décision.
+
+C'est le point 3 de la liste laissée par la session 12 : les formes que la
+bibliothèque n'a pas, dont *une décision qu'on peut repousser*. Elle a été plus
+riche que prévu, parce qu'elle ne demandait pas un modèle de plus : elle
+demandait une **phrase de plus dans le langage**.
+
+### Ce que le langage sait dire maintenant
+
+```
+savoir production = 250 €
+attendre le devis = 3 * loyer
+```
+
+Une hypothèse qu'une enquête, une facture ou quelques semaines lèveraient
+**avant** qu'on ait à choisir, et ce que ça coûte. Les deux mots disent la même
+chose ; `attendre` se lit mieux quand on dépense du temps, `savoir` quand on
+dépense de l'argent. Le coût est facultatif, et peut être une formule ou une
+fourchette. Ce n'est pas un mot-clé du lexer — le motif exige un nom juste
+derrière — donc `savoir = 3` reste une variable et aucun modèle existant ne
+casse.
+
+Le site répond trois choses, dont **la deuxième est celle qui manquait partout
+ailleurs** :
+
+> Savoir `production` avant de choisir vaut **479 €**, pour 250 € : **allez-y**.
+> Vous y gagnez 229 € en moyenne.
+>
+> Ce qu'il faudra en faire : en dessous de 1 158, « Ne rien faire » ;
+> au-dessus, « Installer » — ce qui arrive 3 fois sur 10.
+
+Un prix ne se met pas en œuvre ; une règle, si. « En dessous de 1 158, ne rien
+faire » est une consigne qu'on emporte chez l'installateur.
+
+### Le choix technique qui n'était pas évident
+
+La règle aurait pu se lire sur le balayage de seuil, qui existe déjà. Je l'ai
+calculée autrement, sur **les mêmes tranches de quantiles que l'EVPPI** : dans
+chaque tranche de l'hypothèse, la branche de meilleure espérance. Deux raisons.
+
+La première est mécanique : le prix et la règle deviennent deux lectures du même
+calcul, donc *le gain est strictement positif si et seulement si la règle a plus
+d'une tranche*. Un test le vérifie sur toute la bibliothèque. Avec deux calculs
+séparés, le site pouvait afficher « ça vaut 300 € » sous « vous ferez la même
+chose quoi qu'il arrive ».
+
+La seconde est juste : le balayage fige les autres hypothèses à leur médiane, la
+règle moyenne sur elles — ce qui est exactement la situation du jour où on
+connaîtra celle-ci et rien d'autre. L'écart se mesure : sur le modèle solaire,
+le seuil de bascule dit 1 179 et la règle dit 1 158. C'est le prix du « toutes
+choses égales par ailleurs », et le texte de fond de la page le dit.
+
+### La borne haute, qui est ce qui rend l'exercice concluant
+
+Le chiffre affiché est le prix d'une information **parfaite**. Une étude
+d'ombrage ne donne pas la production exacte des vingt prochaines années ; un
+devis n'est pas la facture finale. Le site le dit, et cette limite est utile
+dans un sens et un seul : **quand le prix parfait est déjà sous le coût, il n'y
+a plus à discuter de la qualité de l'enquête** — aucune ne se paiera. Dans
+l'autre sens, il reste à se demander de combien l'enquête réelle s'approche de
+la perfection. J'ai écrit les deux moitiés de cette phrase, parce que ne dire
+que la première serait vendre le calcul pour plus qu'il ne vaut.
+
+Et le cas qui justifie tout le reste : une étude parfaitement exacte, sur
+l'hypothèse la plus incertaine du modèle, peut valoir **exactement zéro**.
+
+> Quel que soit le résultat, vous feriez la même chose : « Installer ». Cette
+> information ne vaut rien ici — non parce qu'elle serait mauvaise, mais parce
+> qu'elle ne déplace pas votre geste. Ne le faites pas : ce serait 250 € pour
+> rien.
+
+L'information ne vaut que ce qu'elle change, et on peut le savoir avant de la
+payer. Dixième chapitre sur `/la-methode`, avec ses chiffres épinglés.
+
+### Le douzième modèle : le solaire, et pourquoi ce sujet
+
+Il fallait un modèle où la capacité soit trouvable — la leçon de la session 12,
+*une chose que personne ne peut trouver n'existe pas*. J'ai écarté deux idées
+avant celle-là :
+
+- **Le contrôle pré-achat d'une voiture d'occasion.** Forme parfaite, mais la
+  bibliothèque a déjà deux modèles de voiture sur douze. Écarté pour la variété,
+  pas pour le sujet.
+- **Le second devis.** « Faut-il en demander un deuxième ? » n'est pas de la
+  valeur d'information : un second devis ne lève pas un doute, il ajoute une
+  option dont on prend le minimum. C'est une **valeur d'option**, une forme que
+  le moteur ne sait pas exprimer du tout. Noté comme piste, pas comme déchet.
+
+**« Installer des panneaux solaires ? »** — domaine absent de la bibliothèque,
+question massivement posée, et surtout une structure qui met la nouveauté en
+scène sans effort. Le verdict est un lancer de pièce : « Ne rien faire »
+l'emporte 58 % du temps, pour 509 € d'écart moyen sur vingt ans. Le site affiche
+donc « À égalité ».
+
+Et c'est **précisément pour ça** que l'information y vaut cher. Quand les deux
+branches se valent, tout savoir avant de choisir vaut 1 320 € ; l'étude de toit
+à 250 € en rapporte 479. Un verdict serré n'est pas un échec du calcul, c'est le
+moment où aller chercher un chiffre est le mieux payé. Je ne l'avais lu nulle
+part dit ainsi, et la page le dit maintenant.
+
+Le modèle a aussi une propriété que je n'avais pas cherchée : l'hypothèse qui
+vaut le plus d'être levée n'est pas `production` (479 €) mais `derive`, la
+hausse future du prix de l'électricité (502 €) — **et personne ne peut vous la
+vendre**. La distinction entre l'incertitude qu'on achète et celle qu'on subit
+tombe sur le modèle sans que j'aie eu à la fabriquer.
+
+### Deux défauts, dont un que la nouveauté a fait apparaître
+
+**1. Le site se contredisait à trois lignes d'écart.** La session 12 avait
+appris au verdict à nommer les tirages tout ou rien : « aucune enquête ne le
+lèvera avant que vous ayez à choisir ». C'est vrai de l'issue d'un appel
+d'offres. C'est faux d'un résultat d'analyse, de l'accord d'un financeur, de
+l'issue d'un recours — des tirages tout ou rien qu'une attente lève. Dès qu'un
+visiteur écrit `savoir` sur l'un d'eux, le site affichait la phrase
+d'irréductibilité **au-dessus** de « allez-y, ça vaut 28 € ». Deux affirmations
+vraies séparément, contradictoires ensemble. Quand le visiteur déclare qu'il
+peut savoir, il en sait plus que la règle : elle lui cède.
+
+C'est un défaut qu'aucune relecture n'aurait trouvé, parce qu'il n'existait pas
+avant cette session. Il naît de la rencontre de deux phrases justes.
+
+**2. `1k500` valait 1.** Signalé par la session 11, laissé volontairement par la
+session 12, et à raison : la règle qui refuse `1m80` propose « écrivez 1,80 »,
+mais proposer « écrivez 1,500 » pour `1k500` donnerait 1,5. Les multiplicateurs
+d'échelle avaient donc été exclus de la règle, et la valeur fausse d'un facteur
+1 500 était restée. Ils ont maintenant leur propre message, qui propose le
+nombre entier : `« 1k500 » : écrivez 1500 — ou 1,5k`. Avec deux chiffres
+seulement (`1k50`, `2M500`), la notation a deux lectures et le site refuse sans
+deviner. `250k`, `1,5k`, `12Md`, `3e45` continuent de marcher.
+
+### Ce que je retiens de la méthode
+
+La session 12 avait conclu : *la variété des formes trouve ce que la variété des
+valeurs ne trouve pas*. Celle-ci ajoute une marche. Le défaut n° 1 n'a été
+trouvé ni par une forme ni par une valeur, mais par une **capacité nouvelle qui
+a rencontré une phrase ancienne**. Chaque chose que le site apprend à dire est
+une occasion de plus de se contredire, et la contradiction ne se voit qu'en
+faisant se toucher les deux morceaux. Concrètement : après avoir ajouté une
+section, relire les phrases que le site prononçait déjà sur la même matière.
+
+Je note aussi ce que cette session n'a pas fait, parce que les deux précédentes
+l'avaient fait : elle n'a pas trouvé de bug de calcul dans le moteur. Un défaut
+d'affichage et un défaut de lecture, tous deux réels, aucun dans les
+mathématiques. Ce n'est ni bon ni mauvais signe — c'est simplement ce qui s'est
+passé, et je préfère l'écrire que de gonfler la liste.
+
+### État à la fin de la session
+
+- Douze modèles, quatorze pages. Dix chapitres sur `/la-methode`.
+- 601 assertions sur le moteur, 256 dans un vrai navigateur, axe compris.
+  Toutes vertes.
+- Treize pastilles : trois lignes à 1 440 px, quatre à 760, une défilante sur
+  mobile. Le verdict commence au pire à 403 px, très au-dessus de la ligne de
+  flottaison. Le repère de regroupement reste vers seize pastilles.
+
+### Ce que je ferais ensuite
+
+1. **La valeur d'option, que le moteur ne sait pas exprimer.** « Demander un
+   second devis », « garder les deux offres ouvertes une semaine de plus »,
+   « prendre l'option d'achat » : on n'y lève pas un doute, on s'achète le droit
+   de choisir plus tard le meilleur des deux. C'est `max` d'un côté, pas
+   d'espérance conditionnelle, et rien dans le langage ne le dit. C'est
+   probablement la prochaine forme, et elle est plus difficile que celle-ci.
+2. **La neuvième récolte**, reportée trois fois maintenant : le premier fil du
+   premier sous-forum venu, sur un sujet que je n'aurais pas choisi. La huitième
+   a coûté quinze minutes et trouvé cinq lectures fausses. Le fait qu'elle soit
+   reportée à chaque fois qu'il y a mieux à faire est en soi un renseignement :
+   elle finira par ne jamais être faite si on ne la fait pas en premier.
+3. **Le contre-argument avec la pièce de l'autre côté.** Il cherche le scénario
+   le plus proche qui renverse le verdict, l'incident épinglé à « il n'arrive
+   pas ». « Et si l'incident arrive, qu'est-ce qui suffit alors ? » est une
+   question différente et probablement plus utile.
+4. **Une décision qui se répète et où l'on apprend entre deux coups.** Toujours
+   absente, toujours la plus difficile des trois.
+
+Toujours pas de graphiques.
 
 ---
 

@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>La méthode — Boussole</title>
-<meta name="description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.">
+<meta name="description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, s’il faut aller la chercher ou décider tout de suite, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.">
 <link rel="canonical" href="https://optiboussole.fr/la-methode">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="La méthode — Boussole">
-<meta property="og:description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.">
+<meta property="og:description" content="Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, s’il faut aller la chercher ou décider tout de suite, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://optiboussole.fr/la-methode">
 <link rel="icon" href="/boussole.svg" type="image/svg+xml">
@@ -122,6 +122,28 @@ option "Partir" = 320</code></pre>
     <p>L’inverse existe aussi. Sur « garder ou changer de voiture », les réparations à venir portent 54 % de l’incertitude <em>et</em> décident : le verdict bascule au-delà de 1 110 € par an, ce qui arrive 3 fois sur 10, et lever ce doute vaut environ 630 €. Aller chercher ses factures des trois dernières années est, littéralement, l’heure la mieux payée de la décision.</p>
     <p><b>Mais toute incertitude ne s’enquête pas.</b> Sur « répondre à un appel d’offres ? », ce qui pèse le plus est de loin l’issue de la consultation elle-même — et aucun coup de téléphone ne la lèvera avant le dépôt. La valeur d’information s’y calcule quand même, et elle est énorme, mais elle mesure ce que vaudrait une boule de cristal, pas ce que vaut une heure de travail. Le site nomme donc ces tirages tout ou rien pour ce qu’ils sont, et désigne à côté la meilleure hypothèse sur laquelle vous ayez encore la main.</p>
     <p>Et quand la valeur de l’information est faible devant l’enjeu — moins de 2 % de l’écart entre la meilleure et la pire branche — le site vous dit d’arrêter d’enquêter. Sur « isoler ses combles », aucune hypothèse ne renverse le choix : la question est tranchée, quelle que soit votre ignorance.</p>
+  </section>
+
+  <section class="chapitre">
+    <h2>Aller savoir, ou décider maintenant</h2>
+    <p>Le chapitre précédent donne un prix à une information. Il laisse pourtant le travail à moitié fait : « lever ce doute vaut 639 € » n’est pas une décision. La décision est <b>639 € contre ce que coûte d’aller le lever</b> — un diagnostic, trois devis, six semaines d’attente. Cette comparaison-là, le site la faisait faire au visiteur. Il la fait maintenant lui-même, à condition qu’on lui dise le prix :</p>
+    <pre class="exemple"><code>production = 900 à 1350
+option "Installer"     = production * 13,2 - 14500
+option "Ne rien faire" = 0
+savoir production = 250 €</code></pre>
+    <p class="reponse">Savoir <code>production</code> avant de choisir vaut <b>639 €</b>, pour 250 € : allez-y, vous y gagnez 389 € en moyenne. Et voici ce qu’il faudra en faire : en dessous de 1 103 kWh par kWc et par an, « Ne rien faire » ; au-dessus, « Installer » — ce qui arrive 5 fois sur 10.</p>
+    <p><code>attendre</code> s’écrit à la place de <code>savoir</code> et veut dire la même chose ; le premier se lit mieux quand ce qu’on dépense est du temps, le second quand c’est une facture. Le coût peut être une formule ou une fourchette : <code>attendre devis = 3 * loyer</code>.</p>
+    <p><b>La seconde phrase compte plus que la première.</b> Un prix ne se met pas en œuvre ; une règle, si. « En dessous de 1 103, ne rien faire » est une consigne qu’on peut emporter chez l’installateur, et c’est la partie qu’aucun simulateur ne calcule.</p>
+    <p>Elle se lit sur le même découpage que le prix : les tirages sont triés selon l’hypothèse en question, et dans chaque tranche le site regarde quelle branche a la meilleure espérance. Le prix et la règle sont donc deux lectures du même calcul, et ne peuvent pas se contredire. <b>C’est aussi ce qui la distingue d’un seuil de bascule</b> : le seuil fige les autres hypothèses à leur médiane, la règle les laisse varier et moyenne sur elles — ce qui est exactement la situation du jour où vous connaîtrez celle-ci et rien d’autre. Sur « installer des panneaux solaires », le seuil dit 1 179 et la règle dit 1 158 : l’écart est le prix du « toutes choses égales par ailleurs ».</p>
+    <p><b>Et voici le cas qui justifie tout le reste.</b> Rendez la même installation nettement rentable — 9 000 € au lieu de 14 500 — et le calcul change de nature :</p>
+    <pre class="exemple"><code>production = 900 à 1350
+option "Installer"     = production * 13,2 - 9000
+option "Ne rien faire" = 0
+savoir production = 250 €</code></pre>
+    <p class="reponse">Quel que soit le résultat, vous feriez la même chose : « Installer ». Cette information ne vaut rien ici — non parce qu’elle serait mauvaise, mais parce qu’elle ne déplace pas votre geste. Ne le faites pas : ce serait 250 € pour rien.</p>
+    <p>Une étude parfaitement exacte, sur l’hypothèse la plus incertaine du modèle, peut valoir exactement zéro. C’est le renversement le plus utile de toute cette page : <b>l’information ne vaut que ce qu’elle change</b>, et on peut le savoir avant de la payer.</p>
+    <p><b>Le prix affiché est celui d’une information parfaite.</b> Une étude d’ombrage ne vous donnera pas la production exacte des vingt prochaines années ; un devis n’est pas la facture finale. Le chiffre est donc une <b>borne haute</b>, et c’est précisément ce qui le rend concluant du mauvais côté : quand il est déjà sous le coût, il n’y a plus à discuter de la qualité de l’enquête — aucune ne se paiera. Quand il est au-dessus, il faut encore se demander de combien l’enquête réelle s’approche de la perfection.</p>
+    <p>Reste une chose que le site ne calcule pas : le coût de l’attente elle-même, quand la décision se ferme pendant qu’on enquête. Un bien qui part, une offre qui expire, une aide qui baisse au trimestre suivant. Si c’est votre cas, mettez-le dans le coût — c’est ce que la ligne est faite pour recevoir.</p>
   </section>
 
   <section class="chapitre">

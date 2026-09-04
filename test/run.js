@@ -1184,6 +1184,21 @@ groupe('Un fil que je n\'ai pas choisi');
     /en heures/.test(err('t = 1h30') || ''), `→ ${err('t = 1h30')}`);
   verifie('… et « 1min30 » parle en minutes',
     /en minutes/.test(err('t = 1min30') || ''), `→ ${err('t = 1min30')}`);
+  // Les multiplicateurs d'échelle : « 1k500 » vaut 1 500, mais la correction
+  // « 1,500 » vaudrait 1,5. C'est pourquoi ils avaient été laissés de côté — et
+  // pourquoi « 1k500 » a valu 1, en silence, pendant douze sessions.
+  verifie('« 1k500 » ne vaut plus 1',
+    /écrivez 1500/.test(err('x = 1k500') || ''), `→ ${err('x = 1k500')}`);
+  verifie('… et propose aussi l\'écriture décimale',
+    /1,5k/.test(err('x = 1k500') || ''), `→ ${err('x = 1k500')}`);
+  verifie('« 2k750 » de même', /écrivez 2750/.test(err('x = 2k750') || ''));
+  verifie('« 1k50 » a deux lectures, et on ne devine pas',
+    /deux lectures/.test(err('x = 1k50') || ''), `→ ${err('x = 1k50')}`);
+  verifie('« 2M500 » aussi', /deux lectures/.test(err('x = 2M500') || ''));
+  proche('« 250k » reste 250 000', val('x = 250k'), 250000, 0);
+  proche('« 1,5k » reste 1 500', val('x = 1,5k'), 1500, 0);
+  proche('« 12Md » reste 12 milliards', val('x = 12Md'), 12e9, 0);
+
   // Un seul chiffre après l'unité, c'est un exposant, pas une grandeur composée.
   proche('« 60m2 » vaut toujours 60', val('s = 60m2'), 60, 0);
   proche('« 45m2 + 12 » vaut toujours 57', val('s = 45m2 + 12'), 57, 0);
@@ -1551,6 +1566,178 @@ async function conclusionAu(source, c) {
         : (c.tenu ? !tientLObjectif : tientLObjectif),
       `→ ${apres}`);
   }
+}
+
+// --- Aller savoir avant de décider -----------------------------------------
+//
+// La valeur de l'information était affichée, jamais comparée à ce que coûte
+// d'aller la chercher. « savoir X = 300 € » referme l'écart, et la réponse
+// n'est pas un nombre mais une règle : ce qu'on fera une fois qu'on saura.
+groupe('Aller savoir, ou décider maintenant');
+{
+  const SOLAIRE = `unité: €
+production = 900 à 1350
+option "Installer"     = production * 13,2 - 14500
+option "Ne rien faire" = 0
+savoir production = 250 €`;
+
+  // 1. La lecture de la ligne.
+  {
+    const a = analyser('x = 1 à 2\nsavoir x = 300');
+    verifie('« savoir x = 300 » est lu', a.attentes.length === 1 && a.attentes[0].nom === 'x');
+    const b = analyser('devis = 1 à 2\nattendre le devis = 300');
+    verifie('« attendre le devis » : l’article se laisse écrire',
+      b.attentes.length === 1 && b.attentes[0].nom === 'devis', JSON.stringify(b.attentes));
+    const c = analyser('x = 1 à 2\nsavoir x');
+    verifie('« savoir x » sans coût est accepté', c.attentes.length === 1 && c.attentes[0].expr === null);
+    // Le mot n'est pas un mot-clé du lexer : une variable peut encore s'appeler
+    // « savoir », ce que le motif « savoir <nom> = » ne peut pas confondre.
+    const d = evaluerModele(analyser('savoir = 3\ny = savoir * 2'));
+    proche('« savoir = 3 » reste une variable', d.variables.get('y'), 6, 0);
+    verifie('… et ne crée aucune attente', analyser('savoir = 3\ny = savoir * 2').attentes.length === 0);
+    let leve = false;
+    try { analyser('x = 1 à 2\nsavoir x = 1\nsavoir x = 2'); } catch (e) { leve = e instanceof ErreurModele; }
+    verifie('deux lignes sur la même hypothèse : refusé', leve);
+  }
+
+  // 2. Le prix, le coût, le net.
+  const r = analyserModele(SOLAIRE, { N: 60000 });
+  const a = r.attentes[0];
+  proche('savoir « production » vaut 639 €', a.gain, 639, 25);
+  proche('… pour 250 € déclarés', a.cout, 250, 0);
+  proche('… soit 389 € nets', a.net, 389, 25);
+  verifie('… et ça se paie', a.net > 0);
+  proche('le prix affiché est bien l’EVPPI de cette hypothèse',
+    a.gain, r.sources.find((x) => x.nom === 'production').valeurInfo, 1e-9);
+
+  // 3. La règle : deux tranches, et la frontière annoncée.
+  verifie('la règle a deux tranches', a.segments.length === 2, `→ ${a.segments.length}`);
+  const frontiere = (a.segments[0].haut + a.segments[1].bas) / 2;
+  proche('la frontière tombe vers 1 103 kWh/kWc', frontiere, 1103, 25);
+  verifie('… « Ne rien faire » en dessous',
+    r.options.liste[a.segments[0].option].nom === 'Ne rien faire');
+  verifie('… « Installer » au-dessus',
+    r.options.liste[a.segments[1].option].nom === 'Installer');
+  proche('… ce qui arrive une fois sur deux', a.segments[1].part, 0.5, 0.06);
+
+  // 4. Le test qui compte : on rejoue le modèle de part et d'autre de la
+  //    frontière annoncée, les autres hypothèses laissées libres, et on vérifie
+  //    que la branche de meilleure espérance est bien celle qu'on a promise.
+  //    Une règle plausible et fausse serait invisible à l'œil.
+  {
+    const ast = analyser(SOLAIRE);
+    const gagnantEn = (x) => {
+      const e = evaluerModele(ast, { N: 20000, remplacements: { [a.id]: x } });
+      let k = 0;
+      for (let i = 1; i < e.options.length; i++) {
+        if (moyenne(e.options[i].valeurs) > moyenne(e.options[k].valeurs)) k = i;
+      }
+      return e.options[k].nom;
+    };
+    verifie('sous la frontière, la règle dit vrai',
+      gagnantEn(frontiere * 0.92) === r.options.liste[a.segments[0].option].nom);
+    verifie('au-dessus, la règle dit vrai aussi',
+      gagnantEn(frontiere * 1.08) === r.options.liste[a.segments[1].option].nom);
+  }
+
+  // 5. Une information parfaite qui ne vaut rien : le cas qui justifie tout.
+  {
+    const z = analyserModele(SOLAIRE.replace('14500', '9000'), { N: 60000 });
+    const b = z.attentes[0];
+    proche('quand le choix est acquis, l’information vaut 0', b.gain, 0, 1);
+    proche('… et son net vaut le coût, en négatif', b.net, -250, 1);
+    verifie('… une seule tranche : on ferait la même chose', b.segments.length === 1);
+    verifie('… et c’est « Installer »',
+      z.options.liste[b.segments[0].option].nom === 'Installer');
+  }
+
+  // 6. Un prix nul et une règle à deux tranches ne peuvent pas coexister :
+  //    les deux se lisent sur le même découpage.
+  {
+    for (const m of MODELES) {
+      const x = analyserModele(m.source);
+      if (!x.modeDecision) continue;
+      for (const at of x.attentes) {
+        if (at.probleme) continue;
+        verifie(`« ${m.titre} » : prix et règle sont cohérents`,
+          (at.gain > 1e-9) === (at.segments.length > 1),
+          `→ ${at.gain} / ${at.segments.length}`);
+      }
+    }
+  }
+
+  // 7. Ce qu'on ne peut pas aller savoir.
+  {
+    const x = analyserModele('a = 1 à 2\nb = 3\noption "A" = a\noption "B" = 1,4\nsavoir b = 10\nsavoir zzz = 10');
+    const par = Object.fromEntries(x.attentes.map((t) => [t.nom, t.probleme]));
+    verifie('une valeur certaine : rien à apprendre', par.b === 'certaine', JSON.stringify(par));
+    verifie('un nom inconnu : dit comme tel', par.zzz === 'introuvable', JSON.stringify(par));
+  }
+
+  // 8. Sans deux branches, l'information n'a pas de prix — et on le dit.
+  {
+    const x = analyserModele('a = 1 à 2\ny = a * 3\nsavoir a = 10');
+    verifie('en mode estimation, « savoir » est signalé',
+      x.attentes.length === 0 && x.avertissements.some((n) => /deux\s+branches/.test(n.texte)),
+      JSON.stringify(x.avertissements));
+  }
+
+  // 9. Une ligne de coût peut tirer au sort pour son propre compte. Ses tirages
+  //    ne sont pas des hypothèses du modèle : ni sensibilité, ni valeur
+  //    d'information, et surtout aucun décalage des identifiants de source —
+  //    les seuils de bascule en dépendent.
+  {
+    const sans = analyserModele('a = 1 à 2\noption "A" = a\noption "B" = 1,4');
+    const avec = analyserModele('a = 1 à 2\noption "A" = a\noption "B" = 1,4\nsavoir a = 0,1 à 0,3');
+    verifie('une fourchette dans le coût ne devient pas une hypothèse',
+      avec.sources.length === sans.sources.length, `→ ${avec.sources.map((x) => x.nom)}`);
+    proche('… et ne déplace pas la valeur de l’information',
+      avec.sources[0].valeurInfo, sans.sources[0].valeurInfo, 1e-9);
+    proche('… le coût est la moyenne de la fourchette', avec.attentes[0].cout, 0.173, 0.02);
+  }
+
+  // 10. Une hypothèse tout ou rien se raconte autrement : il n'y a pas de
+  //     seuil entre pile et face, mais il y a une règle.
+  {
+    const x = analyserModele(
+      'gagne = bernoulli(30%)\noption "Parier" = si gagne alors 100 sinon -40\n'
+      + 'option "S’abstenir" = 0\nsavoir gagne = 5', { N: 60000 });
+    const b = x.attentes[0];
+    verifie('un tirage tout ou rien reste une chose qu’on peut aller savoir', b.binaire);
+    verifie('… et sa règle a deux tranches', b.segments.length === 2, `→ ${b.segments.length}`);
+    verifie('… « S’abstenir » quand il ne se produit pas',
+      x.options.liste[b.segments[0].option].nom === 'S’abstenir');
+    verifie('… « Parier » quand il se produit',
+      x.options.liste[b.segments[1].option].nom === 'Parier');
+    proche('… et savoir vaut 28 € pour 5 € dépensés', b.gain, 28, 3);
+  }
+}
+
+// --- Le modèle solaire, et les chiffres que sa page cite --------------------
+groupe('Installer des panneaux solaires');
+{
+  const r = analyserModele(MODELES.find((m) => m.cle === 'solaire').source);
+  verifie('le modèle porte une ligne « savoir »', r.attentes.length === 1);
+  const a = r.attentes[0];
+  verifie('… sur « production »', a.nom === 'production');
+  proche('la page cite 479 € à gagner', a.gain, 479, 30);
+  proche('… pour 250 € d’étude', a.cout, 250, 0);
+  const frontiere = (a.segments[0].haut + a.segments[1].bas) / 2;
+  proche('… et une frontière à 1 158 kWh/kWc/an', frontiere, 1158, 30);
+  verifie('… en dessous de laquelle il ne faut pas installer',
+    r.options.liste[a.segments[0].option].nom === 'Ne rien faire');
+  // Le texte de fond oppose les deux : le seuil de bascule fige les autres
+  // hypothèses à leur médiane, la règle moyenne sur elles. L'écart est réel.
+  const seuil = r.sources.find((x) => x.nom === 'production').bascules[0];
+  proche('… quand le seuil de bascule, lui, dit 1 179', seuil.valeur, 1179, 30);
+  verifie('… les deux ne coïncident pas, et le texte le dit',
+    Math.abs(seuil.valeur - frontiere) > 5, `→ ${seuil.valeur} contre ${frontiere}`);
+  // C'est l'hypothèse qu'on ne peut pas acheter qui pèse le plus, et le texte
+  // de fond est construit là-dessus.
+  verifie('c’est « derive » qui vaut le plus d’être levée, et elle ne s’achète pas',
+    r.sources[0].nom === 'derive', `→ ${r.sources[0].nom}`);
+  verifie('… « production » venant juste derrière', r.sources[1].nom === 'production',
+    `→ ${r.sources[1].nom}`);
 }
 
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);

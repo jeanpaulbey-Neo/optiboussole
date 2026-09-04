@@ -11,7 +11,7 @@
 export const METHODE = {
   titre: 'La méthode',
   question:
-    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.",
+    "Comment Boussole passe de fourchettes à une direction d’enquête : ce que veut dire un intervalle à 90 %, comment se mesure la part d’incertitude d’une hypothèse, pourquoi le poste le plus lourd n’est pas le plus incertain, d’où sort un seuil de bascule, ce que vaut une information, s’il faut aller la chercher ou décider tout de suite, ce qu’on perd quand on se trompe, et ce que la méthode ne sait pas faire.",
   intro: [
     "Boussole ne cherche pas à vous donner un résultat. Elle cherche à vous dire **ce qu’il faut aller vérifier** — et, tout aussi utile, ce qu’il est inutile d’aller vérifier.",
     "Rien de ce qui suit ne lui est propre : ce sont des outils classiques de l’analyse de décision. Ils sont simplement restés dans les manuels, et ce site est une tentative de les rendre utilisables sans les avoir étudiés. Cette page explique chaque chiffre affiché, et ce qu’il ne dit pas.",
@@ -95,6 +95,23 @@ export const METHODE = {
         "L’inverse existe aussi. Sur « garder ou changer de voiture », les réparations à venir portent 54 % de l’incertitude *et* décident : le verdict bascule au-delà de 1 110 € par an, ce qui arrive 3 fois sur 10, et lever ce doute vaut environ 630 €. Aller chercher ses factures des trois dernières années est, littéralement, l’heure la mieux payée de la décision.",
         "**Mais toute incertitude ne s’enquête pas.** Sur « répondre à un appel d’offres ? », ce qui pèse le plus est de loin l’issue de la consultation elle-même — et aucun coup de téléphone ne la lèvera avant le dépôt. La valeur d’information s’y calcule quand même, et elle est énorme, mais elle mesure ce que vaudrait une boule de cristal, pas ce que vaut une heure de travail. Le site nomme donc ces tirages tout ou rien pour ce qu’ils sont, et désigne à côté la meilleure hypothèse sur laquelle vous ayez encore la main.",
         "Et quand la valeur de l’information est faible devant l’enjeu — moins de 2 % de l’écart entre la meilleure et la pire branche — le site vous dit d’arrêter d’enquêter. Sur « isoler ses combles », aucune hypothèse ne renverse le choix : la question est tranchée, quelle que soit votre ignorance.",
+      ],
+    },
+    {
+      titre: 'Aller savoir, ou décider maintenant',
+      blocs: [
+        "Le chapitre précédent donne un prix à une information. Il laisse pourtant le travail à moitié fait : « lever ce doute vaut 639 € » n’est pas une décision. La décision est **639 € contre ce que coûte d’aller le lever** — un diagnostic, trois devis, six semaines d’attente. Cette comparaison-là, le site la faisait faire au visiteur. Il la fait maintenant lui-même, à condition qu’on lui dise le prix :",
+        "```\nproduction = 900 à 1350\noption \"Installer\"     = production * 13,2 - 14500\noption \"Ne rien faire\" = 0\nsavoir production = 250 €\n```",
+        "> Savoir `production` avant de choisir vaut **639 €**, pour 250 € : allez-y, vous y gagnez 389 € en moyenne. Et voici ce qu’il faudra en faire : en dessous de 1 103 kWh par kWc et par an, « Ne rien faire » ; au-dessus, « Installer » — ce qui arrive 5 fois sur 10.",
+        "`attendre` s’écrit à la place de `savoir` et veut dire la même chose ; le premier se lit mieux quand ce qu’on dépense est du temps, le second quand c’est une facture. Le coût peut être une formule ou une fourchette : `attendre devis = 3 * loyer`.",
+        "**La seconde phrase compte plus que la première.** Un prix ne se met pas en œuvre ; une règle, si. « En dessous de 1 103, ne rien faire » est une consigne qu’on peut emporter chez l’installateur, et c’est la partie qu’aucun simulateur ne calcule.",
+        "Elle se lit sur le même découpage que le prix : les tirages sont triés selon l’hypothèse en question, et dans chaque tranche le site regarde quelle branche a la meilleure espérance. Le prix et la règle sont donc deux lectures du même calcul, et ne peuvent pas se contredire. **C’est aussi ce qui la distingue d’un seuil de bascule** : le seuil fige les autres hypothèses à leur médiane, la règle les laisse varier et moyenne sur elles — ce qui est exactement la situation du jour où vous connaîtrez celle-ci et rien d’autre. Sur « installer des panneaux solaires », le seuil dit 1 179 et la règle dit 1 158 : l’écart est le prix du « toutes choses égales par ailleurs ».",
+        "**Et voici le cas qui justifie tout le reste.** Rendez la même installation nettement rentable — 9 000 € au lieu de 14 500 — et le calcul change de nature :",
+        "```\nproduction = 900 à 1350\noption \"Installer\"     = production * 13,2 - 9000\noption \"Ne rien faire\" = 0\nsavoir production = 250 €\n```",
+        "> Quel que soit le résultat, vous feriez la même chose : « Installer ». Cette information ne vaut rien ici — non parce qu’elle serait mauvaise, mais parce qu’elle ne déplace pas votre geste. Ne le faites pas : ce serait 250 € pour rien.",
+        "Une étude parfaitement exacte, sur l’hypothèse la plus incertaine du modèle, peut valoir exactement zéro. C’est le renversement le plus utile de toute cette page : **l’information ne vaut que ce qu’elle change**, et on peut le savoir avant de la payer.",
+        "**Le prix affiché est celui d’une information parfaite.** Une étude d’ombrage ne vous donnera pas la production exacte des vingt prochaines années ; un devis n’est pas la facture finale. Le chiffre est donc une **borne haute**, et c’est précisément ce qui le rend concluant du mauvais côté : quand il est déjà sous le coût, il n’y a plus à discuter de la qualité de l’enquête — aucune ne se paiera. Quand il est au-dessus, il faut encore se demander de combien l’enquête réelle s’approche de la perfection.",
+        "Reste une chose que le site ne calcule pas : le coût de l’attente elle-même, quand la décision se ferme pendant qu’on enquête. Un bien qui part, une offre qui expire, une aide qui baisse au trimestre suivant. Si c’est votre cas, mettez-le dans le coût — c’est ce que la ligne est faite pour recevoir.",
       ],
     },
     {

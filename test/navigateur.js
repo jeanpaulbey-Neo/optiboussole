@@ -254,6 +254,67 @@ console.log('\n\x1b[1mRépondre à un appel d’offres\x1b[0m');
   await po.close();
 }
 
+// --- Aller savoir avant de décider ------------------------------------------
+console.log('\n\x1b[1mAller savoir, ou décider maintenant\x1b[0m');
+{
+  const ps = await navigateur.newPage();
+  const incs = [];
+  ps.on('pageerror', (e) => incs.push(e.message));
+  await ps.setViewport({ width: 1280, height: 1000 });
+  await ps.goto(URL + '/installer-des-panneaux-solaires', { waitUntil: 'networkidle0' });
+  await ps.waitForSelector('.verdict-titre');
+
+  const t = await ps.evaluate(() => {
+    const h = [...document.querySelectorAll('#resultats h2')]
+      .find((n) => /Aller savoir/.test(n.textContent));
+    return h ? h.closest('.bloc').innerText.replace(/\s+/g, ' ') : null;
+  });
+  verifie('la section existe sur la page', t !== null);
+  verifie('… elle nomme l’hypothèse et son prix', /production/.test(t) && /à gagner/.test(t), '→ ' + t);
+  verifie('… elle tranche', /allez-y|ça ne se paie pas/.test(t), '→ ' + t);
+  verifie('… elle donne la règle à appliquer ensuite',
+    /Ce qu’il faudra en faire/.test(t) && /Ne rien faire/.test(t) && /Installer/.test(t), '→ ' + t);
+  verifie('… et dit que le prix est celui d’une information parfaite',
+    /information parfaite/.test(t) && /borne haute/.test(t), '→ ' + t);
+
+  // Le texte de fond, servi sans JavaScript.
+  const fond = await ps.evaluate(() => document.body.innerText);
+  verifie('le texte de fond renvoie à PVGIS pour la production', /PVGIS/.test(fond));
+  verifie('… et oppose ce qui s’achète à ce qui se subit',
+    /personne ne peut vous la vendre/.test(fond));
+
+  // Un tirage tout ou rien sur lequel le visiteur a écrit « savoir » : le
+  // verdict ne doit plus affirmer qu'aucune enquête ne le lèvera, trois lignes
+  // au-dessus d'une section qui dit d'y aller.
+  await ps.goto(URL + '/nouveau-modele', { waitUntil: 'networkidle0' });
+  await ps.waitForSelector('.verdict-titre');
+  await ps.evaluate(() => {
+    const t = document.querySelector('#modele');
+    t.value = 'gagne = bernoulli(30 %)\noption "Parier" = si gagne alors 100 sinon -40\n'
+      + 'option "S’abstenir" = 0\nsavoir gagne = 5';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  const bin = await ps.evaluate(() => ({
+    verdict: document.querySelector('.verdict').innerText.replace(/\s+/g, ' '),
+    section: [...document.querySelectorAll('#resultats h2')]
+      .some((n) => /Aller savoir/.test(n.textContent)),
+  }));
+  verifie('un tirage tout ou rien déclaré n’est plus donné comme inaccessible',
+    !/Aucune enquête ne le lèvera/.test(bin.verdict), '→ ' + bin.verdict.slice(0, 200));
+  verifie('… et la section dit quand même quoi en faire', bin.section);
+
+  // Un modèle sans ligne « savoir » n'affiche pas la section.
+  await ps.goto(URL + '/isoler-ses-combles', { waitUntil: 'networkidle0' });
+  await ps.waitForSelector('.verdict-titre');
+  const absent = await ps.evaluate(() => ![...document.querySelectorAll('#resultats h2')]
+    .some((n) => /Aller savoir/.test(n.textContent)));
+  verifie('… et rien ne s’affiche là où rien n’est déclaré', absent);
+
+  verifie('aucune erreur sur ces pages', incs.length === 0, '→ ' + incs.join(' | '));
+  await ps.close();
+}
+
 // --- Écran étroit ---------------------------------------------------------------
 console.log('\n\x1b[1mÉcran étroit\x1b[0m');
 {
@@ -678,7 +739,9 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
   verifie('titre et canonique corrects',
     info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
     `→ ${info.titre} / ${info.canonique}`);
-  verifie('les neuf chapitres sont là', info.h2.length === 9, `→ ${info.h2.length}`);
+  verifie('les dix chapitres sont là', info.h2.length === 10, `→ ${info.h2.length}`);
+  verifie('aller savoir ou décider maintenant a son chapitre',
+    info.h2.some((t) => /aller savoir/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('ce qu’on perd quand on se trompe a son chapitre',
     info.h2.some((t) => /ce que vous jouez/i.test(t)), `→ ${info.h2.join(' | ')}`);
   verifie('le contre-argument a son chapitre',

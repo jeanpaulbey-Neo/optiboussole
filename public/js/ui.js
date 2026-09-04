@@ -280,6 +280,115 @@ function phrasePari(r) {
     ...pire, '.');
 }
 
+// --- Aller savoir avant de décider ------------------------------------------
+//
+// Le site chiffrait déjà ce que vaudrait de lever une hypothèse. Il laissait au
+// visiteur le soin de comparer ce chiffre au prix d'un diagnostic, d'un devis
+// ou de six semaines d'attente — c'est-à-dire de faire lui-même la seule partie
+// qui décide. Une ligne « savoir X = 300 € » referme l'écart, et la réponse
+// n'est pas un nombre : c'est « allez-y » ou « n'y allez pas », et la règle à
+// appliquer une fois qu'on saura.
+//
+// La borne haute est ce qui rend l'exercice concluant : le prix calculé est
+// celui d'une information **parfaite**. Aucune enquête réelle ne fait mieux.
+// Quand elle est déjà sous le coût, il n'y a plus à discuter de la qualité du
+// diagnostic — il ne se paiera pas, quel qu'il soit.
+function blocAttentes(r) {
+  if (!r.attentes.length) return null;
+  const utiles = r.attentes.filter((a) => !a.probleme);
+  const fautes = r.attentes.filter((a) => a.probleme);
+  const unite = r.unite;
+  const bloc = el('section', { class: 'panneau bloc' },
+    el('h2', { text: 'Aller savoir, ou décider maintenant ?' }));
+
+  for (const a of utiles) {
+    const entree = el('div', { class: 'attente' });
+    const nomBouton = el('button', {
+      class: 'hypothese-nom', type: 'button', title: 'Voir cette ligne dans le modèle',
+    }, a.nom);
+    nomBouton.addEventListener('click', () => surligneLigne(a.ligne));
+    const verbe = a.mot === 'attendre' ? 'Attendre' : 'Savoir';
+    entree.appendChild(el('div', { class: 'hypothese-tete' }, [
+      nomBouton,
+      el('span', { class: 'hypothese-chiffre' },
+        [el('b', { text: valeur(a.gain, unite) }), ' à gagner, ',
+         a.cout > 0 ? valeur(a.cout, unite) + ' à dépenser' : 'et rien à dépenser']),
+    ]));
+
+    // Une seule tranche : la meilleure branche est la même quelle que soit la
+    // valeur. L'information est parfaite et ne sert à rien — ce n'est pas une
+    // nuance, c'est la réponse.
+    if (a.segments.length < 2) {
+      entree.appendChild(phrase(
+        'Quel que soit le résultat, vous feriez la même chose : \u00ab\u202f',
+        r.options.liste[a.segments.length ? a.segments[0].option : r.options.recommande].nom,
+        '\u202f\u00bb. Cette information ne vaut rien ici — non parce qu’elle serait ',
+        'mauvaise, mais parce qu’elle ne déplace pas votre geste. ',
+        a.cout > 0
+          ? [el('b', { text: 'Ne le faites pas' }), ' : ce serait ' + valeur(a.cout, unite) + ' pour rien.']
+          : 'Rien ne vous en empêche, mais n’en attendez pas de réponse.'));
+    } else {
+      const gagne = a.net > 0;
+      entree.appendChild(phrase(
+        verbe, ' ', ['code', a.nom], ' avant de choisir vaut ',
+        el('b', { text: valeur(a.gain, unite) }),
+        a.cout > 0 ? ', pour ' + valeur(a.cout, unite) + ' : ' : ' et ne coûte rien : ',
+        el('b', { text: gagne ? 'allez-y' : 'ça ne se paie pas' }),
+        gagne
+          ? '. Vous y gagnez ' + valeur(a.net, unite) + ' en moyenne.'
+          : '. Il manque ' + valeur(-a.net, unite) + ' pour que ça vaille la peine.'));
+      entree.appendChild(el('p', { class: 'bascule' }, regleApres(a, r)));
+    }
+    bloc.appendChild(entree);
+  }
+
+  for (const a of fautes) {
+    bloc.appendChild(phrase(
+      ['code', a.nom],
+      a.probleme === 'introuvable'
+        ? ' n’est pas une hypothèse de ce modèle : il n’y a rien à aller savoir dessus.'
+        : ' est déjà une valeur certaine ici. Vous la connaissez : ni l’attente ni '
+          + 'l’enquête ne vous apprendront quoi que ce soit.'));
+  }
+
+  if (utiles.length) {
+    bloc.appendChild(el('p', { class: 'option-detail note-basse' },
+      'Ces prix sont ceux d’une information parfaite — celle qui vous donnerait la '
+      + 'valeur exacte, d’avance. Un diagnostic, un devis, six semaines d’attente en '
+      + 'apprennent moins, et rapportent donc moins. C’est une borne haute, et c’est ce '
+      + 'qui la rend utile : quand elle est déjà sous le coût, la question est tranchée '
+      + 'sans avoir à discuter de la qualité de l’enquête.'));
+  }
+  return bloc;
+}
+
+// La règle qu'on appliquerait une fois l'hypothèse connue. C'est la partie que
+// personne ne calcule : « ça vaut 640 € » n'est pas actionnable, « au-dessus de
+// 1 040, installez » l'est.
+function regleApres(a, r) {
+  const u = uniteDe(a);
+  const nom = (i) => '\u00ab\u202f' + r.options.liste[i].nom + '\u202f\u00bb';
+  if (a.binaire) {
+    const seg = a.segments;
+    const oui = seg[seg.length - 1], non = seg[0];
+    return `Ce qu’il faudra en faire : si l’événement se produit — ${foisSur10(a.stats.moyenne)} —, `
+      + `${nom(oui.option)} ; sinon, ${nom(non.option)}.`;
+  }
+  const bouts = [];
+  let cumul = 0;
+  for (let i = 0; i < a.segments.length; i++) {
+    const seg = a.segments[i];
+    cumul += seg.part;
+    // La frontière tombe entre deux tranches voisines : on la lit au milieu.
+    const fin = i < a.segments.length - 1
+      ? (seg.haut + a.segments[i + 1].bas) / 2 : null;
+    if (i === 0) bouts.push(`en dessous de ${valeur(fin, u)}, ${nom(seg.option)}`);
+    else if (fin === null) bouts.push(`au-dessus, ${nom(seg.option)} — ce qui arrive ${foisSur10(seg.part)}`);
+    else bouts.push(`jusqu’à ${valeur(fin, u)}, ${nom(seg.option)}`);
+  }
+  return 'Ce qu’il faudra en faire : ' + bouts.join(' ; ') + '.';
+}
+
 function blocDecision(r) {
   const unite = r.unite;
   const o = r.options.liste;
@@ -292,8 +401,15 @@ function blocDecision(r) {
   // ou non sur l'incident. C'est le hasard du modèle, pas une enquête à mener,
   // et « c'est là qu'il faut passer votre temps » serait un mauvais conseil.
   // On nomme le hasard, puis on désigne ce qui reste vérifiable.
-  const hasard = tete && tete.binaire ? tete : null;
-  const verifiable = hasard ? decisif.find((x) => !x.binaire) : tete;
+  //
+  // Sauf si le visiteur a écrit « savoir » dessus. Il connaît son sujet mieux
+  // que cette règle : le résultat d'un test médical, l'accord d'un financeur,
+  // l'issue d'un recours sont des tirages tout ou rien qu'une attente lève.
+  // Sans cette exception, le site affichait « aucune enquête ne le lèvera »
+  // trois lignes au-dessus de « savoir gagne vaut 28 €, allez-y ».
+  const declaree = (s) => r.attentes.some((a) => a.id === s.id && !a.probleme);
+  const hasard = tete && tete.binaire && !declaree(tete) ? tete : null;
+  const verifiable = hasard ? decisif.find((x) => !x.binaire || declaree(x)) : tete;
 
   // Deux règles de décision cohabitent ici : la branche retenue est celle de
   // meilleure espérance, la phrase raconte celle qui gagne le plus souvent.
@@ -413,7 +529,8 @@ function blocDecision(r) {
   options.appendChild(el('p', { class: 'option-detail note-basse' },
     `Tout savoir avec certitude avant de choisir vaudrait ${valeur(r.options.evpi, unite)}. C’est le maximum que puisse rapporter n’importe quelle enquête : au-delà, elle coûte plus qu’elle ne rapporte.`));
 
-  return [verdict, options];
+  const attentes = blocAttentes(r);
+  return attentes ? [verdict, attentes, options] : [verdict, options];
 }
 
 function blocEstimation(r) {

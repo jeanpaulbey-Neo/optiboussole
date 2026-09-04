@@ -428,6 +428,19 @@ nav .exemples { margin-bottom: 0; }
 }
 .note-basse { margin-top: 14px; }
 
+/* Aller savoir, ou décider maintenant. Une entrée par ligne « savoir ».
+   Même trait de séparation que la liste des hypothèses : c'est la même
+   matière, lue sous l'angle de la dépense. */
+.attente { padding: 13px 0; border-top: 1px solid var(--trait); }
+.attente:first-of-type { border-top: 0; padding-top: 0; }
+.attente .verdict-phrase { margin-top: 7px; }
+.attente .bascule {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--encre);
+  max-width: 58ch;
+}
+
 /* La note de tolérance du panneau d'aide : ce que le site accepte sans qu'on
    ait à le deviner. Elle suit un tableau, d'où la marge haute. */
 .aide-note { margin: 14px 0 0; color: var(--attenue); font-size: 13.5px; max-width: 72ch; }

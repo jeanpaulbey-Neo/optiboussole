@@ -204,6 +204,27 @@ export const FOND = {
     ],
   },
 
+  solaire: {
+    compte: [
+      "La production annuelle de votre toit, séparée en deux : l’électricité que vous consommez sur place, qui vous évite d’acheter au tarif du réseau, et le surplus revendu. Les deux ne se comportent pas de la même façon dans le temps, et le modèle le respecte — l’autoconsommation suit la dérive du prix de l’électricité, le surplus est payé au tarif figé le jour de la signature, pendant vingt ans. C’est la raison pour laquelle une installation surdimensionnée rapporte beaucoup moins que sa puissance ne le laisse croire.",
+      "En face, le devis aides déduites, le remplacement de l’onduleur vers la douzième année, et le fait que cet argent aurait rapporté ailleurs : tout est ramené à la même date, la fin de l’horizon. « Ne rien faire » vaut donc exactement zéro.",
+      "**Ce modèle est le premier du site à chiffrer ce que vaut d’aller savoir.** La ligne `savoir production = 250 €` dit qu’une étude d’ombrage et de production sur votre toit se paie 250 €, et le site répond en euros : ce qu’elle rapporte, si elle se paie, et — surtout — la règle que vous appliquerez ensuite. Cette dernière partie est celle que personne ne calcule : savoir qu’une information « vaut 479 € » ne vous fait pas avancer, savoir qu’**en dessous de 1 158 kWh par kWc et par an il ne faut pas installer** vous fait avancer.",
+    ],
+    ignore: [
+      "La perte de rendement des panneaux, environ 0,5 % par an, soit près de 10 % sur l’horizon. Pour l’écrire, remplacez `production` par `production * (1 - 0,5% * horizon / 2)` — la moitié de la perte, parce qu’elle est progressive.",
+      "L’autoconsommation collective, le pilotage des usages — ballon d’eau chaude, voiture — qui peut faire monter `autoconsomme` de dix à quinze points, et une batterie, qui la fait monter davantage encore mais coûte cher. Le modèle prend `autoconsomme` comme une donnée alors que c’est en partie un comportement.",
+      "L’assurance, la maintenance, le nettoyage, et le risque de panne autre que l’onduleur. La revente du logement, où une installation récente se valorise, et une installation en fin de vie, non.",
+      "**Et une chose que le modèle dit tout haut** : l’hypothèse qui pèse le plus n’est pas `production`, c’est `derive`, la hausse future du prix de l’électricité — et personne ne peut vous la vendre. C’est exactement la distinction entre une incertitude qu’on peut lever et une qu’on subit. `production` arrive juste derrière, et elle, elle s’achète pour 250 €.",
+    ],
+    chiffres: [
+      "**La production de votre toit** : l’outil PVGIS de la Commission européenne, gratuit, donne le productible en kWh par kWc et par an pour vos coordonnées exactes, votre pente et votre orientation. Il ne voit pas vos ombres portées — un arbre, une cheminée, le pignon du voisin — et c’est précisément ce qu’une étude sur place ajoute.",
+      "**Le devis** : trois devis, et prenez l’écart entre eux comme fourchette. Méfiez-vous des offres où la prime et le crédit d’impôt sont déjà « déduits » du prix affiché : recalculez le prix brut.",
+      "**La prime à l’autoconsommation et le tarif de rachat** : ils sont fixés par arrêté et révisés chaque trimestre, à la baisse depuis plusieurs années. Prenez la valeur du trimestre en cours sur le site officiel, pas celle d’un article de l’an dernier — c’est l’hypothèse qui vieillit le plus vite de tout le modèle.",
+      "**Votre part autoconsommée** : votre courbe de charge horaire, que votre distributeur met à disposition si vous l’activez. À défaut, 30 % sans pilotage, 50 % avec un ballon d’eau chaude déclenché en journée.",
+      "**Votre prix du kWh** : la dernière facture, en divisant le total TTC par les kWh consommés. Pas le prix du kWh affiché au contrat, qui oublie l’abonnement et les taxes.",
+    ],
+  },
+
   vierge: {
     compte: [
       "Rien : cette page est vide, à vous d’écrire. Trois lignes suffisent pour commencer — une valeur que vous connaissez, une fourchette pour ce que vous ne connaissez pas, et le calcul qui les relie.",

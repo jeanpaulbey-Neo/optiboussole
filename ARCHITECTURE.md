@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 3 septembre 2026 (fin de session 12).
+État au 4 septembre 2026 (fin de session 13).
 
 ## En une phrase
 
@@ -19,7 +19,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 /srv/optiboussole/
 ├── public/                 ← racine servie par Caddy. GÉNÉRÉ en partie.
 │   ├── index.html          ⚙ généré — accueil, modèle « louer ou acheter »
-│   ├── <slug>.html         ⚙ générés — une page par modèle (11 fichiers)
+│   ├── <slug>.html         ⚙ générés — une page par modèle (12 fichiers)
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
 │   ├── sitemap.xml         ⚙ généré
 │   ├── robots.txt          ⚙ généré
@@ -30,9 +30,10 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │       ├── rng.js          xoshiro128** déterministe, lois de probabilité
 │       ├── lang.js         lexer + parseur du langage de modèle
 │       ├── evaluer.js      évaluation vectorisée (Float64Array, N tirages)
-│       ├── moteur.js       sensibilité, seuils, valeur de l'info, détail, asymétrie du pari
+│       ├── moteur.js       sensibilité, seuils, valeur de l'info, détail, asymétrie du
+│       │                   pari, prix et règle de « aller savoir »
 │       ├── contre.js       le contre-argument : point de la frontière le plus proche
-│       ├── modeles.js      bibliothèque des onze modèles de départ (plus la page blanche)
+│       ├── modeles.js      bibliothèque des douze modèles de départ (plus la page blanche)
 │       └── ui.js           rendu, phrases en français, partage par URL
 ├── outils/
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
@@ -40,8 +41,8 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── methode.js          le contenu de /la-methode
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              542 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       236 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              593 assertions sur le moteur (Node, sans dépendance)
+│   └── navigateur.js       256 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -58,13 +59,14 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 texte du modèle
    │  lang.js : extraireUnite → lexer → Parseur
    ▼
-AST { declarations, options, sortie, unite, seuil, objectifDeduit }
+AST { declarations, options, attentes, sortie, unite, seuil, objectifDeduit }
    │  evaluer.js : évaluation vectorisée, N = 20 000 tirages
    ▼
 { sources[], variables, options[], sortie, details }   « source » = un tirage aléatoire
    │  moteur.js : indices, seuils, EVPPI
    ▼
 { modeDecision, options{ …, pari, desaccord }, sortie{}, sources[{ part, valeurInfo, … }],
+  attentes[{ gain, cout, net, segments, probleme }],
   detail{ calculs[{ p50, p05, p95, termes, origines }], options[], sortie } }
    │  ui.js
    ▼
@@ -238,6 +240,14 @@ des phrases en français
   l'unité — sinon `60m2` (des mètres carrés, qui marche) serait pris pour une
   grandeur composée — et les lettres qui ne sont que des multiplicateurs
   d'échelle (`k`, `M`, `G`, `Md`) ou l'exposant scientifique en sont exclues.
+- **Les multiplicateurs d'échelle au milieu d'un nombre sont refusés à part.**
+  `1k500` vaut 1 500, mais la correction « écrivez 1,500 » proposée pour les
+  autres grandeurs composées vaudrait 1,5 : c'est pour cette raison que `k`,
+  `M`, `G` et `Md` avaient été exclus de la règle, et que `1k500` a valu **1**,
+  en silence, jusqu'à la session 13. Ils ont maintenant leur propre message, qui
+  propose le nombre entier — `« 1k500 » : écrivez 1500 — ou 1,5k`. Avec deux
+  chiffres seulement (`1k50`, `2M500`), la notation a deux lectures : on refuse
+  sans deviner. `3e45` reste la notation scientifique et n'est pas concerné.
 - **`m` collé à un nombre reste le suffixe des millions, et le site le dit.**
   `2,4m` vaut 2 400 000 ; dans un texte français, c'est aussi la façon d'écrire
   2,4 mètres, et rien dans la ligne ne permet de trancher. Même traitement que
@@ -291,22 +301,61 @@ des phrases en français
   meilleure hypothèse **non binaire** qui reste (`verifiable`). C'est la
   distinction entre incertitude réductible et irréductible, et elle est écrite
   sur `/la-methode`.
+- **« savoir X = coût » n'est pas un mot-clé du lexer.** Le motif est
+  `savoir|attendre <nom> [= expression]`, reconnu dans `analyser` seulement si un
+  identifiant suit immédiatement le mot : `savoir = 3` reste donc une variable
+  ordinaire, et aucun modèle existant ne casse. Un article (`le`, `la`, `les`) se
+  laisse glisser au milieu. Le coût est facultatif — sans lui, l'enquête est
+  gratuite.
+- **Le coût d'une attente est évalué en dernier, après les options, la sortie et
+  le seuil.** Deux raisons, et les deux comptent : les identifiants de source du
+  modèle ne bougent pas d'un pouce (les balayages en dépendent), et les tirages
+  qu'une ligne de coût crée pour elle-même — `savoir x = 200 à 400` — sont
+  marqués `horsDecision` et exclus de l'analyse. Sans ça, le prix de l'enquête
+  apparaîtrait dans la liste des hypothèses du modèle, ce qu'il n'est pas.
+- **Le prix et la règle se lisent sur le même découpage.** `politique()` reprend
+  les bins de quantiles qui servent à l'EVPPI et retourne, tranche par tranche,
+  la branche de meilleure espérance. Conséquence garantie par un test sur toute
+  la bibliothèque : *gain > 0 si et seulement si la règle a plus d'une tranche*.
+  Si vous calculez la règle avec `balayer()` à la place, les deux peuvent se
+  contredire — le balayage fige les autres hypothèses à leur médiane, la règle
+  moyenne sur elles. Sur « installer des panneaux solaires », l'écart se voit :
+  seuil de bascule 1 179, frontière de la règle 1 158, et le texte de fond le dit.
+- **Le prix affiché est celui d'une information *parfaite*.** C'est une borne
+  haute : aucune enquête réelle ne fait mieux. Ne la vendez pas autrement — ce
+  qu'elle permet de conclure, c'est « ça ne se paiera pas », jamais « ça se
+  paiera à coup sûr ». La page `/la-methode` l'écrit, et le pied de la section
+  aussi.
+- **Un test rejoue le modèle de part et d'autre de la frontière annoncée** et
+  vérifie que la branche gagnante est bien celle promise, les autres hypothèses
+  laissées libres. C'est le même genre de filet que pour le contre-argument, et
+  pour la même raison : une règle fausse est parfaitement plausible à l'œil.
+- **Un tirage tout ou rien déclaré `savoir` cesse d'être « le hasard du
+  modèle ».** `blocDecision` disait « aucune enquête ne le lèvera avant que vous
+  ayez à choisir » — vrai pour l'issue d'un appel d'offres, faux pour un
+  résultat d'analyse ou l'accord d'un financeur. Quand le visiteur écrit
+  `savoir` dessus, il en sait plus que la règle : on le traite alors comme
+  vérifiable. Sans ça le site affichait les deux phrases contradictoires à trois
+  lignes d'écart.
+- **`savoir` sans deux branches ne veut rien dire** et le site le dit en
+  avertissement plutôt que de calculer quelque chose. Une information n'a de
+  prix que par ce qu'elle change, et sans options il n'y a rien à changer.
 - **La robustesse est une passe séparée.** `analyserRobustesse(r)` coûte ~200 ms
   et n'est lancée que 450 ms après l'arrêt de la frappe. La remettre dans
   `analyserModele` doublerait le délai de chaque frappe.
 
 ## La bande de modèles
 
-Douze pastilles (onze modèles plus la page blanche), mesurées sur la page
-`/repondre-a-un-appel-d-offres` :
+Treize pastilles (douze modèles plus la page blanche), mesurées sur la page
+`/installer-des-panneaux-solaires` :
 
 | largeur | lignes | le verdict commence à |
 |---|---|---|
-| 1440 px | 2 | 323 px |
-| 1280 px | 2 | 323 px |
+| 1440 px | 3 | 363 px |
+| 1280 px | 3 | 363 px |
 | 1100 px | 3 | 363 px |
 | 760 px | 4 | 403 px |
-| 390 px | 1 (défilante) | 291 px |
+| 390 px | 1 (défilante) | 270 px |
 
 Chaque ligne supplémentaire coûte 40 px. Deux sessions de suite ont noté qu'il
 « faudrait grouper » ; la mesure dit que non, pas encore : le verdict reste
@@ -315,7 +364,9 @@ ajouterait des étiquettes, donc de la hauteur** — l'inverse du but. Réduire 
 taille des pastilles ne change pas le nombre de lignes non plus : les points de
 retour sont fixés par les titres longs, pas par la taille du texte (vérifié).
 Le repère pour une prochaine session : regrouper le jour où le verdict passe
-sous 500 px à 1100 px de large, soit vers seize pastilles.
+sous 500 px à 1100 px de large. La treizième pastille a coûté une ligne à 1440 et
+1280 px sans rien coûter ailleurs — le titre « Installer des panneaux solaires »
+est long. Il reste 137 px de marge, soit trois lignes : vers seize pastilles.
 
 ## Une adresse par modèle
 
@@ -365,7 +416,7 @@ Elle ajoute une CSP stricte (`default-src 'none'`, `script-src 'self'`), HSTS,
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
-y renvoie. Neuf chapitres. **Ses chiffres sont épinglés par des tests** : quand
+y renvoie. Dix chapitres. **Ses chiffres sont épinglés par des tests** : quand
 ils cassent, c'est la page qu'on corrige, pas le test qu'on assouplit. Ils ont
 déjà servi deux fois.
 

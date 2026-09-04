@@ -45,6 +45,7 @@
   <li><a class="puce" href="/reparer-ou-remplacer" data-cle="reparer" title="Tout dépend de ce qu’il reste à vivre à l’appareil.">Réparer ou remplacer ?</a></li>
   <li><a class="puce" href="/racheter-son-credit" data-cle="rachat" title="À partir de quel taux, et avec quels frais.">Racheter son crédit ?</a></li>
   <li><a class="puce" href="/repondre-a-un-appel-d-offres" data-cle="offres" title="Une mise certaine contre un gain rare et gros.">Répondre à un appel d’offres ?</a></li>
+  <li><a class="puce" href="/installer-des-panneaux-solaires" data-cle="solaire" title="Sur 20 ans, et ce que vaut une étude de toit.">Installer des panneaux solaires</a></li>
   <li><a class="puce" href="/nouveau-modele" data-cle="vierge" title="Une page blanche et trois lignes de syntaxe." aria-current="page">Partir de zéro</a></li>
 </ul>
 </nav>
@@ -115,6 +116,7 @@ benefice = clients * panier * marge</textarea>
       <tr><td>loyer = 900 à 1150</td><td>Une fourchette : vous pensez qu’il y a <b>9 chances sur 10</b> que la vraie valeur soit dedans. C’est tout ce que le site vous demande de savoir. S’écrit aussi <code>1000 ± 100</code>, <code>entre 900 et 1150</code>, ou <code>900 .. 1150</code>.</td></tr>
       <tr><td>total = prix + loyer * 12</td><td>De l’arithmétique ordinaire. Une variable réutilisée garde la même valeur tirée : <code>a - a</code> fait toujours zéro.</td></tr>
       <tr><td>option "Acheter" = …<br>option "Louer" = …</td><td>Deux lignes <code>option</code> ou plus, et le site passe en mode décision : il compare, recommande, et cherche les seuils de bascule.</td></tr>
+      <tr><td>savoir devis = 400 €<br>attendre production</td><td>Une hypothèse qu’un diagnostic, un devis ou quelques semaines d’attente lèveraient <b>avant</b> que vous ayez à choisir, et ce que ça vous coûte. Le site répond en euros : ce que l’information rapporte, si elle se paie, et la règle à appliquer une fois qu’on saura. Sans coût écrit, elle est gratuite. <code>attendre</code> et <code>savoir</code> disent la même chose.</td></tr>
       <tr><td>unité: €</td><td>Le libellé du <b>résultat</b>, pas des hypothèses — dans un modèle en <code>€/km</code>, un nombre de kilomètres reste un nombre de kilomètres. Libre : <code>€/km</code>, <code>mois</code>, <code>kg CO₂e</code>. Une hypothèse écrite <code>3 % à 5 %</code> s’affiche en pourcentage parce que vous l’avez écrite ainsi.</td></tr>
       <tr><td>seuil: 12<br>seuil: &lt;= 90</td><td>En mode estimation : la valeur que vous visez. Sans signe, elle se lit « au moins 12 » ; avec <code>&lt;=</code>, « au plus 90 » — une durée, un budget ou une dose se visent par le haut. Le site calcule la probabilité de tenir l’objectif, et à partir de quelle hypothèse vous passez du mauvais côté.</td></tr>
       <tr><td>prix &lt;= budget</td><td>Une contrainte plutôt qu’un calcul : le site calcule <code>prix</code> et mesure la probabilité de rester sous <code>budget</code>. C’est une écriture raccourcie de <code>seuil: &lt;= budget</code>.</td></tr>

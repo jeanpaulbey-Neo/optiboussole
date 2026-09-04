@@ -159,12 +159,31 @@ export function lexer(source) {
       // simple avertissement d'unité ignorée, et une valeur fausse d'un facteur
       // deux en silence. Il faut **au moins deux chiffres** après l'unité,
       // sinon « 60m2 » (des mètres carrés, qui marche) serait pris pour une
-      // grandeur composée. Les lettres qui ne sont que des multiplicateurs
-      // d'échelle (« 1k500 ») ou l'exposant scientifique en sont exclues :
-      // l'écriture décimale n'y voudrait pas dire la même chose.
+      // grandeur composée. L'exposant scientifique en est exclu (« 3e45 »).
+      //
+      // Les multiplicateurs d'échelle ont leur propre message : « 1k500 » vaut
+      // bien 1 500, mais la correction « 1,500 » qu'on proposerait ailleurs
+      // vaudrait 1,5 — c'est pour ça que la session qui a écrit cette règle les
+      // avait laissés de côté, et « 1k500 » valait 1, en silence, depuis le
+      // premier jour. On refuse donc, en proposant le nombre entier : lui n'est
+      // ambigu pour personne.
       {
         const comp = source.slice(i).match(/^(\d+)(\p{L}{1,3})(\d{2,})(?![\p{L}\p{N}_])/u);
-        if (comp && !/^(k|K|M|G|Md|md|e|E)$/.test(comp[2])) {
+        if (comp && /^(k|K|M|G|Md|md)$/.test(comp[2])) {
+          const [tout, a, unite, b] = comp;
+          // « 1k500 » : les trois chiffres qui suivent sont les trois derniers
+          // du nombre. Avec deux chiffres, « 1k50 » peut vouloir dire 1 050 ou
+          // 1 500 — on ne devine pas, on demande.
+          const exact = (unite === 'k' || unite === 'K') && b.length === 3
+            ? +a * 1000 + +b : null;
+          throw new ErreurModele(
+            exact !== null
+              ? `« ${tout} » : écrivez ${exact} — ou ${(exact / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 3 })}k`
+              : `« ${tout} » : écrivez le nombre en entier. Le site ne lit pas une `
+                + 'échelle placée au milieu d’un nombre, et « ' + tout + ' » a deux lectures.',
+            ligne);
+        }
+        if (comp && !/^(e|E)$/.test(comp[2])) {
           const [tout, a, unite, b] = comp;
           const enTemps = /^(h|H|min|mn)$/.test(unite);
           const heure = unite === 'h' || unite === 'H';
@@ -766,6 +785,13 @@ class Parseur {
   }
 }
 
+// « savoir X = coût » / « attendre X = coût » : X est une hypothèse qu'une
+// enquête, un devis ou quelques semaines d'attente lèveraient avant qu'on ait
+// à choisir. Les deux mots disent la même chose ; « attendre » se lit mieux
+// quand c'est du temps, « savoir » quand c'est une facture.
+const MOTS_ATTENTE = new Set(['savoir', 'attendre']);
+const ARTICLES = new Set(['le', 'la', 'les', 'l']);
+
 export function analyser(sourceBrute) {
   const { source, unite: uniteDeclaree } = extraireUnite(sourceBrute);
   const jetons = lexer(source);
@@ -780,6 +806,7 @@ export function analyser(sourceBrute) {
   const lignesBrutes = source.split('\n').map((l) => l.replace(/#.*$|\/\/.*$/, '').trim());
   const declarations = [];
   const options = [];
+  const attentes = [];
   let sortie = null;
   const sortiesIgnorees = [];
   const unite = uniteDeclaree;
@@ -839,7 +866,29 @@ export function analyser(sourceBrute) {
         + `Pour définir une valeur, écrivez « ${p.cur().valeur} = … »`, ligne);
     }
 
-    if (p.estMC('option') || p.estMC('choix')) {
+    // « savoir devis = 400 € », « attendre le_diagnostic = 3 * loyer ».
+    // Une hypothèse qu'on peut lever avant de décider, et ce que ça coûte.
+    // Ce n'est pas un mot-clé du lexer : « savoir = 3 » reste une variable,
+    // parce que le motif exige un nom juste derrière, avant le « = ».
+    if (p.estType('ident') && MOTS_ATTENTE.has(p.cur().valeur.toLowerCase())
+        && p.j[p.i + 1] && p.j[p.i + 1].type === 'ident') {
+      const mot = p.avance().valeur.toLowerCase();
+      // « attendre le devis » : l'article se laisse écrire.
+      if (ARTICLES.has(p.cur().valeur.toLowerCase())
+          && p.j[p.i + 1] && p.j[p.i + 1].type === 'ident') p.avance();
+      const nom = p.avance().valeur;
+      let expr = null;
+      if (p.estType('assign') || p.estType(':')) {
+        p.avance();
+        expr = p.expr();
+      }
+      if (attentes.some((a) => a.nom === nom)) {
+        throw new ErreurModele(
+          `« ${nom} » est déjà déclaré comme une chose qu’on peut aller savoir. `
+          + 'Une seule ligne par hypothèse.', ligne);
+      }
+      attentes.push({ nom, expr, ligne, mot });
+    } else if (p.estMC('option') || p.estMC('choix')) {
       p.avance();
       let nom;
       if (p.estType('texte')) nom = p.avance().valeur;
@@ -948,5 +997,5 @@ export function analyser(sourceBrute) {
     sortie = { expr: { k: 'var', nom: derniere.nom, ligne: derniere.ligne }, ligne: derniere.ligne, implicite: true };
   }
 
-  return { declarations, options, sortie, unite, seuil, objectifDeduit, sortiesIgnorees };
+  return { declarations, options, attentes, sortie, unite, seuil, objectifDeduit, sortiesIgnorees };
 }

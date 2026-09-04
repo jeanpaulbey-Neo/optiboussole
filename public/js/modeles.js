@@ -440,6 +440,54 @@ option "Passer son tour" = 0
   },
 
   {
+    cle: 'solaire',
+    slug: 'installer-des-panneaux-solaires',
+    question:
+      "Une installation solaire en autoconsommation se rembourse-t-elle en vingt ans ? Ce modèle la compare à ne rien faire, et fait ce qu’aucun simulateur d’installateur ne fait : il chiffre ce que vous rapporterait une étude de production sur votre toit — avant de signer, et en euros.",
+    titre: 'Installer des panneaux solaires',
+    resume: 'Sur 20 ans, et ce que vaut une étude de toit.',
+    source: `unité: €
+# Faut-il installer 3 kWc en autoconsommation avec revente du surplus ?
+# Comparé à ne rien faire, sur 20 ans, tout ramené à la fin de l’horizon.
+
+horizon = 20
+puissance = 3                 # kWc posés
+
+# --- Le devis ---------------------------------------------------------
+prix_installe = 7000 à 10000   # pose et raccordement compris, pour 3 kWc
+prime = 0 à 700               # prime à l’autoconsommation — à revérifier, elle baisse
+onduleur = 900 à 1600         # remplacement vers la 12e année
+cout = prix_installe - prime
+
+# --- Ce que produit VOTRE toit, et que vous pouvez faire mesurer ------
+production = 900 à 1350       # kWh par kWc et par an : latitude, pente, orientation, ombres
+autoconsomme = 30% à 55%      # part consommée sur place plutôt que revendue
+
+# --- Ce que personne ne peut vous dire à l’avance ---------------------
+prix_achat = 0,19 à 0,26      # € par kWh acheté au réseau, aujourd’hui
+derive = 0% à 6%              # hausse annuelle du prix de l’électricité
+tarif_surplus = 0,04 à 0,13   # € par kWh revendu, bloqué 20 ans à la signature
+placement = 1,5% à 4%         # ce que l’argent rapporterait ailleurs
+
+kwh_an = production * puissance
+gain_auto = kwh_an * autoconsomme * prix_achat
+gain_surplus = kwh_an * (1 - autoconsomme) * tarif_surplus
+
+# L’électricité qu’on ne paie plus suit la dérive des prix ; le surplus
+# revendu, non : son tarif est figé le jour de la signature.
+gain_total = gain_auto * serie(placement, derive, horizon)
+           + gain_surplus * cumul(placement, horizon)
+cout_total = cout * (1 + placement)^horizon + onduleur * (1 + placement)^(horizon - 12)
+
+option "Installer"     = gain_total - cout_total
+option "Ne rien faire" = 0
+
+# Une étude d’ombrage et de production sur votre toit, avant de signer.
+savoir production = 250 €
+`,
+  },
+
+  {
     cle: 'vierge',
     slug: 'nouveau-modele',
     question:
