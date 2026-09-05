@@ -289,6 +289,34 @@ nav .exemples { margin-bottom: 0; }
   color: var(--attenue);
 }
 
+/* Deux façons de répondre, pas une option : deux boutons, et celui qui est
+   choisi se voit. Sixième passage : « donner deux bornes à 9 chances sur 10 est
+   une chose que je ne sais pas faire ». */
+.reglages-mode {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+
+.mode-bouton {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--trait-fort);
+  border-radius: 999px;
+  background: var(--papier);
+  color: var(--attenue);
+  cursor: pointer;
+}
+.mode-bouton:hover { color: var(--encre); }
+.mode-bouton.choisi {
+  background: var(--accent-doux);
+  border-color: var(--accent);
+  color: var(--encre);
+  font-weight: 600;
+}
+.mode-bouton:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .reglages-titre {
   margin: 16px 0 2px;
   padding: 0 16px;
@@ -320,8 +348,13 @@ nav .exemples { margin-bottom: 0; }
   line-height: 1.35;
 }
 
-/* Le nom de la ligne reste visible : c'est le lien entre le champ et le texte,
-   et c'est ce que le verdict nomme. */
+/* Le nom de la ligne n'apparaît que si le texte est ouvert. Sixième passage du
+   lecteur extérieur : « sous chaque libellé français il y a un nom de variable
+   dont je n'ai pas l'usage ». C'est une adresse — la ligne où aller dans le
+   modèle —, et une adresse ne sert à rien quand il n'y a nulle part où aller.
+   Texte ouvert, elle redevient le seul lien entre le champ et sa ligne. */
+.reglage-nom { display: none; }
+.reglages.avec-noms .reglage-nom { display: inline; }
 .reglage-nom {
   font: inherit;
   font-family: var(--mono);
@@ -398,6 +431,11 @@ nav .exemples { margin-bottom: 0; }
   .reglage-tete { flex: 1 1 100%; }
   .reglage-champs { flex: 1 1 100%; justify-content: flex-start; }
   .reglages-intro, .reglages-titre { padding-left: 14px; padding-right: 14px; }
+  .reglages-mode { padding-left: 14px; padding-right: 14px; }
+  /* « exceptionnellement » ne tient pas sur 8 caractères de champ : sous cette
+     largeur, le mot passe au-dessus de son champ et la ligne respire. */
+  .reglage-case { flex: 0 1 auto; min-width: 0; }
+  .reglage-role { white-space: nowrap; }
 }
 
 /* ---------- Le texte, replié ---------- */
@@ -574,6 +612,18 @@ nav .exemples { margin-bottom: 0; }
 .option-jauge i { display: block; height: 100%; background: var(--trait-fort); border-radius: 3px; }
 .option-ligne.gagnante .option-jauge i { background: var(--accent); }
 .option-detail { grid-column: 1 / -1; font-size: 12.5px; color: var(--attenue); margin-top: -2px; }
+
+/* De quoi le nombre est le total, au-dessus des nombres. Sixième passage :
+   « "Garder l'actuelle −19,1 k€" en tête : je ne sais pas de quoi ce nombre est
+   le total. » */
+.option-intro {
+  margin: -4px 0 12px;
+  max-width: 62ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--attenue);
+}
+.verdict .option-intro { margin: 2px 0 10px; }
 
 /* Liste des hypothèses */
 

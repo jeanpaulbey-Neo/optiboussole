@@ -481,6 +481,110 @@ que le nom marqué est bien celui que le verdict nomme.
 `positionnerTexte()` n'est appelé qu'au chargement et au changement de modèle :
 au fil de la frappe, c'est au visiteur de décider ce qui est ouvert.
 
+### Deux bornes, ou deux questions
+
+Le formulaire demande la même chose de deux façons, au choix du visiteur
+(`.reglages-mode`, deux boutons au-dessus des champs ; le choix vit dans
+`localStorage` sous `boussole.champs` et suit le visiteur d'une page à l'autre).
+
+| mode | ce que les deux champs demandent |
+|---|---|
+| **Deux bornes** (par défaut) | `basse` et `haute` : 9 chances sur 10 d'être entre |
+| **Deux questions** | `d'habitude` et `exceptionnellement` : la valeur ordinaire, puis celle qu'on n'atteint qu'une fois sur dix |
+
+Sixième passage du lecteur extérieur : *« donner deux bornes à 9 chances sur 10
+est une chose que je ne sais pas faire — je saurais répondre à "combien l'an
+dernier ?" et "et une mauvaise année ?" »*. C'est le seul geste que le site
+demande à qui arrive, et il demandait le plus difficile des deux.
+
+**Ce n'est pas un second format**, et c'est ce qui le rend possible : la
+conversion est celle que le moteur fait déjà. Une fourchette entre deux nombres
+positifs est lognormale, donc `habituel = √(bas × haut)` et les bornes sont en
+miroir *en rapport* autour d'elle ; quand la fourchette traverse zéro, le moteur
+travaille en écart et le miroir devient additif. `versQuestions()` et
+`versBornes()` (dans `reglages.js`) ne font que cela, et un test rejoue les
+86 fourchettes de la bibliothèque dans les deux sens.
+
+Trois points qu'il ne faut pas casser :
+
+- **`versBornes()` reçoit le support de la ligne**, il ne le déduit pas des deux
+  nombres tapés. Sans lui, « -1 % à 4 % » (habituel 1,5 %) revenait
+  « 0,56 % à 4 % » au premier aller-retour : deux nombres positifs à l'écran,
+  et le négatif du texte perdu sans que rien ne le signale.
+- **Seul le champ modifié est lu à l'écran** ; l'autre valeur se relit du texte,
+  sans son arrondi d'affichage. Sinon l'arrondi entre dans le calcul de la borne
+  d'en face à chaque frappe : sur « 2,9 % à 3,3 % », l'habituel affiché 3,09
+  rendait 2,89 au lieu de 2,90.
+- **La borne haute se réécrit avant la basse.** Elle est plus loin dans la ligne,
+  et la changer ne déplace pas les positions de la basse ; dans l'autre sens,
+  tout ce qui suit se décale et l'on écrit à côté.
+
+### Le nom de variable ne s'affiche que si le texte est ouvert
+
+`.reglage-nom` est `display: none` tant que `#texte-modele` est replié, et la
+classe `.avec-noms` sur `#reglages` le rend. Sixième passage : *« sous chaque
+libellé français il y a un nom de variable dont je n'ai pas l'usage »*. C'est une
+adresse — la ligne où aller dans le modèle —, et une adresse ne sert à rien
+quand il n'y a nulle part où aller. Texte ouvert, elle redevient le seul lien
+entre le champ et sa ligne, et c'est elle que le verdict nomme.
+
+## Ce que le site dit d'un nombre
+
+Trois règles, toutes venues du sixième passage, et toutes de la même famille :
+**un chiffre affiché doit se lire sans rien savoir de la méthode.**
+
+### De quoi le nombre est le total — `resultat` dans `modeles.js`
+
+*« "Garder l'actuelle −19,1 k€" en tête : je ne sais pas de quoi ce nombre est
+le total. »* Le site ne peut pas le déduire : la réponse est répartie dans
+quinze formules. Chaque modèle porte donc une phrase écrite à la main, comme le
+lexique le fait pour les hypothèses. Elle s'affiche sous « Les branches », et
+sous le résultat d'une estimation.
+
+Deux gardes, parce qu'une phrase fausse serait pire que pas de phrase :
+
+- les durées qu'elle cite sont **relues dans le texte** — `{horizon}`,
+  `{duree_restante}` — donc un visiteur qui compare sur douze ans lit douze ;
+- elle disparaît dès que le **squelette** du modèle change, c'est-à-dire dès
+  qu'on touche à autre chose qu'un chiffre d'hypothèse (`squelette()` compare
+  toutes les lignes que `reglages()` ne reconnaît pas). Elle décrit des
+  formules : elle vaut tant que les formules sont là.
+
+Un test tient les deux : les noms cités existent comme valeurs fermes du modèle,
+et un modèle qui a un `horizon` ne l'écrit pas en chiffres dans sa phrase.
+
+### La fourchette est rendue telle qu'elle a été écrite
+
+*« j'ai saisi 400 et 1800, l'écran me répond "398 → 1 794, médiane 845" — trois
+choses que je ne comprends pas, au même endroit. »* 398 et 1 794 étaient les
+quantiles empiriques de vingt mille tirages : le bruit de la méthode, rendu à
+qui venait de taper les vraies bornes. `phrasePlage()` relit les bornes du texte
+(`bornesEcrites`, la même lecture que le formulaire) et écrit une phrase :
+
+> Vous avez écrit : 9 chances sur 10 de 400 à 1 800 €/an. La moitié du temps
+> sous 845 €/an — et non 1 100 €/an, le milieu des deux bornes : une fourchette
+> entre deux nombres positifs s'étale vers le haut.
+
+La dernière clause n'apparaît que sur la première hypothèse de la liste, et
+seulement quand l'écart se voit : répétée sous chacune, elle devient une litanie
+qu'on cesse de lire. C'est le principe de départ du site, et il vivait sur deux
+pages de fond que personne n'atteint avant d'avoir lu ses résultats.
+
+### Une liste d'enquêtes n'est pas un classement
+
+*« on me liste cinq chiffres à aller vérifier alors qu'un seul compte, les quatre
+autres valent ensemble un quart du premier. »* Une hypothèse garde son bloc si
+elle vaut au moins `PART_SECOND` (un quart) de ce que vaut la tête ; les autres
+tiennent dans une phrase qui dit ce qu'elles valent et quand y revenir. Sur
+l'accueil, cinq blocs sont devenus un.
+
+Deux gardes : la coupe ne s'applique **qu'en mode décision** — « d'où vient
+l'incertitude » répartit cent pour cent d'un écart, et une part de 12 % y est une
+réponse, pas une tâche — et **seulement si la tête elle-même compte**, sinon
+« loin derrière » se dirait derrière un chiffre nul. La phrase compare la mieux
+placée des secondaires à la tête, **jamais leur total** : la valeur d'une
+information ne s'additionne pas.
+
 ## La bande de modèles
 
 **Elle est passée sous la réponse (session 15)**, à la fin de l'atelier, sous

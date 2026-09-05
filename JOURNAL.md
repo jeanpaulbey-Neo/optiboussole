@@ -8,6 +8,181 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 5 septembre 2026 — Session 19 : le site rendait au visiteur des chiffres qu’il venait d’écrire
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — sixième passage, sur mobile
+
+C’était le point n° 4 de ma liste, et il est arrivé pendant la session. Le
+lecteur commence par la seule bonne nouvelle en six passages sur le formulaire :
+« le formulaire fonctionne et les libellés en français aident vraiment ».
+Puis cinq points, consignés mot pour mot :
+
+> 1. J’ai saisi 400 et 1800, l’écran me répond « 398 → 1 794, médiane 845 » —
+>    trois choses que je ne comprends pas, au même endroit, et rien ne les
+>    explique là où elles s’affichent.
+> 2. Donner deux bornes à 9 chances sur 10 est une chose que je ne sais pas
+>    faire — je saurais répondre à « combien l’an dernier ? » et « et une
+>    mauvaise année ? ».
+> 3. Sous chaque libellé français il y a un nom de variable dont je n’ai pas
+>    l’usage.
+> 4. « Garder l’actuelle −19,1 k€ » en tête : je ne sais pas de quoi ce nombre
+>    est le total.
+> 5. On me liste cinq chiffres à aller vérifier alors qu’un seul compte, les
+>    quatre autres valent ensemble un quart du premier.
+
+Les cinq disent la même chose sous cinq formes : **le site calcule juste et
+affiche mal**. Aucun ne porte sur le moteur, aucun ne demande une fonction de
+plus. C’est un changement de nature par rapport aux cinq passages précédents,
+qui demandaient tous quelque chose que le site ne savait pas faire.
+
+### 1. Rendre à quelqu’un les chiffres qu’il vient d’écrire, en pire
+
+« 398 → 1 794 » quand on a tapé 400 et 1800 : ce sont les quantiles empiriques
+de vingt mille tirages. C’est-à-dire **le bruit de ma méthode, rendu à celui qui
+venait de taper les vraies bornes**. Il n’y avait rien à défendre là-dedans : le
+site connaît les bornes écrites, il les relit du texte comme le formulaire les
+relit, et il les rend telles quelles.
+
+Restait la médiane, qui elle a une raison d’être là et qui n’était expliquée
+nulle part sauf sur deux pages de fond que personne n’atteint avant d’avoir lu
+ses résultats. Elle s’écrit maintenant sous le chiffre qu’elle explique :
+
+> Vous avez écrit : 9 chances sur 10 de 400 à 1 800 €/an. La moitié du temps
+> sous 845 €/an — et non 1 100 €/an, le milieu des deux bornes : une fourchette
+> entre deux nombres positifs s’étale vers le haut.
+
+La dernière clause n’apparaît que sur la première hypothèse de la liste. Écrite
+sous chacune, elle devient une litanie qu’on cesse de lire à la deuxième — je
+l’ai vue faire à l’écran avant de la couper, et pas en la relisant.
+
+### 2. Deux questions plutôt que deux bornes
+
+C’est le point le plus profond des cinq, parce qu’il porte sur le seul geste que
+le site demande à quelqu’un qui arrive. Et il est documenté : demander un
+intervalle à 90 % donne des intervalles beaucoup trop étroits, demander une
+valeur centrale puis un extrême donne de meilleures réponses. **Je posais la
+plus difficile des deux questions**, à des gens qui n’ont aucune raison de
+savoir y répondre.
+
+Le formulaire propose donc les deux, au choix, par deux boutons :
+
+    Deux bornes      basse 400        haute 1800
+    Deux questions   d’habitude 849   exceptionnellement 1800
+
+Ce qui rend la chose possible sans créer un second format, c’est que **la
+conversion est celle que le moteur fait déjà** : une fourchette entre deux
+nombres positifs est lognormale, donc l’habituel est la moyenne géométrique des
+bornes et les bornes sont en miroir en rapport autour de lui. Le texte reste la
+seule vérité, les deux modes s’y relisent, et rien d’autre n’a bougé — ni le
+lien de partage, ni la barre de reprise, ni les tests.
+
+L’exceptionnel n’est pas forcément le haut : « une mauvaise année » est en haut
+pour une dépense et en bas pour une recette, et le site ne peut pas le deviner.
+Il accepte les deux et met la fourchette en miroir de l’autre côté. C’est ce qui
+permet de ne poser qu’une question au lieu de deux.
+
+**Deux défauts trouvés en écrivant les tests, pas en relisant le code :**
+
+- une fourchette qui traverse zéro perdait son négatif au premier aller-retour.
+  « -1 % à 4 % » a un habituel de 1,5 % ; `versBornes()` déduisait le support
+  des deux nombres tapés, tous deux positifs, et rendait « 0,56 % à 4 % ». Deux
+  nombres plausibles à l’écran, et le négatif du texte disparu sans un mot. Le
+  support vient maintenant de la ligne, jamais des nombres.
+- sur « 2,9 % à 3,3 % », l’habituel affiché 3,09 rendait une borne basse de
+  2,89 au lieu de 2,90 : l’arrondi d’affichage entrait dans le calcul de la
+  borne d’en face à chaque frappe. Un centième de point, sur le seul chiffre
+  d’un modèle qui se négocie au centième. Seul le champ qu’on modifie est
+  désormais lu à l’écran ; l’autre valeur se relit du texte, non arrondie.
+
+Aucun des deux n’aurait produit d’erreur. Les deux auraient produit un chiffre
+plausible et faux — la seule catégorie de faute qui compte vraiment ici.
+
+### 3. Un nom de variable est une adresse
+
+`reparations` sous « ce que l’ancienne vous coûtera en pannes » ne sert que si
+l’on peut aller quelque part avec. C’est l’adresse de la ligne dans le texte ; le
+texte est replié ; l’adresse ne mène nulle part. Elle ne s’affiche donc plus que
+lorsque le texte est ouvert — et là, elle redevient le seul lien entre le champ
+et sa ligne, celui que le verdict nomme.
+
+### 4. De quoi ce nombre est le total
+
+Le site ne peut pas le déduire : la réponse est répartie dans quinze formules et
+aucune règle ne la résume. Chaque modèle porte donc une phrase écrite à la main,
+comme le lexique porte le mot français de chaque hypothèse.
+
+> Chaque branche est ce que la voiture vous laisse au bout de 6 ans : ce qu’elle
+> vaudra encore, moins le carburant, les réparations, l’entretien et l’assurance
+> de ces années-là — et, pour « Changer », le prix d’achat moins la revente de
+> l’actuelle. Les deux chiffres sont négatifs : rouler coûte, dans les deux cas.
+
+Une phrase écrite à la main peut mentir, et c’est le seul risque de ce point.
+Deux gardes : **les durées qu’elle cite sont relues dans le texte** — la phrase
+écrit `{horizon}`, pas « 6 », donc un visiteur qui compare sur douze ans lit
+douze — et **elle disparaît dès que le squelette du modèle change**, c’est-à-dire
+dès qu’on touche à autre chose qu’un chiffre d’hypothèse. Elle décrit des
+formules ; elle vaut tant que les formules sont là. Un test vérifie que les noms
+cités existent et qu’aucun modèle n’a recopié son horizon en chiffres.
+
+### 5. Une liste d’enquêtes n’est pas un classement
+
+Cinq blocs « à aller vérifier » dont le deuxième vaut 86 € contre 631 € au
+premier : ce n’est pas une liste de tâches, c’est un classement affiché comme
+une liste de tâches. Une hypothèse garde son bloc si elle vaut au moins le quart
+de ce que vaut la tête ; les autres tiennent en une phrase. Sur l’accueil, cinq
+blocs sont devenus un.
+
+Deux précautions. La coupe ne s’applique **qu’en mode décision** : « d’où vient
+l’incertitude » répartit cent pour cent d’un écart, et une part de 12 % y est une
+réponse, pas une tâche. Et la phrase compare la mieux placée des secondaires à
+la tête, **jamais leur total** — le lecteur a additionné (« les quatre autres
+valent ensemble un quart »), et il avait raison sur l’ordre de grandeur, mais la
+valeur d’une information ne s’additionne pas : savoir deux chiffres ne vaut pas
+la somme de ce que vaut chacun. Écrire le total aurait été plus frappant et
+faux.
+
+### Ce que je n’ai pas fait
+
+**Écrire un modèle entier de zéro, comme quelqu’un qui découvre.** Reporté
+depuis la session 17, et pour la troisième fois. Cette fois la raison est
+défendable — cinq points d’un lecteur réel passent avant un exercice que je
+m’invente — mais c’est exactement la phrase que j’écris chaque fois. Le repère
+pour la session suivante : si un septième passage arrive, il passe encore avant,
+et alors je dois admettre que ce point ne se fera jamais et le retirer, comme
+j’ai retiré la valeur d’option en session 18.
+
+### État à la fin de la session
+
+- **750** assertions sur le moteur (contre 710), **359** dans un vrai navigateur
+  (contre 343) : les 86 fourchettes de la bibliothèque rejouées dans les deux
+  modes, les phrases de résultat vérifiées modèle par modèle, et dans le
+  navigateur la bascule, la saisie en deux questions, les noms repliés avec le
+  texte et le tout à 390 px.
+- Douze modèles, seize pages, dix chapitres, 91 hypothèses au lexique,
+  114 champs, deux façons de les remplir.
+- Le site répond, `npm test` et `npm run test:navigateur` sont verts.
+
+### Ce que je ferais ensuite
+
+1. **Regarder le mode « deux questions » avec les yeux du lecteur.** Je l’ai
+   construit sur son reproche, mais il ne l’a pas encore vu. Le mot
+   « exceptionnellement » est le plus faible du site : il est long, abstrait, et
+   il porte à lui seul l’idée « une fois sur dix ».
+2. **Le mode par défaut.** « Deux bornes » reste le mode d’ouverture parce que
+   c’est le vocabulaire du texte, qui est la vérité. Si un septième passage
+   confirme que les deux questions se remplissent mieux, c’est l’ordre qu’il
+   faut inverser, pas la formulation.
+3. **Écrire un modèle de zéro**, ou le retirer de cette liste. Voir plus haut.
+4. **Un septième passage**, et cette fois sur la réponse plutôt que sur le
+   formulaire : les cinq points de celui-ci portaient tous sur ce que le site
+   affiche, et je ne sais toujours pas si ce qu’il affiche sert à décider.
+
+Toujours pas de graphiques.
+
+---
+
 ## 4 septembre 2026 — Session 18 : le site demandait d'écrire du code pour changer six nombres
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*

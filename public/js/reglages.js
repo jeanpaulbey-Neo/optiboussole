@@ -191,3 +191,60 @@ export function reecrire(source, b, valeur) {
   }
   return source.slice(0, b.debut) + texte + source.slice(b.fin);
 }
+
+// --- Deux questions plutôt que deux bornes -----------------------------------
+//
+// Sixième passage du lecteur extérieur : « donner deux bornes à 9 chances sur
+// 10 est une chose que je ne sais pas faire — je saurais répondre à "combien
+// l'an dernier ?" et "et une mauvaise année ?" ».
+//
+// C'est le plus profond des six reproches, parce qu'il porte sur la seule chose
+// que le site demande à quelqu'un qui arrive : écrire une fourchette. Et il est
+// documenté : demander deux bornes produit des intervalles beaucoup trop
+// étroits, demander une valeur centrale puis un extrême donne de meilleures
+// réponses. Le site posait la plus difficile des deux questions, et il la
+// posait à des gens qui n'ont pas de raison de savoir y répondre.
+//
+// La conversion est celle que le moteur fait déjà, pas une seconde convention.
+// Une fourchette entre deux nombres positifs est lognormale : sa médiane est la
+// moyenne géométrique des bornes, et les bornes sont symétriques autour d'elle
+// en rapport. Donc habituel = √(bas × haut), et les bornes se retrouvent en
+// miroir autour de l'habituel. Quand une borne n'est pas positive, le moteur
+// travaille en écart et non en rapport : le miroir devient additif.
+//
+// L'exceptionnel n'est pas forcément le haut. « Une mauvaise année » est en
+// haut pour une dépense, en bas pour une recette, et le site ne peut pas le
+// deviner : il accepte les deux et met la fourchette en miroir de l'autre côté.
+// C'est aussi ce qui permet de ne poser qu'une question au lieu de deux.
+export function versQuestions(bas, haut) {
+  const positif = bas > 0 && haut > 0;
+  return {
+    habituel: positif ? Math.sqrt(bas * haut) : (bas + haut) / 2,
+    exceptionnel: haut,
+    positif,
+  };
+}
+
+// `positif` dit sur quel support la fourchette vit, et il vient des bornes
+// écrites, pas des deux nombres tapés. « -1% à 4% » a une valeur habituelle de
+// 1,5 % : la relire en rapport rendrait « 0,56 % à 4 % » au lieu de « -1 % à
+// 4 % », et l'aller-retour perdrait le négatif au premier passage. À défaut, on
+// le déduit — et le rapport ne s'applique jamais à un nombre qui ne l'est pas.
+export function versBornes(habituel, exceptionnel, positif) {
+  if (!Number.isFinite(habituel) || !Number.isFinite(exceptionnel)) return null;
+  const geometrique = (positif === undefined ? true : positif) && habituel > 0 && exceptionnel > 0;
+  const autre = geometrique ? (habituel * habituel) / exceptionnel : 2 * habituel - exceptionnel;
+  if (!Number.isFinite(autre)) return null;
+  return exceptionnel >= habituel ? [autre, exceptionnel] : [exceptionnel, autre];
+}
+
+// Une moyenne géométrique tombe rarement rond : √(400 × 1800) = 848,528137.
+// Le champ montre un chiffre qu'on relit, pas la précision d'un calcul — et ce
+// qu'il montre est ce qui sera réécrit dans le texte, sans quoi les deux
+// dériveraient l'un de l'autre.
+export function arrondiChamp(x) {
+  if (!Number.isFinite(x) || x === 0) return x;
+  const a = Math.abs(x);
+  const d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 2 - Math.floor(Math.log10(a));
+  return Number(x.toFixed(Math.max(0, Math.min(10, d))));
+}

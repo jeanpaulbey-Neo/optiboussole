@@ -47,7 +47,29 @@ const tailleTitre = await page.$eval('.verdict-titre', (n) => parseFloat(getComp
 verifie('le verdict est en gros corps (spécificité CSS)', tailleTitre >= 22, `→ ${tailleTitre}px`);
 
 const nbHypotheses = await page.$$eval('.hypothese', (n) => n.length);
-verifie('les hypothèses sont listées', nbHypotheses >= 3, `→ ${nbHypotheses}`);
+// Sixième passage du lecteur extérieur : « on me liste cinq chiffres à aller
+// vérifier alors qu'un seul compte, les quatre autres valent ensemble un quart
+// du premier. » Sur l'accueil, il n'en reste qu'un — et les autres tiennent
+// dans une phrase qui dit ce qu'elles valent.
+verifie('les hypothèses qui comptent sont listées', nbHypotheses >= 1, `→ ${nbHypotheses}`);
+const secondaires = await page.$$eval('#resultats .note-basse', (n) =>
+  n.map((e) => e.textContent.replace(/\s+/g, ' ')).find((t) => t.includes('loin derrière')) || '');
+verifie('… et celles qui comptent moins tiennent dans une phrase',
+  nbHypotheses <= 2 && /loin derrière/.test(secondaires), `→ ${nbHypotheses} bloc(s) · ${secondaires}`);
+
+// De quoi le nombre est le total, à l'endroit où il s'affiche — et l'horizon
+// s'y relit dans le texte plutôt que d'y être recopié.
+const totalise = await page.$eval('.option-intro', (n) => n.textContent.replace(/\s+/g, ' ')).catch(() => '');
+verifie('le site dit de quoi le nombre des branches est le total',
+  /au bout de 6 ans/.test(totalise), `→ ${totalise.slice(0, 80)}`);
+
+// La fourchette rendue est celle qui a été écrite, pas les quantiles tirés.
+const laPlage = await page.$eval('p.plage', (n) => n.textContent.replace(/\s+/g, ' ')).catch(() => '');
+verifie('la fourchette est rendue telle qu’elle a été écrite',
+  laPlage.includes('400') && laPlage.includes('1 800') && laPlage.startsWith('Vous avez écrit'),
+  `→ ${laPlage.slice(0, 90)}`);
+verifie('… et la médiane s’explique là où elle s’affiche',
+  /milieu des deux bornes/.test(laPlage), `→ ${laPlage.slice(0, 120)}`);
 
 // Quinze sessions sans le moindre dessin, puis un lecteur extérieur : « il n'y
 // a toujours aucune représentation visuelle d'une distribution ou d'un poids ».
@@ -910,6 +932,78 @@ console.log('\n\x1b[1mLe modèle comme formulaire\x1b[0m');
   verifie('le formulaire ne déborde pas sur un téléphone', debF <= 1, `→ ${debF}px`);
   const largeurs = await pF.$$eval('.reglage-champ', (n) => n.map((e) => e.getBoundingClientRect().width));
   verifie('… et ses champs restent utilisables', largeurs.every((w) => w >= 44), `→ ${Math.min(...largeurs)}px`);
+
+  // --- Deux questions plutôt que deux bornes --------------------------------
+  //
+  // Sixième passage : « donner deux bornes à 9 chances sur 10 est une chose que
+  // je ne sais pas faire — je saurais répondre à "combien l'an dernier ?" et
+  // "et une mauvaise année ?" ». Ce que ces tests tiennent : que les deux modes
+  // décrivent la même fourchette, et que le texte reste la seule vérité.
+  await pF.setViewport({ width: 1280, height: 1000 });
+  await pF.goto(URL, { waitUntil: 'networkidle0' });
+  await pF.waitForSelector('.reglage-champ');
+
+  const nomsPlies = await pF.$$eval('.reglage-nom', (n) => n.filter((e) => e.offsetParent !== null).length);
+  verifie('texte replié, aucun nom de variable ne s’affiche', nomsPlies === 0, `→ ${nomsPlies}`);
+  await pF.click('#texte-modele > summary');
+  await new Promise((r) => setTimeout(r, 200));
+  const nomsOuverts = await pF.$$eval('.reglage-nom', (n) => n.filter((e) => e.offsetParent !== null).length);
+  verifie('… et texte ouvert, ils redeviennent le lien vers la ligne',
+    nomsOuverts >= 6, `→ ${nomsOuverts}`);
+  await pF.click('#texte-modele > summary');
+
+  const modes = await pF.$$eval('.mode-bouton', (n) => n.map((e) => e.textContent.trim()));
+  verifie('deux façons de donner ses chiffres sont proposées',
+    modes.join(' / ') === 'Deux bornes / Deux questions', `→ ${modes.join(' / ')}`);
+
+  const ligneAvant = await pF.$eval('#modele', (n) =>
+    n.value.split('\n').find((l) => l.startsWith('reparations')));
+  await pF.click('.mode-bouton:nth-child(2)');
+  await new Promise((r) => setTimeout(r, 600));
+  const roles = await pF.$$eval('.reglage[data-nom="reparations"] .reglage-role',
+    (n) => n.map((e) => e.textContent.trim()));
+  verifie('… et « deux questions » les demande autrement',
+    roles.join(' / ') === 'd’habitude / exceptionnellement', `→ ${roles.join(' / ')}`);
+  const valeursQ = await pF.$$eval('.reglage[data-nom="reparations"] input', (n) => n.map((e) => e.value));
+  verifie('… en montrant la médiane de la fourchette, pas le milieu des bornes',
+    valeursQ[0] === '849' && valeursQ[1] === '1800', `→ ${valeursQ.join(' / ')}`);
+  verifie('… sans rien écrire dans le texte tant qu’on n’a pas tapé',
+    (await pF.$eval('#modele', (n) => n.value.split('\n').find((l) => l.startsWith('reparations')))) === ligneAvant,
+    `→ ${ligneAvant}`);
+
+  const viseQ = '.reglage[data-nom="reparations"] input[data-question="habituel"]';
+  await pF.$eval(viseQ, (n) => { n.value = ''; });
+  await pF.focus(viseQ);
+  await pF.keyboard.type('1200');
+  await new Promise((r) => setTimeout(r, 900));
+  const ligneApres = await pF.$eval('#modele', (n) =>
+    n.value.split('\n').find((l) => l.startsWith('reparations')));
+  verifie('une réponse « d’habitude » écrit les deux bornes',
+    /^reparations = 800 à 1800\b/.test(ligneApres), `→ ${ligneApres}`);
+  verifie('… en gardant le commentaire de la ligne',
+    ligneApres.includes('# par an, et ça monte avec l’âge'), `→ ${ligneApres}`);
+  verifie('… sans que le champ perde le curseur ni ce qu’on y a tapé',
+    await pF.evaluate((sel) => document.activeElement === document.querySelector(sel)
+      && document.activeElement.value === '1200', viseQ));
+  const plageApres = await pF.$$eval('.hypothese', (n) => n.map((e) => e.textContent.replace(/\s+/g, ' '))
+    .find((t) => t.includes('paration')) || '');
+  verifie('… et la fourchette obtenue a bien 1 200 pour médiane',
+    /La moitié du temps sous 1 1[89]\d/.test(plageApres), `→ ${plageApres.slice(-160)}`);
+
+  // Sur 390 px : « exceptionnellement » est un mot long, et c'est là qu'on
+  // ouvre un lien partagé.
+  await pF.setViewport({ width: 390, height: 900 });
+  await pF.goto(URL, { waitUntil: 'networkidle0' });
+  await pF.waitForSelector('.reglage-champ');
+  const debQ = await pF.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  verifie('le formulaire en deux questions ne déborde pas non plus', debQ <= 1, `→ ${debQ}px`);
+  const largeursQ = await pF.$$eval('.reglage-champ', (n) => n.map((e) => e.getBoundingClientRect().width));
+  verifie('… et ses champs restent utilisables', largeursQ.every((w) => w >= 44), `→ ${Math.min(...largeursQ)}px`);
+
+  // Le choix suit le visiteur d'une page à l'autre ; on le rend à sa valeur
+  // par défaut pour la suite de la session.
+  await pF.evaluate(() => localStorage.removeItem('boussole.champs'));
 
   verifie('aucun incident sur le formulaire', incF.length === 0, `→ ${incF.join(' | ')}`);
   await pF.close();

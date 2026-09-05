@@ -2221,5 +2221,100 @@ groupe('Le texte servi par les pages');
   verifie('une page de modèle tient sous 9 000 caractères', pire < 9000, `→ ${pire} (${pireNom})`);
 }
 
+// --- Deux questions plutôt que deux bornes -----------------------------------
+//
+// Sixième passage du lecteur extérieur : « donner deux bornes à 9 chances sur
+// 10 est une chose que je ne sais pas faire — je saurais répondre à
+// "combien l’an dernier ?" et "et une mauvaise année ?" ».
+//
+// Les deux modes doivent décrire la **même** fourchette, sinon le site aurait
+// deux vérités et le texte ne serait plus la seule. L'aller-retour est donc
+// rejoué sur toutes les fourchettes de la bibliothèque, arrondi d'affichage
+// compris : c'est ce que le visiteur voit qui sera réécrit dans le texte.
+groupe('Deux questions plutôt que deux bornes');
+{
+  const { reglages, versQuestions, versBornes, arrondiChamp } =
+    await import('../public/js/reglages.js');
+
+  let paires = 0, pireEcart = 0, pireOu = '', hautPerdu = '';
+  for (const m of MODELES) {
+    for (const e of reglages(m.source)) {
+      if (e.bornes.length !== 2) continue;
+      paires++;
+      const [bas, haut] = e.bornes.map((b) => b.affiche);
+      const q = versQuestions(bas, haut);
+      // Sur les valeurs exactes — c'est ainsi que le formulaire écrit : le
+      // champ que l'on ne touche pas garde la précision du texte.
+      const rendu = versBornes(q.habituel, q.exceptionnel, q.positif);
+      const [b2, h2] = rendu.map(arrondiChamp);
+      const ecart = Math.abs(b2 - bas) / Math.max(1e-12, Math.abs(haut - bas));
+      if (ecart > pireEcart) { pireEcart = ecart; pireOu = `${m.cle}.${e.nom} ${bas} → ${b2}`; }
+      if (Math.abs(h2 - haut) > 1e-9) hautPerdu = `${m.cle}.${e.nom} ${haut} → ${h2}`;
+    }
+  }
+  verifie('les deux modes se rejouent sur toute la bibliothèque', paires >= 80, `→ ${paires} fourchettes`);
+  verifie('… en rendant la borne basse au chiffre près', pireEcart < 0.001, `→ ${(pireEcart * 100).toFixed(2)} % (${pireOu})`);
+  verifie('… et la borne haute au chiffre près', hautPerdu === '', `→ ${hautPerdu}`);
+
+  // La valeur habituelle est la médiane de la fourchette, pas le milieu des
+  // bornes : c'est la seule lecture qui soit celle du moteur.
+  proche('« 400 à 1800 » se demande « d’habitude ? » → 849', arrondiChamp(versQuestions(400, 1800).habituel), 849, 0.6);
+  proche('… et non 1 100, le milieu des bornes', versQuestions(400, 1800).habituel, 848.53, 0.1);
+
+  // L'exceptionnel n'est pas forcément le haut : « une mauvaise année » est en
+  // bas pour une recette, et le site ne peut pas le deviner.
+  const basse = versBornes(849, 400);
+  verifie('un exceptionnel sous l’habituel bascule la fourchette de l’autre côté',
+    basse[0] === 400 && Math.abs(basse[1] - 1802) < 2, `→ ${basse.join(' à ')}`);
+
+  // Une fourchette qui traverse zéro se lit en écart et non en rapport. Sans
+  // ça, « -1 % à 4 % » revenait « 0,56 % à 4 % » au premier aller-retour, et
+  // le négatif disparaissait sans que rien ne le signale.
+  const q0 = versQuestions(-1, 4);
+  const r0 = versBornes(q0.habituel, q0.exceptionnel, q0.positif);
+  verifie('une fourchette qui traverse zéro garde son négatif',
+    q0.habituel === 1.5 && r0[0] === -1 && r0[1] === 4, `→ ${r0.join(' à ')}`);
+
+  verifie('un champ illisible ne rend aucune fourchette',
+    versBornes(NaN, 4) === null && versBornes(4, NaN) === null);
+
+  // Une moyenne géométrique tombe rarement rond, et le champ montre un chiffre
+  // qu'on relit — pas la précision d'un calcul.
+  verifie('l’arrondi du champ garde trois chiffres qui comptent',
+    arrondiChamp(848.528137) === 849 && arrondiChamp(10.58) === 10.6
+    && arrondiChamp(0.0432198) === 0.0432 && arrondiChamp(0) === 0,
+    `→ ${[848.528137, 10.58, 0.0432198].map(arrondiChamp).join(', ')}`);
+}
+
+// --- De quoi le nombre est le total ------------------------------------------
+//
+// Sixième passage : « "Garder l’actuelle −19,1 k€" en tête : je ne sais pas de
+// quoi ce nombre est le total. » La phrase est écrite à la main, modèle par
+// modèle — donc elle peut mentir, et c'est ce que ces tests surveillent : les
+// chiffres qu'elle cite doivent se relire dans le texte du modèle.
+groupe('De quoi le nombre est le total');
+{
+  const { reglages } = await import('../public/js/reglages.js');
+  for (const m of MODELES) {
+    verifie(`${m.cle} : le résultat dit de quoi il est le total`,
+      typeof m.resultat === 'string' && m.resultat.length >= 60, `→ ${m.resultat}`);
+    const cites = [...m.resultat.matchAll(/\{(\w+)\}/g)].map((x) => x[1]);
+    const regl = reglages(m.source);
+    const absents = cites.filter((n) => !regl.some((e) => e.nom === n && e.bornes.length === 1));
+    verifie(`${m.cle} : … et les chiffres qu’il cite se relisent dans le texte`,
+      absents.length === 0, `→ ${absents.join(', ')}`);
+  }
+
+  // Un horizon écrit en toutes lettres dans la phrase mentirait dès qu'on le
+  // change dans le formulaire. Les modèles qui en ont un doivent le citer.
+  for (const m of MODELES) {
+    const regl = reglages(m.source);
+    const horizon = regl.find((e) => e.nom === 'horizon' && e.bornes.length === 1);
+    if (!horizon) continue;
+    verifie(`${m.cle} : l’horizon de la phrase est relu, pas recopié`,
+      m.resultat.includes('{horizon}') || !new RegExp(`\\b${horizon.bornes[0].affiche}\\b`).test(m.resultat),
+      `→ ${m.resultat}`);
+  }
+}
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);
 process.exit(ko === 0 ? 0 : 1);

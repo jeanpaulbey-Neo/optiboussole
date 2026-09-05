@@ -10,7 +10,8 @@ import { analyserContreArgument } from './contre.js';
 import { ErreurModele } from './lang.js';
 import { MODELES, MODELE_PAR_DEFAUT } from './modeles.js';
 import { hypothese } from './lexique.js';
-import { reglages, intertitres, afficher, lireChamp, reecrire } from './reglages.js';
+import { reglages, intertitres, afficher, lireChamp, reecrire,
+         versQuestions, versBornes, arrondiChamp } from './reglages.js';
 
 const $ = (s) => document.querySelector(s);
 const zoneModele = $('#modele');
@@ -19,6 +20,17 @@ const zoneResultats = $('#resultats');
 const listeExemples = $('#exemples');
 
 const CLE_STOCKAGE = 'boussole.modele';
+
+// Comment le visiteur donne ses chiffres. Sixième passage du lecteur
+// extérieur : « donner deux bornes à 9 chances sur 10 est une chose que je ne
+// sais pas faire — je saurais répondre à "combien l’an dernier ?" et
+// "et une mauvaise année ?" ». Les deux modes lisent et écrivent le même
+// texte : ce n'est pas un second format, c'est une seconde façon de poser la
+// même question. Le choix suit le visiteur d'une page à l'autre — c'est une
+// préférence d'affichage, elle ne quitte pas son navigateur.
+const CLE_MODE = 'boussole.champs';
+let modeQuestions = false;
+try { modeQuestions = localStorage.getItem(CLE_MODE) === 'questions'; } catch { /* sans importance */ }
 
 // L'exemple travaillé en tête d'accueil décrit le modèle servi juste en dessous,
 // avec ses chiffres. Il n'est vrai que tant que c'est bien ce texte-là qui est à
@@ -429,10 +441,118 @@ function bandeFourchette(s, r) {
 // Une hypothèse est « notable » si la connaître changerait quelque chose.
 // Un gain de 4 € sur un choix qui en vaut 12 800 n'en change aucun : l'afficher
 // au même rang que le reste noierait ce qui compte.
+// Ce qu'il faut valoir, par rapport à la tête, pour mériter son propre bloc
+// dans « ce qu'il faut aller vérifier ». Sixième passage du lecteur
+// extérieur : « on me liste cinq chiffres à aller vérifier alors qu'un seul
+// compte, les quatre autres valent ensemble un quart du premier. » Une
+// enquête qui rapporte quatre fois moins que la première ne se met pas en
+// chantier tant que la première est ouverte : lui donner un bloc à elle la
+// fait passer pour une piste. Elle tient en une phrase.
+const PART_SECOND = 0.25;
+
 function notable(s, r) {
   if (!r.modeDecision) return s.part >= 0.02;
   if (r.options.acquise) return false;
   return s.valeurInfo >= Math.max(r.options.evpi * 0.01, 1e-9);
+}
+
+// Les bornes telles que le visiteur les a écrites, par nom d'hypothèse. Elles
+// viennent du texte, relues comme le formulaire les relit — pas des tirages.
+let bornesEcrites = new Map();
+
+function relireBornesEcrites() {
+  bornesEcrites = new Map();
+  if (!zoneModele) return;
+  try {
+    for (const e of reglages(zoneModele.value)) {
+      if (e.bornes.length !== 2) continue;
+      const reelle = (b) => (b.pourcent ? b.affiche / 100 : b.affiche * b.suffixe);
+      bornesEcrites.set(e.nom, [reelle(e.bornes[0]), reelle(e.bornes[1])]);
+    }
+  } catch { /* un modèle illisible n'a pas de bornes écrites */ }
+}
+
+// Ce que vaut cette hypothèse, en français, à l'endroit où ses chiffres sont.
+//
+// Sixième passage du lecteur extérieur : « j'ai saisi 400 et 1800, l'écran me
+// répond "398 → 1 794, médiane 845" — trois choses que je ne comprends pas, au
+// même endroit, et rien ne les explique là où elles s'affichent. »
+//
+// Les trois : pourquoi 398 quand il a écrit 400, ce que la flèche veut dire, et
+// d'où sort 845. Les deux premières n'avaient aucune raison d'exister — 398 et
+// 1 794 sont les quantiles empiriques de vingt mille tirages, c'est-à-dire le
+// bruit de la méthode rendu à celui qui vient de taper les vraies bornes. Le
+// site les connaît : il les relit du texte, et il les lui rend telles quelles.
+//
+// La troisième est le principe de départ du site — une fourchette entre deux
+// nombres positifs est lognormale, son milieu n'est pas la moyenne des bornes.
+// Il était expliqué sur deux pages de fond que personne n'atteint avant d'avoir
+// lu ses résultats. Il s'écrit ici, sous le chiffre qu'il explique, et
+// seulement quand l'écart se voit : sur « 4,5 à 6 », il n'y a rien à dire.
+function phrasePlage(s, r, indice) {
+  const u = uniteDe(s);
+  const ecrites = bornesEcrites.get(s.nom);
+  const [bas, haut] = ecrites || [s.stats.p05, s.stats.p95];
+  const med = s.stats.p50;
+  const bouts = [
+    ecrites ? 'Vous avez écrit : ' : 'Le modèle en tire ',
+    '9 chances sur 10 ', plageProse(bas, haut, u), '. La moitié du temps sous ',
+    el('b', { text: valeur(med, u) }),
+  ];
+  const milieu = (bas + haut) / 2;
+  if (bas > 0 && Math.abs(med - milieu) > 0.05 * (haut - bas)) {
+    bouts.push(' — et non ', valeur(milieu, u), ', le milieu des deux bornes');
+    // Le pourquoi une fois, sur la première de la liste. Répété sous chacune,
+    // il devient une litanie qu'on cesse de lire dès la deuxième.
+    bouts.push(indice === 0
+      ? ' : une fourchette entre deux nombres positifs s’étale vers le haut.'
+      : '.');
+  } else {
+    bouts.push('.');
+  }
+  if (r.modeDecision) bouts.push(' Elle porte ', pourcent(s.part), ' de l’écart entre les branches.');
+  const p = phrase(...bouts);
+  p.classList.add('plage');
+  return p;
+}
+
+// De quoi le nombre affiché est le total.
+//
+// Sixième passage : « "Garder l'actuelle −19,1 k€" en tête : je ne sais pas de
+// quoi ce nombre est le total. » Le site ne peut pas le déduire : la réponse
+// est répartie dans quinze formules, et aucune règle ne la résume. Elle est
+// donc écrite à la main, modèle par modèle, dans `modeles.js` — comme le
+// lexique l'est pour les hypothèses. Rien ne s'invente ici non plus.
+//
+// Deux gardes, parce qu'une phrase fausse serait pire que pas de phrase :
+//
+// - les durées qu'elle cite sont **relues dans le texte** (« au bout de
+//   {horizon} ans ») : un visiteur qui compare sur douze ans lit douze ;
+// - elle disparaît dès que le **squelette** du modèle change, c'est-à-dire
+//   dès qu'on touche à autre chose qu'un chiffre d'hypothèse. Elle décrit des
+//   formules ; elle reste vraie tant que les formules sont là, et pas après.
+function squelette(source) {
+  let reglables;
+  try { reglables = new Set(reglages(source).map((e) => e.ligne)); } catch { return null; }
+  return source.split('\n')
+    .filter((_, k) => !reglables.has(k + 1))
+    .join('\n').replace(/[ \t]+/g, ' ').trim();
+}
+
+function resultatDuModele() {
+  const m = MODELES.find((x) => x.cle === cleCourante);
+  if (!m || !m.resultat || !zoneModele) return null;
+  const source = zoneModele.value;
+  if (squelette(source) !== squelette(m.source)) return null;
+  let regl;
+  try { regl = reglages(source); } catch { return null; }
+  let manque = false;
+  const texte = m.resultat.replace(/\{(\w+)\}/g, (_, nom) => {
+    const e = regl.find((x) => x.nom === nom);
+    if (!e || e.bornes.length !== 1) { manque = true; return ''; }
+    return afficher(e.bornes[0].affiche) + e.echelle;
+  });
+  return manque ? null : texte;
 }
 
 function ligneHypothese(s, r, indice) {
@@ -483,15 +603,7 @@ function ligneHypothese(s, r, indice) {
       `Le connaître exactement resserrerait la fourchette de ${pourcent(s.gainLargeur)}, à environ ${valeur(s.largeurResiduelle, unite)} de large.`));
   }
 
-  // La médiane écrite à côté des bornes, et c'est délibéré : sur « 400 à 1 800 »
-  // elle vaut 849, pas 1 100. C'est le principe de départ du site — une
-  // fourchette à bornes positives est lognormale — et il était expliqué sur deux
-  // pages de fond que personne n'atteint avant d'avoir lu les résultats. Écrit
-  // ici, il est au seul endroit où il sert : sous les chiffres qu'il explique.
-  const detail = 'aujourd’hui : ' + plage(s.stats.p05, s.stats.p95, uniteDe(s))
-    + ', médiane ' + valeur(s.stats.p50, uniteDe(s));
-  bloc.appendChild(el('p', { class: 'plage' },
-    r.modeDecision ? `${detail} · porte ${pourcent(s.part)} de l’écart entre les branches` : detail));
+  bloc.appendChild(phrasePlage(s, r, indice));
 
   const bande = bandeFourchette(s, r);
   if (bande) bloc.appendChild(bande);
@@ -847,6 +959,8 @@ function blocDecision(r) {
 
   // Les branches comparées.
   const options = el('section', { class: 'panneau bloc' }, el('h2', { text: 'Les branches' }));
+  const totalise = resultatDuModele();
+  if (totalise) options.appendChild(el('p', { class: 'option-intro', text: totalise }));
   const liste = el('ul', { class: 'options' });
   for (const opt of o) {
     // La jauge montre la fréquence de victoire, le chiffre montre la moyenne.
@@ -883,6 +997,8 @@ function blocEstimation(r) {
   const verdict = el('section', { class: 'panneau bloc verdict' });
   verdict.appendChild(el('p', { class: 'verdict-chapeau', text: r.nomSortie || 'Résultat' }));
   verdict.appendChild(el('h2', { class: 'verdict-titre' }, valeur(st.p50, unite)));
+  const totalise = resultatDuModele();
+  if (totalise) verdict.appendChild(el('p', { class: 'option-intro', text: totalise }));
   verdict.appendChild(phrase(
     'Neuf fois sur dix, entre ', valeur(st.p05, unite), ' et ', valeur(st.p95, unite),
     '. La valeur médiane seule ne vous apprend presque rien : c’est la largeur qui compte.'));
@@ -1278,6 +1394,7 @@ function rendre(r) {
 
 function rendreContenu(r) {
   zoneResultats.replaceChildren();
+  relireBornesEcrites();
   rendreAvertissements(r.avertissements);
   if (r.probleme) {
     const [titre, explication] = PROBLEMES[r.probleme];
@@ -1311,11 +1428,41 @@ function rendreContenu(r) {
     let montrees = r.sources.filter((s) => notable(s, r));
     if (montrees.length < 3) montrees = r.sources.slice(0, 3);
     montrees = montrees.slice(0, 10);
-    const reste = r.sources.filter((s) => !montrees.includes(s));
+
+    // Le tri en trois, et seulement en mode décision : « d'où vient
+    // l'incertitude » répartit cent pour cent d'un écart entre des
+    // hypothèses, et une part de 12 % y est une réponse, pas une tâche.
+    // Ici, c’est une liste de choses à faire — et une liste de choses à
+    // faire se coupe.
+    let secondaires = [];
+    // Rien ne se coupe quand la tête elle-même ne vaut rien : la liste est
+    // alors celle des trois premières par défaut, le verdict a déjà dit
+    // qu'aucune enquête ne déplace ce choix, et « loin derrière » n'aurait
+    // aucun sens derrière un chiffre nul.
+    if (r.modeDecision && montrees.length > 1 && notable(montrees[0], r)) {
+      const tete = montrees[0].valeurInfo;
+      const gardees = montrees.filter((x, i) => i === 0 || x.valeurInfo >= tete * PART_SECOND);
+      secondaires = montrees.filter((x) => !gardees.includes(x));
+      montrees = gardees;
+    }
+    const reste = r.sources.filter((s) => !montrees.includes(s) && !secondaires.includes(s));
 
     const liste = el('ul', { class: 'hypotheses' });
     montrees.forEach((s, i) => liste.appendChild(ligneHypothese(s, r, i)));
     section.appendChild(liste);
+
+    if (secondaires.length) {
+      const n = secondaires.length, pl = n > 1;
+      // La valeur d'information ne s'additionne pas : savoir deux chiffres ne
+      // vaut pas la somme de ce que vaut chacun. On compare donc la mieux
+      // placée des secondaires à la tête, et jamais leur total.
+      section.appendChild(el('p', { class: 'rien note-basse' },
+        n + ' autre' + (pl ? 's' : '') + ' compte' + (pl ? 'nt' : '')
+        + ' aussi, mais loin derrière : la mieux placée vaut '
+        + valeur(secondaires[0].valeurInfo, r.unite)
+        + ', contre ' + valeur(montrees[0].valeurInfo, r.unite) + ' pour celle qui est en tête.'
+        + ' À regarder une fois le premier chiffre réglé, pas avant.'));
+    }
 
     if (reste.length) {
       const n = reste.length, pl = n > 1;
@@ -1405,12 +1552,23 @@ function surligneLigne(n) {
 const zoneReglages = $('#reglages');
 const detailsTexte = $('#texte-modele');
 
+// Sixième passage du lecteur extérieur : « sous chaque libellé français il y a
+// un nom de variable dont je n'ai pas l'usage ». Il a raison tant que le texte
+// est replié : ce nom est une adresse — la ligne où aller dans le modèle — et
+// une adresse ne sert à rien quand il n'y a nulle part où aller. Texte ouvert,
+// il redevient le seul lien entre le champ et la ligne, et le verdict le nomme.
+function accorderNoms() {
+  if (zoneReglages && detailsTexte) zoneReglages.classList.toggle('avec-noms', detailsTexte.open);
+}
+if (detailsTexte) detailsTexte.addEventListener('toggle', accorderNoms);
+
 // La signature dit si la *forme* du formulaire a changé — les noms, le nombre
 // de bornes, les intertitres. Tant qu'elle tient, on met à jour les valeurs
 // sans reconstruire le DOM : sinon le champ perdrait le curseur à chaque
 // frappe, et on ne pourrait pas taper « 1400 » sans repartir de « 1 ».
 function signature(entrees, titres) {
-  return entrees.map((e) => `${e.ligne}:${e.nom}:${e.bornes.length}:${titres.get(e.ligne) || ''}`).join('|');
+  return (modeQuestions ? 'q|' : 'b|')
+    + entrees.map((e) => `${e.ligne}:${e.nom}:${e.bornes.length}:${titres.get(e.ligne) || ''}`).join('|');
 }
 let signatureCourante = null;
 
@@ -1431,23 +1589,45 @@ function uniteReglage(e) {
   return e.echelle && u !== '%' ? e.echelle + u : u;
 }
 
-const ROLES = [['bas', 'basse'], ['haut', 'haute']];
+// Ce que chaque champ demande, dans l'un et l'autre mode. Le mot posé sur le
+// champ est la question ; l'étiquette accessible la dit en entier, parce
+// qu'« exceptionnellement » seul ne veut rien dire pour qui n'entend que lui.
+const ROLES_BORNES = [['basse', 'borne basse'], ['haute', 'borne haute']];
+const ROLES_QUESTIONS = [
+  ['d’habitude', 'valeur habituelle'],
+  ['exceptionnellement', 'valeur exceptionnelle, atteinte une fois sur dix'],
+];
 
-function champ(e, i, unite, nomAccessible) {
-  const role = e.bornes.length === 2 ? ROLES[i][1] : 'valeur';
-  const entree = el('input', {
-    class: 'reglage-champ', type: 'text', inputmode: 'decimal',
-    autocomplete: 'off', spellcheck: 'false',
-    value: afficher(e.bornes[i].affiche),
-    'aria-label': `${nomAccessible}, ${role}${unite ? ' en ' + unite : ''}`,
+// Ce que les champs de cette hypothèse affichent, dans le mode courant. Les
+// deux modes se relisent du même texte à chaque calcul : aucun des deux ne
+// garde d'état, et c'est ce qui leur interdit de diverger.
+function valeursAffichees(e) {
+  if (!modeQuestions || e.bornes.length !== 2) return e.bornes.map((b) => b.affiche);
+  const q = versQuestions(e.bornes[0].affiche, e.bornes[1].affiche);
+  return [arrondiChamp(q.habituel), arrondiChamp(q.exceptionnel)];
+}
+
+function champs(e, unite, nomAccessible) {
+  const deux = e.bornes.length === 2;
+  const questions = deux && modeQuestions;
+  const valeurs = valeursAffichees(e);
+  return valeurs.map((v, i) => {
+    const [mot, dit] = deux ? (questions ? ROLES_QUESTIONS : ROLES_BORNES)[i] : ['valeur', 'valeur'];
+    const entree = el('input', {
+      class: 'reglage-champ', type: 'text', inputmode: 'decimal',
+      autocomplete: 'off', spellcheck: 'false',
+      value: afficher(v),
+      'aria-label': `${nomAccessible}, ${dit}${unite ? ' en ' + unite : ''}`,
+    });
+    entree.dataset.nom = e.nom;
+    entree.dataset.borne = String(i);
+    if (questions) entree.dataset.question = i === 0 ? 'habituel' : 'exceptionnel';
+    entree.addEventListener('input', () => modifier(entree));
+    return el('label', { class: 'reglage-case' }, [
+      el('span', { class: 'reglage-role', text: mot }),
+      entree,
+    ]);
   });
-  entree.dataset.nom = e.nom;
-  entree.dataset.borne = String(i);
-  entree.addEventListener('input', () => modifier(entree));
-  return el('label', { class: 'reglage-case' }, [
-    el('span', { class: 'reglage-role', text: role }),
-    entree,
-  ]);
 }
 
 // Un champ modifié réécrit le texte du modèle, et rien d'autre.
@@ -1465,16 +1645,80 @@ function modifier(entree) {
   entree.removeAttribute('aria-invalid');
   const e = reglages(zoneModele.value).find((x) => x.nom === entree.dataset.nom);
   if (!e) return;
+  if (entree.dataset.question) return modifierQuestions(entree, e);
   const b = e.bornes[+entree.dataset.borne];
   if (!b) return;
   zoneModele.value = reecrire(zoneModele.value, b, v);
   programmer();
 }
 
+// Deux questions écrivent deux bornes. Les deux champs sont relus dans le DOM
+// plutôt que recalculés : ce qui est écrit dans le texte est exactement ce
+// que le visiteur a sous les yeux, arrondi compris — sinon l'un des deux
+// dériverait de l’autre à chaque frappe.
+//
+// La borne haute se réécrit en premier. Elle est plus loin dans la ligne, et
+// la changer ne déplace pas les positions de la basse ; dans l’autre sens,
+// tout ce qui suit se décale et l'on écrit à côté.
+function modifierQuestions(entree, e) {
+  if (e.bornes.length !== 2) return;
+  const bloc = entree.closest('.reglage');
+  if (!bloc) return;
+  // Seul le champ qu'on modifie est lu à l'écran ; l'autre valeur se relit du
+  // texte, sans son arrondi d'affichage. Sinon l'arrondi entre dans le calcul
+  // de la borne d'en face à chaque frappe : sur « 2,9 % à 3,3 % », la valeur
+  // habituelle affichée 3,09 rendait 2,89 au lieu de 2,90 — un centième de
+  // point perdu, sur le seul chiffre d'un modèle qui se négocie au centième.
+  const exact = versQuestions(e.bornes[0].affiche, e.bornes[1].affiche);
+  const tape = lireChamp(entree.value);
+  if (tape === null) return;
+  const modifie = entree.dataset.question;
+  const habituel = modifie === 'habituel' ? tape : exact.habituel;
+  const exceptionnel = modifie === 'exceptionnel' ? tape : exact.exceptionnel;
+  // Le support vient de la ligne, pas des deux nombres tapés : voir versBornes.
+  const paire = versBornes(habituel, exceptionnel, exact.positif);
+  if (!paire) {
+    entree.setAttribute('aria-invalid', 'true');
+    return;
+  }
+  let source = zoneModele.value;
+  source = reecrire(source, e.bornes[1], arrondiChamp(paire[1]));
+  source = reecrire(source, e.bornes[0], arrondiChamp(paire[0]));
+  zoneModele.value = source;
+  programmer();
+}
+
 // Le rappel de ce qu'est une fourchette, à l'endroit où on la saisit. Il était
 // sur trois pages de fond ; c'est ici qu'il sert.
-const INTRO_PLAGE = 'Vos chiffres. Pour ce que vous ne savez pas, donnez deux bornes '
+const INTRO_BORNES = 'Vos chiffres. Pour ce que vous ne savez pas, donnez deux bornes '
   + 'plutôt qu’une valeur inventée : celles entre lesquelles vous mettriez 9 chances sur 10.';
+
+const INTRO_QUESTIONS = 'Vos chiffres. Pour ce que vous ne savez pas, répondez à deux '
+  + 'questions : la valeur que vous donneriez si on vous en demandait une seule, puis '
+  + 'celle que vous n’atteindriez qu’une fois sur dix — au-dessus ou en dessous, celle '
+  + 'qui vous inquiète. Le site en fait votre fourchette.';
+
+// Le choix du mode, au-dessus des champs qu'il change. Deux boutons plutôt
+// qu'une case à cocher : ce sont deux façons de répondre, pas une option.
+function selecteurMode() {
+  const boite = el('div', { class: 'reglages-mode', role: 'group',
+    'aria-label': 'Comment donner vos chiffres' });
+  for (const [questions, texte] of [[false, 'Deux bornes'], [true, 'Deux questions']]) {
+    const choisi = modeQuestions === questions;
+    const b = el('button', {
+      class: 'mode-bouton' + (choisi ? ' choisi' : ''), type: 'button',
+      'aria-pressed': String(choisi),
+    }, texte);
+    b.addEventListener('click', () => {
+      if (modeQuestions === questions) return;
+      modeQuestions = questions;
+      try { localStorage.setItem(CLE_MODE, questions ? 'questions' : 'bornes'); } catch { /* sans importance */ }
+      calculer();
+    });
+    boite.appendChild(b);
+  }
+  return boite;
+}
 
 function construireReglages(entrees, titres, commentaires) {
   const corps = el('div', { class: 'reglages-corps' });
@@ -1504,7 +1748,7 @@ function construireReglages(entrees, titres, commentaires) {
         quoi ? nom : null,
       ]),
       el('div', { class: 'reglage-champs' }, [
-        ...e.bornes.map((_, i) => champ(e, i, unite, nomAccessible)),
+        ...champs(e, unite, nomAccessible),
         unite ? el('span', { class: 'reglage-unite', text: unite }) : null,
       ]),
       el('p', { class: 'reglage-note', text: 'C’est ce chiffre-là qui décide.', hidden: true }),
@@ -1528,6 +1772,7 @@ function positionnerTexte() {
   if (!detailsTexte || !zoneReglages) return;
   const m = MODELES.find((x) => x.cle === cleCourante);
   detailsTexte.open = zoneReglages.hidden || !!(m && m.pageBlanche);
+  accorderNoms();
 }
 
 function rendreReglages(r) {
@@ -1557,7 +1802,8 @@ function rendreReglages(r) {
   if (sig !== signatureCourante) {
     signatureCourante = sig;
     zoneReglages.replaceChildren(
-      el('p', { class: 'reglages-intro', text: INTRO_PLAGE }),
+      el('p', { class: 'reglages-intro', text: modeQuestions ? INTRO_QUESTIONS : INTRO_BORNES }),
+      selecteurMode(),
       construireReglages(entrees, titres, commentaires));
   }
   for (const bloc of zoneReglages.querySelectorAll('.reglage')) {
@@ -1570,11 +1816,12 @@ function rendreReglages(r) {
   // Même forme : on remet seulement les valeurs, et jamais dans le champ qu'on
   // est en train de remplir — « 1,5 » y passerait par « 1 » puis « 1,5 ».
   for (const e of entrees) {
-    for (let i = 0; i < e.bornes.length; i++) {
+    const valeurs = valeursAffichees(e);
+    for (let i = 0; i < valeurs.length; i++) {
       const entree = zoneReglages.querySelector(
         `.reglage[data-nom="${CSS.escape(e.nom)}"] input[data-borne="${i}"]`);
       if (!entree || entree === document.activeElement) continue;
-      const attendu = afficher(e.bornes[i].affiche);
+      const attendu = afficher(valeurs[i]);
       if (entree.value !== attendu) entree.value = attendu;
       entree.removeAttribute('aria-invalid');
     }

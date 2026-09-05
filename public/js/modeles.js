@@ -14,6 +14,9 @@ export const MODELES = [
       "Faut-il acheter sa résidence principale ou continuer à louer ? La réponse dépend surtout d’un chiffre que personne ne connaît : le prix auquel le bien se revendra. Ce modèle compare le patrimoine net dans les deux cas et vous dit à partir de quelle revalorisation annuelle la décision change de camp.",
     titre: 'Louer ou acheter',
     resume: 'Sur 10 ans, patrimoine net dans chaque cas.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque branche est ce que vous possédez au bout de {horizon} ans, une fois tout payé : la valeur du bien revendu moins le capital restant dû d’un côté, l’apport placé de l’autre — et, dans les deux cas, les mensualités, charges, taxes ou loyers de la période retranchés.",
     source: `unité: €
 # Louer ou acheter — patrimoine net au bout de l’horizon.
 # Remplacez les chiffres par les vôtres. Ce qui est écrit « a à b »
@@ -71,6 +74,9 @@ option "Louer"   = apport_place - cout_loyer
       "Une isolation de combles se rembourse-t-elle vraiment ? Ce modèle compare le devis, les aides et l’économie de chauffage sur quinze ans, et vous dit si la question mérite encore d’être creusée ou si elle est déjà tranchée.",
     titre: 'Isoler ses combles',
     resume: 'Un investissement qui se rembourse, ou pas.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le chiffre est ce que l’isolation vous aura rapporté au bout de {horizon} ans : les économies de chauffage cumulées, moins le devis aides déduites et ce que cet argent aurait rapporté placé. « Ne rien faire » vaut zéro : c’est le point de comparaison, pas une absence de résultat.",
     source: `unité: €
 # Faut-il isoler les combles ? Comparaison sur 15 ans.
 
@@ -102,6 +108,9 @@ option "Ne rien faire" = 0`,
       "Passer freelance rapporte-t-il plus que rester salarié ? Le calcul évident (taux journalier × jours) ignore ce qui décide vraiment : les intercontrats et le risque d’une année creuse. Ce modèle les met dedans.",
     titre: 'Freelance ou salarié',
     resume: 'Revenu net sur trois ans, intercontrats compris.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque branche est le net que vous aurez perçu en tout sur {horizon} ans : salaire et primes d’un côté, chiffre d’affaires moins charges et frais fixes de l’autre, années creuses déduites.",
     source: `unité: €
 # Passer freelance ? Comparaison du net perçu sur 3 ans.
 
@@ -140,6 +149,9 @@ option "Passer freelance" = freelance_an * (horizon - creuses * perte_creuse)`,
       "Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu’on ne croit, et un seul chiffre les sépare vraiment : ce que l’ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.",
     titre: 'Garder ou changer de voiture',
     resume: 'La vieille voiture coûte cher. La neuve aussi.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque branche est ce que la voiture vous laisse au bout de {horizon} ans : ce qu’elle vaudra encore, moins le carburant, les réparations, l’entretien et l’assurance de ces années-là — et, pour « Changer », le prix d’achat moins la revente de l’actuelle. Les deux chiffres sont négatifs : rouler coûte, dans les deux cas.",
     source: `unité: €
 # Garder la voiture actuelle ou en acheter une plus récente ? Sur 6 ans.
 
@@ -185,6 +197,9 @@ option "Changer" = changer`,
       "Combien coûte réellement un kilomètre en voiture, décote comprise ? Presque tous les calculs oublient la perte de valeur du véhicule, qui est souvent le premier poste. Ce modèle la compte et montre d’où vient l’essentiel de l’incertitude.",
     titre: 'Le vrai prix du kilomètre',
     resume: 'Ce que votre voiture coûte réellement, tout compris.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le résultat est le prix de revient d’un kilomètre, tout compris : la décote du véhicule, l’assurance, l’entretien, les réparations, les pneus, le contrôle technique et le stationnement, plus le carburant, divisés par vos kilomètres de l’année.",
     source: `unité: €/km
 # Combien coûte réellement un kilomètre en voiture ?
 # Presque personne ne compte la décote. C’est souvent le premier poste.
@@ -218,6 +233,9 @@ cout_km = (fixe + carburant) / km_an`,
       "Avec une réserve et des revenus irréguliers, combien de mois pouvez-vous tenir ? Ce modèle calcule la probabilité de franchir un seuil que vous fixez, et le niveau de revenu à partir duquel vous passez du mauvais côté.",
     titre: 'La trésorerie tiendra-t-elle ?',
     resume: 'Combien de mois avant de toucher le fond.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le résultat est le nombre de mois que votre réserve tient avant d’être épuisée, au rythme de vos entrées et sorties — plafonné à 60, au-delà la question ne se pose plus.",
     source: `unité: mois
 # Vous avez une réserve et des revenus incertains.
 # Question : combien de mois avant qu’elle soit épuisée ?
@@ -253,6 +271,9 @@ mois_tenables = si deficit <= 0 alors 60 sinon min(60, reserve / deficit)`,
       "Ce projet sera-t-il prêt à la date promise ? Additionner ses estimations de tâches donne toujours une réponse trop optimiste : ce modèle ajoute ce que les plannings oublient — le temps mangé par le reste, et l’imprévu qui arrive une fois sur cinq — et dit quelle tâche décide vraiment de la date.",
     titre: 'Ce projet sera-t-il prêt à temps ?',
     resume: 'Ce que les plannings oublient de compter.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le résultat est le nombre de jours ouvrés avant la livraison : la somme des six tâches, gonflée du temps que vous passerez ailleurs, plus l’incident les fois où il tombe.",
     source: `unité: jours
 # Combien de jours avant que ce soit livré ?
 # On vise la date promise : 90 jours ouvrés.
@@ -296,6 +317,9 @@ duree = travail / (1 - interruptions) + retard_pepin`,
       "Entre isoler son logement, passer à l’électrique, supprimer un vol ou réduire la viande rouge, quel changement pèse réellement le plus ? Les ordres de grandeur sont si différents que l’intuition se trompe presque toujours — et une action visible peut valoir dix fois moins qu’une action discrète.",
     titre: 'Réduire son empreinte : quoi d’abord ?',
     resume: 'Les ordres de grandeur ne sont pas ceux qu’on croit.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque chiffre est ce que ce changement-là vous ferait économiser en une année, en kg de CO₂e. Ce n’est pas votre empreinte : c’est ce qu’un geste retranche.",
     source: `unité: kg CO₂e
 # Quel changement réduit le plus votre empreinte, sur une année ?
 # On compare des actions concrètes, chacune sur une année.
@@ -332,6 +356,9 @@ option "Moitié moins de viande rouge" = repas_rouge / 2 * 52 * (par_repas_rouge
       "Un appareil tombe en panne : le faire réparer, ou en racheter un ? La question se tranche moins sur le prix du devis que sur ce qu’il reste à vivre à l’appareil après réparation — et c’est justement le chiffre que personne ne connaît.",
     titre: 'Réparer ou remplacer ?',
     resume: 'Tout dépend de ce qu’il reste à vivre à l’appareil.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque branche est le coût d’une année de service : le devis, ou le prix du neuf moins la revente de l’ancien, plus l’électricité consommée, divisés par le nombre d’années que l’appareil tiendra. C’est compté en négatif, comme une dépense — la branche la moins coûteuse l’emporte.",
     source: `unité: €
 # Lave-linge, ordinateur, vélo : réparer ou racheter ?
 # On compare le coût par année de service obtenue.
@@ -370,6 +397,9 @@ option "Remplacer" = -cout_remplacer`,
       "Faire racheter son crédit immobilier par une autre banque : à partir de quel taux, et avec quels frais, l’opération rapporte-t-elle vraiment ? Le calcul qui manque à tous les simulateurs de courtier n’est pas le gain à un taux donné, c’est le taux à partir duquel il n’y a plus rien à gagner.",
     titre: 'Racheter son crédit ?',
     resume: 'À partir de quel taux, et avec quels frais.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Chaque branche est ce qu’il vous reste à payer d’intérêts sur les {duree_restante} années restantes, frais de rachat et indemnité compris pour la seconde. C’est compté en négatif, comme une dépense.",
     source: `unité: €
 # Faire racheter son crédit immobilier par une autre banque ?
 # On compare ce qu'il reste à payer d'intérêts, avec et sans, sur la
@@ -410,6 +440,9 @@ option "Racheter" = -(interets_nouveaux + frais)`,
       "Répondre à un appel d’offres coûte des jours certains pour un gain rare et gros. La question n’est pas « est-ce que je peux le gagner » mais « à partir de quel taux de réussite ce travail-là se paie ». Ce modèle compare ce que la réponse coûte à ce qu’elle rapporte en moyenne, et dit à partir de quelles chances la balance s’inverse.",
     titre: 'Répondre à un appel d’offres ?',
     resume: 'Une mise certaine contre un gain rare et gros.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le chiffre est ce que répondre rapporte en moyenne : la marge du marché les fois où vous le gagnez, moins les journées et les frais engagés à tous les coups. « Passer son tour » vaut zéro, parce que les journées gardées sont déjà comptées dans la mise.",
     source: `unité: €
 # Répondre à un appel d’offres — une mise certaine, un gain rare et gros.
 # C’est la forme de tout pari professionnel : un concours, un dossier de
@@ -446,6 +479,9 @@ option "Passer son tour" = 0
       "Une installation solaire en autoconsommation se rembourse-t-elle en vingt ans ? Ce modèle la compare à ne rien faire, et fait ce qu’aucun simulateur d’installateur ne fait : il chiffre ce que vous rapporterait une étude de production sur votre toit — avant de signer, et en euros.",
     titre: 'Installer des panneaux solaires',
     resume: 'Sur 20 ans, et ce que vaut une étude de toit.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le chiffre est ce que l’installation vous aura rapporté au bout de {horizon} ans : l’électricité que vous n’achetez plus et le surplus revendu, moins le devis, le remplacement de l’onduleur, et ce que le même argent aurait rapporté placé ailleurs.",
     source: `unité: €
 # Faut-il installer 3 kWc en autoconsommation avec revente du surplus ?
 # Comparé à ne rien faire, sur 20 ans, tout ramené à la fin de l’horizon.
@@ -499,6 +535,9 @@ savoir production = 250 €
       "Une page blanche et trois lignes de syntaxe pour décrire votre propre décision : les chiffres que vous connaissez, les fourchettes que vous ne connaissez pas, et ce que vous comparez.",
     titre: 'Partir de zéro',
     resume: 'Une page blanche et trois lignes de syntaxe.',
+    // Ce que le nombre totalise, dit à l'endroit où il s'affiche.
+    resultat:
+      "Le résultat est la dernière ligne du texte — ici le bénéfice d’une année : clients × panier × marge.",
     source: `unité: €
 # Écrivez une hypothèse par ligne.
 #   nom = 12          une valeur que vous connaissez
