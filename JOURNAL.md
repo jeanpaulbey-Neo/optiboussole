@@ -8,6 +8,175 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 6 septembre 2026 — Session 21 : rendre le site trouvable, et refuser de le vendre moi-même
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+Deux demandes de Jean-Paul, dont une question directe : préparer le site à être
+diffusé publiquement — métadonnées, aperçus de lien, plan du site, données
+structurées, titres qui correspondent aux questions réellement posées, et un
+texte de présentation reprenable tel quel — puis : *« saurais-tu le publier et
+faire la promotion par toi-même ? si oui propose-le-moi. »*
+
+### La réponse à la question, d'abord
+
+**Publier : c'est fait, et ça l'était déjà.** Écrire un fichier dans `public/`
+*est* le déploiement ici. Ce qui manquait n'était pas la publication, c'était
+d'être trouvable.
+
+**Faire la promotion : non.** Poster sur un forum, un réseau ou un agrégateur
+est littéralement ce que l'interdit n° 2 nomme — « aucun envoi de message ou de
+notification vers l'extérieur ». Deux raisons s'y ajoutent, et je les trouve
+plus intéressantes que l'interdit lui-même :
+
+- il faudrait un compte, donc une identité. Écrire sous celle de Jean-Paul est
+  interdit (n° 4) ; ouvrir un compte « Claude » sur une plateforme qui demande
+  une personne physique serait un faux ;
+- poster son propre lien sous une identité fabriquée est exactement ce que ces
+  communautés appellent du spam. **Le lien vaudrait moins que s'il est posté par
+  quelqu'un qui l'assume.** Ce n'est pas une contrainte subie, c'est le bon
+  ordre des choses.
+
+Donc : tout ce qui fait qu'un site est trouvé **sans que personne n'en parle**,
+je l'ai fait ; tout ce qui demande une voix humaine, je l'ai écrit et laissé.
+`PROMOTION.md` contient les textes prêts à coller — LinkedIn, Show HN avec son
+premier commentaire, Reddit, forums —, l'ordre de publication, et la liste de ce
+qui demande un compte. Le geste reste humain et prend cinq minutes.
+
+**Une seule zone grise, laissée en suspens et c'est délibéré :** IndexNow, qui
+prévient Bing, Yandex et Seznam sans aucun compte. C'est une requête HTTP vers
+un service, pas un message à une personne — mais c'est bien un envoi vers
+l'extérieur. J'ai posé la clé, écrit `npm run indexnow`, vérifié qu'il compose
+la bonne charge, et **je ne l'ai pas lancé** : sans `--pour-de-vrai`, il annonce
+ce qu'il enverrait et s'arrête. C'était à Jean-Paul de décider, pas à moi.
+
+### Ce que « être trouvable » a révélé du code
+
+**La tête de page était recopiée quatre fois, et les quatre avaient divergé.**
+Accueil et modèles, pages de contenu, `/le-langage`, 404 : deux `og:type`
+différents pour la même sorte de page, aucune image d'aperçu nulle part, et la
+404 seule à savoir dire `noindex`. Ce n'est pas une négligence ponctuelle, c'est
+la propriété d'un fichier où quatre copies attendent qu'on n'en modifie qu'une.
+Une fonction `tete()`, et il n'y a plus qu'une copie.
+
+**Le titre d'un résultat de recherche n'est pas le `h1`.** Le site servait
+`« Louer ou acheter — Boussole »`, qui ne ressemble à aucune question posée, et
+comme description la phrase de présentation du modèle — 300 caractères, donc
+tronquée au milieu d'un mot à 160. Les deux textes n'ont ni le même lecteur ni
+la même place : `seo.js` porte désormais le second, et trois règles le tiennent
+par des tests. La troisième est celle à laquelle je tiens le plus : **une
+description ne commence jamais par le nom du site.** Celui qui lit cette ligne
+cherche une réponse, pas un site.
+
+Les titres sont écrits pour ce qu'on tape vraiment : « Combien coûte vraiment un
+kilomètre en voiture ? », « Racheter son crédit : à partir de quel taux ? »,
+« Réparer ou racheter un appareil en panne ? ».
+
+**Les aperçus de lien sont des fichiers.** Une image 1200 × 630 par page, écrite
+une fois par `npm run apercus` avec le même Chrome que les tests, et versionnée :
+rien ne tourne au moment où quelqu'un colle un lien. Le texte de la vignette et
+son `og:image:alt` sortent du même tableau — une image d'aperçu qui annonce
+autre chose que la page est un mensonge de plus dans un fil d'actualité qui n'en
+manque pas.
+
+**Les données structurées ne promettent que ce qui est visible.** C'est la règle
+que j'ai eu le plus envie de contourner : un `FAQPage` bien garni attire l'œil
+dans les résultats, et rien n'empêche techniquement d'y déclarer des questions
+que la page ne montre pas. Les sept questions de `/a-propos` sont donc écrites
+**une seule fois**, dans `apropos.js` ; le HTML servi et le JSON-LD en sortent
+tous les deux, et un test relit chaque réponse déclarée dans le texte réellement
+servi. Il ne peut plus y avoir de version pour les machines.
+
+**Le plan du site criait au loup.** `lastmod` était recalculé à chaque
+génération : seize pages « modifiées aujourd'hui » quand une seule avait bougé.
+Un carnet d'empreintes (`outils/dates.json`) ne bouge la date que si le contenu
+change. Le mécanisme mérite d'être noté parce qu'il se mord la queue si on ne
+fait pas attention : la page est produite avec un **jeton** à la place de la
+date, sans quoi écrire la date changerait le contenu, donc l'empreinte, donc la
+date, indéfiniment.
+
+### La page qui manquait
+
+`/a-propos`. Le site avait seize pages qui disent « voici un outil » et aucune
+qui réponde à la question qu'on pose à un lien qu'on ne connaît pas : *qu'est-ce
+que c'est, et qui l'a fait.* Elle dit les trois questions auxquelles l'outil
+répond, ce qu'il refuse de faire (il ne décide pas à votre place, il n'a rien à
+vendre, il ne sait pas tout modéliser), où passent les chiffres qu'on y tape —
+nulle part —, et qui l'a écrit.
+
+Son premier paragraphe est le texte de présentation demandé, et un test vérifie
+qu'il **se tient seul** : pas de « ci-dessus », pas de « comme dit plus haut ».
+Un paragraphe qu'on peut copier dans un message est un paragraphe qui ne renvoie
+pas à ce qui l'entoure.
+
+### Ce que je n'ai pas fait
+
+- **Mettre le lien du dépôt sur le site.** C'est ce qu'il y a de plus
+  intéressant pour un lecteur de Hacker News — vingt et une sessions datées avec
+  les erreurs dedans — mais l'adresse porte l'identifiant GitHub de Jean-Paul,
+  et l'interdit n° 4 me défend d'associer son identité au site. C'est à lui de
+  le donner ; c'est écrit dans `PROMOTION.md`.
+- **Lancer IndexNow.** Voir plus haut.
+- **Un `FAQPage` sur les pages de modèles.** Il aurait fallu inventer des
+  questions pour les remplir. On ne fabrique pas du contenu pour une machine.
+- **Une page « Presse » ou un dossier de presse.** Le site n'a pas d'entreprise
+  derrière lui ; `PROMOTION.md` vit dans le dépôt, là où il sert.
+
+### Un défaut de mesure trouvé en chemin
+
+Le test « l'accueil tient sous 7 500 caractères de texte » est passé à 9 471 en
+ajoutant les données structurées. Sa fonction `brut()` retirait les balises mais
+gardait le **contenu** des `<script>` : deux kilo-octets de JSON comptés comme
+de la prose. La tentation était de relever le seuil ; c'eût été rogner le texte
+lu par des humains pour faire de la place à du JSON que personne ne lit. C'est
+la mesure qui était fausse.
+
+### État à la fin de la session
+
+- **970** assertions sur le moteur et les pages servies (contre 763),
+  **444** dans un vrai navigateur (contre 384). Toutes vertes.
+- Dix-sept pages, dix-sept aperçus de lien, un graphe de données structurées par
+  page, un plan du site aux dates honnêtes.
+- `https://optiboussole.fr` répond ; `npm test` et `npm run test:navigateur`
+  sont verts.
+- Mandat respecté : aucune dépense, aucun envoi vers l'extérieur (IndexNow est
+  écrit et n'a pas été lancé), aucune donnée personnelle.
+
+### Une faute de test, et ce qu'elle dit du site
+
+Seize vérifications ont échoué à la première exécution : j'attendais un `200` et
+le site répondait `304`. Elles avaient raison toutes les deux — le site répond
+`no-cache` avec un `ETag`, donc une page déjà vue dans la même session est
+revalidée, pas retéléchargée, et c'est précisément ce qu'un autre test exige
+trois sections plus bas. Mon assertion contredisait un test existant. Corrigée
+en `[200, 304]`, pas en relâchant quoi que ce soit.
+
+### Ce que je ferais ensuite
+
+1. **Attendre la première vague, et lire ce qu'elle dit.** C'est la suite
+   naturelle : sept passages de lecteurs ont produit plus que toutes mes
+   relectures. Il n'y a aucun moyen de me joindre depuis le site — volontaire,
+   pas d'oubli : un formulaire, ce sont des données personnelles. Les retours
+   publics, eux, se collent dans une session.
+2. **La corrélation entre hypothèses**, toujours en tête, toujours pas faite,
+   et c'est maintenant la seule hypothèse fausse qui reste dans le moteur.
+   Une syntaxe `lie(a, b, 0,6)` se glisserait là où le tirage se fait.
+3. **Décomposer un total**, en plus de décomposer l'incertitude. « Quel poste
+   pèse le plus » et « quelle hypothèse porte mon incertitude » sont deux
+   questions différentes ; le site n'en sait répondre qu'une, et devrait dire
+   laquelle.
+4. **Une page par question, plutôt que par modèle ?** À creuser seulement si le
+   trafic le justifie : `/racheter-son-credit` répond déjà à « à partir de quel
+   taux », mais quelqu'un qui cherche « frais de garantie rachat de prêt »
+   n'atterrit nulle part. C'est la seule piste de cette session qui pourrait
+   dériver vers la fabrication de contenu pour moteur de recherche. Le garde-fou
+   est simple et je l'écris pour un moi qui ne s'en souviendra pas : **une page
+   ne s'ajoute que si elle porte un modèle qui calcule quelque chose.**
+
+Toujours pas de graphiques.
+
+---
+
 ## 6 septembre 2026 — Session 20 : le site ne disait pas dans quel ordre s’en servir
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*

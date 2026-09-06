@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 6 septembre 2026 (fin de session 20).
+État au 6 septembre 2026 (fin de session 21).
 
 ## En une phrase
 
@@ -21,11 +21,15 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── index.html          ⚙ généré — accueil, modèle « garder ou changer de voiture »
 │   ├── <slug>.html         ⚙ générés — une page par modèle (12 fichiers)
 │   ├── la-methode.html     ⚙ généré — la méthode expliquée
-│   ├── sitemap.xml         ⚙ généré
+│   ├── a-propos.html       ⚙ généré — ce qu'est le site, et les questions fréquentes
+│   ├── sitemap.xml         ⚙ généré — dates de modification réelles (voir plus bas)
 │   ├── robots.txt          ⚙ généré
 │   ├── 404.html            ⚙ généré — la bande de modèles complète, et rien d'autre
 │   ├── app.css             thème clair/sombre par variables CSS
 │   ├── boussole.svg        favicon
+│   ├── icone-180.png       ⚙ généré — icône d'écran d'accueil
+│   ├── <32 hex>.txt        la clé IndexNow. Ne pas renommer sans changer le script.
+│   ├── og/*.png            ⚙ générés — un aperçu de lien 1200 × 630 par page
 │   └── js/
 │       ├── rng.js          xoshiro128** déterministe, lois de probabilité
 │       ├── lang.js         lexer + parseur du langage de modèle
@@ -41,10 +45,17 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   ├── gabarit.js          le HTML de la page, en un seul endroit
 │   ├── fond.js             le texte de fond de chaque page (compte / ignore / chiffres)
 │   ├── methode.js          le contenu de /la-methode
+│   ├── cas.js              le contenu de /un-cas
+│   ├── apropos.js          le contenu de /a-propos, questions fréquentes comprises
+│   ├── seo.js              titres et descriptions de recherche, données structurées,
+│   │                       texte des vignettes d'aperçu
+│   ├── apercus.js          `npm run apercus` → écrit public/og/*.png (Chrome sans écran)
+│   ├── indexnow.js         `npm run indexnow` → prévient Bing & co. JAMAIS lancé seul.
+│   ├── dates.json          le carnet des dates de dernière modification (versionné)
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
-│   ├── run.js              710 assertions sur le moteur (Node, sans dépendance)
-│   └── navigateur.js       343 vérifications dans un vrai Chrome (axe compris) + captures
+│   ├── run.js              970 assertions sur le moteur et les pages (Node, sans dépendance)
+│   └── navigateur.js       444 vérifications dans un vrai Chrome (axe compris) + captures
 ├── package.json            scripts npm ; `type: module`
 ├── JOURNAL.md              journal de bord daté
 ├── ARCHITECTURE.md         ce fichier
@@ -836,6 +847,87 @@ le sujet de la page change la page.** Un test visite deux modèles à la pastill
 et compare `h1`, phrase de sous-titre, `<title>`, canonique et texte de fond à
 ce que `modeles.js` et `fond.js` disent de ce modèle-là.
 
+## Ce que le site dit avant qu'on l'ouvre
+
+Ajouté en session 21, quand le site est passé de « en ligne » à « diffusable ».
+Tout est écrit par `outils/seo.js` et posé par une seule fonction,
+`tete()` dans `gabarit.js`.
+
+⚠️ **La tête de page était recopiée quatre fois** (accueil et modèles, pages de
+contenu, `/le-langage`, 404) et les quatre copies avaient déjà divergé : deux
+`og:type` différents pour la même sorte de page, aucune image d'aperçu, et la
+404 seule à savoir dire `noindex`. Une balise ajoutée à une seule copie est le
+défaut par défaut de ce fichier. **Il n'y a plus qu'une copie : n'en refaites
+pas une seconde.**
+
+### Le titre d'un résultat de recherche n'est pas le `h1`
+
+`modele.titre` et `modele.question` sont écrits pour quelqu'un qui a la page
+sous les yeux. Une ligne de résultat de recherche n'a ni le contexte ni la
+place : 65 caractères de titre, 165 de description, lus par quelqu'un qui a tapé
+une question. Ce sont deux textes différents, et `seo.js` porte le second :
+`SEO_MODELES` (par clé de modèle), `SEO_ACCUEIL`, `SEO_PAGES` (par slug).
+
+Trois règles, tenues par des tests : la longueur ; l'unicité (deux pages qui
+portent le même titre se font concurrence et l'une disparaît) ; et *la
+description ne commence jamais par « Boussole »* — celui qui lit cette ligne
+cherche une réponse, pas un site.
+
+`seo.js` reste **côté serveur**, comme `fond.js` : `modeles.js` part dans le
+navigateur de chaque visiteur, pas ces chaînes-là.
+
+### Les aperçus de lien sont des fichiers, pas un service
+
+`npm run apercus` écrit `public/og/<page>.png`, 1200 × 630, avec le même Chrome
+que les tests — la seule dépendance déjà là. Ils sont **versionnés** : rien ne
+tourne au moment où quelqu'un colle un lien.
+
+Le texte d'une vignette vient de `VIGNETTES` dans `seo.js`, et `og:image:alt`
+est tiré du même tableau : l'image et sa description ne peuvent pas diverger.
+Les polices sont celles du serveur (Noto Serif, Noto Sans) — **ne pas appeler
+une police en ligne**, un aperçu qui dépend d'un tiers casse un jour.
+
+### Les données structurées ne promettent que ce qui est visible
+
+Un graphe JSON-LD par page, avec des `@id` stables : `#site` (WebSite), `#outil`
+(WebApplication, `offers` à 0 € parce que c'est la seule façon de dire
+« gratuit » plutôt que « prix non communiqué »), la page, et son fil d'Ariane.
+Le nœud de l'outil n'est pas recopié en seize exemplaires : les pages le
+référencent par son `@id`, sinon le vocabulaire décrirait seize outils.
+
+⚠️ **La règle qui vaut d'être tenue** : une donnée structurée qui annonce ce que
+la page ne montre pas est une faute, et elle est sanctionnée. Les sept questions
+fréquentes de `/a-propos` sont donc écrites **une seule fois**, dans
+`apropos.js` ; le HTML servi et le `FAQPage` en sortent tous les deux, et un
+test relit chaque réponse déclarée dans le texte réellement servi.
+
+Le JSON-LD est en ligne dans la page alors que la CSP interdit les scripts en
+ligne : un bloc `application/ld+json` n'est pas exécuté, donc pas concerné. Ce
+n'est pas une certitude de manuel — un test navigateur relit le contenu du bloc
+sur chaque page servie et le reparse.
+
+### Le plan du site ne crie pas au loup
+
+`lastmod` était recalculé à chaque génération : seize pages « modifiées
+aujourd'hui » alors qu'une seule avait bougé. Un moteur qui recrawle pour rien
+apprend à ne plus croire le fichier.
+
+`outils/dates.json` est le carnet : une date et une empreinte par adresse. La
+page est produite avec un **jeton** à la place de la date — ce qui rend son
+empreinte indépendante de la date, sans quoi écrire la date changerait le
+contenu, donc la date, indéfiniment — puis le jeton est remplacé après
+comparaison. Le carnet est versionné : s'il se perd, toutes les pages
+redeviennent « modifiées aujourd'hui » d'un coup.
+
+### IndexNow : écrit, jamais lancé
+
+`npm run indexnow` prévient Bing, Yandex et Seznam qu'une page a changé. Sans
+`--pour-de-vrai`, il n'envoie rien et se contente de dire ce qu'il enverrait.
+**C'est le seul endroit du projet qui parle à l'extérieur**, ce que l'interdit
+n° 2 du mandat réserve à une décision humaine. La clé vit dans
+`public/<32 hexa>.txt` ; la renommer sans changer le script casse la preuve de
+propriété du domaine. Voir `PROMOTION.md`.
+
 ## Ce que le site sait d'un modèle qu'il n'a pas écrit
 
 `lexique.js` donne à chacune des 91 hypothèses de la bibliothèque son mot
@@ -881,9 +973,11 @@ fichiers du disque. Vérification :
 
 ```bash
 npm run pages             # si le gabarit ou les modèles ont changé
+npm run apercus           # si un titre de vignette a changé (Chrome, ~10 s)
+npm run site              # les deux
 curl -I https://optiboussole.fr
-npm test                  # moteur, ~2 s
-npm run test:navigateur   # vrai Chrome contre la production, ~60 s + captures
+npm test                  # moteur et pages servies, ~3 s
+npm run test:navigateur   # vrai Chrome contre la production, ~3 min + captures
 ```
 
 Les captures d'écran atterrissent dans `/tmp/boussole-captures/`.

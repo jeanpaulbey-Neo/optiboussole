@@ -2170,7 +2170,13 @@ groupe('Le texte servi par les pages');
 {
   const { page, pageLangage } = await import('../outils/gabarit.js');
   const { MODELE_PAR_DEFAUT } = await import('../public/js/modeles.js');
-  const brut = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+  // Ce qu'un visiteur lit. Le contenu des <script> n'en fait pas partie — et
+  // depuis que la tête porte des données structurées, il pèse deux kilo-octets
+  // qui ne sont adressés qu'à des machines. Les retirer avant de mesurer le
+  // budget de texte, sans quoi on rognerait la prose pour faire de la place à
+  // du JSON que personne ne lit.
+  const brut = (h) => h.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
   const options = { modeles: MODELES, defaut: MODELE_PAR_DEFAUT };
   const defaut = MODELES.find((m) => m.cle === MODELE_PAR_DEFAUT);
   const accueil = page({ modele: defaut, accueil: true, ...options });
@@ -2390,5 +2396,186 @@ groupe('De quoi le nombre est le total');
       `→ ${m.resultat}`);
   }
 }
+// --- Trouvable ----------------------------------------------------------------
+//
+// Le site va être diffusé. Ce qui est vérifié ici n'est pas ce qu'un visiteur
+// voit une fois arrivé, mais ce que le site dit de lui-même **avant** qu'on
+// l'ouvre : la ligne d'un résultat de recherche, la carte d'un lien partagé, et
+// ce qu'il déclare aux machines.
+//
+// Trois règles se tiennent ici, et chacune vient d'une faute possible :
+//   - un titre trop long est coupé au milieu d'un mot par le moteur de
+//     recherche, et la description avec ;
+//   - une image d'aperçu annoncée mais absente donne une carte grise, pire que
+//     pas d'image du tout ;
+//   - une donnée structurée qui promet une réponse que la page ne contient pas
+//     est un mensonge, et c'est sanctionné comme tel.
+groupe('Trouvable : ce que le site dit avant qu’on l’ouvre');
+{
+  const { readFileSync, existsSync } = await import('node:fs');
+  const { page, pageMethode, pageLangage, pageCas, pageApropos, page404 } =
+    await import('../outils/gabarit.js');
+  const { MODELE_PAR_DEFAUT: DEF } = await import('../public/js/modeles.js');
+  const { SEO_MODELES, SEO_ACCUEIL, SEO_PAGES, VIGNETTES } = await import('../outils/seo.js');
+  const { APROPOS } = await import('../outils/apropos.js');
+  const options = { modeles: MODELES, defaut: DEF };
+  const defaut = MODELES.find((m) => m.cle === DEF);
+
+  // Toutes les pages servies, avec l'adresse à laquelle chacune répond.
+  const pages = [
+    ['/', page({ modele: defaut, accueil: true, ...options })],
+    ...MODELES.filter((m) => m.cle !== DEF)
+      .map((m) => ['/' + m.slug, page({ modele: m, accueil: false, ...options })]),
+    ['/la-methode', pageMethode()],
+    ['/le-langage', pageLangage()],
+    ['/un-cas', pageCas()],
+    ['/a-propos', pageApropos()],
+  ];
+  const balise = (html, motif) => (html.match(motif) || [])[1] || '';
+  const titreDe = (h) => balise(h, /<title>([^<]*)<\/title>/);
+  const metaDe = (h, n) => balise(h, new RegExp(`<meta (?:name|property)="${n}" content="([^"]*)"`));
+  const long = (t) => [...t.replace(/&[a-z]+;/g, 'x')].length;
+
+  verifie('chaque modèle a son titre de recherche',
+    MODELES.every((m) => SEO_MODELES[m.cle]),
+    `→ manquants : ${MODELES.filter((m) => !SEO_MODELES[m.cle]).map((m) => m.cle).join(', ')}`);
+
+  for (const [url, html] of pages) {
+    const t = titreDe(html), d = metaDe(html, 'description');
+    verifie(`${url} : le titre tient dans une ligne de résultat`,
+      long(t) > 20 && long(t) <= 65, `→ ${long(t)} caractères : « ${t} »`);
+    verifie(`${url} : la description tient sans être tronquée`,
+      long(d) >= 100 && long(d) <= 165, `→ ${long(d)} caractères`);
+    // La ligne est lue par quelqu'un qui a tapé une question, pas par quelqu'un
+    // qui visite un site : elle commence par la question, pas par le nom.
+    verifie(`${url} : la description ne commence pas par le nom du site`,
+      !/^Boussole/.test(d), `→ « ${d.slice(0, 40)}… »`);
+    verifie(`${url} : l’adresse canonique est la sienne`,
+      metaDe(html, 'og:url') === 'https://optiboussole.fr' + url
+      && html.includes(`<link rel="canonical" href="https://optiboussole.fr${url}"`),
+      `→ ${metaDe(html, 'og:url')}`);
+    verifie(`${url} : indexable, et l’aperçu d’image autorisé en grand`,
+      /content="index, follow, max-image-preview:large/.test(html));
+  }
+
+  // Deux pages qui portent le même titre se font concurrence dans les résultats
+  // et l'une des deux disparaît. Ce sont seize sujets différents : seize titres.
+  const titres = pages.map(([, h]) => titreDe(h));
+  const descriptions = pages.map(([, h]) => metaDe(h, 'description'));
+  verifie('les seize titres sont tous différents',
+    new Set(titres).size === titres.length, `→ ${titres.length - new Set(titres).size} doublon(s)`);
+  verifie('… et les seize descriptions aussi',
+    new Set(descriptions).size === descriptions.length);
+
+  // Un aperçu annoncé et absent donne une carte grise dans la conversation où
+  // le lien a été collé — et personne ne le voit avant que ce soit fait.
+  for (const [url, html] of pages) {
+    const img = metaDe(html, 'og:image');
+    const fichier = 'public' + img.replace('https://optiboussole.fr', '');
+    verifie(`${url} : l’image d’aperçu existe sur le disque`,
+      img.startsWith('https://optiboussole.fr/og/') && existsSync(fichier), `→ ${img}`);
+    verifie(`${url} : … annoncée dans sa taille, et décrite`,
+      metaDe(html, 'og:image:width') === '1200' && long(metaDe(html, 'og:image:alt')) > 10
+      && metaDe(html, 'twitter:card') === 'summary_large_image');
+  }
+  verifie('une vignette par page servie',
+    VIGNETTES.length === pages.length, `→ ${VIGNETTES.length} pour ${pages.length} pages`);
+
+  // Les données structurées. Elles sont lues par une machine qui ne pardonne
+  // pas : du JSON invalide n'est pas « à peu près lu », il est jeté.
+  for (const [url, html] of pages) {
+    const brut = balise(html, /<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    let graphe = null;
+    try { graphe = JSON.parse(brut.replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\u0026/g, '&')); }
+    catch (e) { /* signalé juste en dessous */ }
+    verifie(`${url} : les données structurées sont du JSON valide`,
+      graphe && graphe['@context'] === 'https://schema.org' && Array.isArray(graphe['@graph']),
+      `→ ${brut.slice(0, 60)}`);
+    if (!graphe) continue;
+    // `</script>` dans une chaîne fermerait la balise et casserait la page.
+    verifie(`${url} : … et ne peuvent pas fermer leur propre balise`,
+      !brut.includes('</'), `→ ${brut.slice(brut.indexOf('</'), 40)}`);
+    const types = graphe['@graph'].map((n) => n['@type']);
+    verifie(`${url} : … déclarent le site et la page`,
+      types.includes('WebSite') && types.some((t) => /Page|Article/.test(t)), `→ ${types.join(', ')}`);
+    if (url !== '/') {
+      verifie(`${url} : … avec un fil d’Ariane qui remonte à l’accueil`,
+        types.includes('BreadcrumbList'));
+    }
+  }
+
+  // La règle qui vaut d'être tenue par un test : ce qu'on promet à une machine,
+  // un lecteur doit le trouver sur la page. Les questions de /a-propos sont
+  // écrites une fois ; le HTML et le JSON-LD en sortent tous les deux.
+  {
+    const html = pages.find(([u]) => u === '/a-propos')[1];
+    const brut = balise(html, /<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    const graphe = JSON.parse(brut.replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\u0026/g, '&'));
+    const faq = graphe['@graph'].find((n) => n['@type'] === 'FAQPage');
+    verifie('/a-propos : les questions fréquentes sont déclarées',
+      faq && faq.mainEntity.length === APROPOS.faq.length,
+      `→ ${faq ? faq.mainEntity.length : 0} pour ${APROPOS.faq.length}`);
+    const texte = html.replace(/<script[\s\S]*?<\/script>/g, ' ')
+      .replace(/<[^>]+>/g, ' ').replace(/&#39;|&rsquo;/g, '’')
+      .replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+    for (const q of faq.mainEntity) {
+      verifie(`/a-propos : « ${q.name.slice(0, 34)}… » est visible sur la page`,
+        texte.includes(q.name) && texte.includes(q.acceptedAnswer.text.slice(0, 60)),
+        '→ promise à une machine, absente pour un lecteur');
+    }
+  }
+
+  // Le paragraphe de présentation est fait pour être copié ailleurs : dans un
+  // message, un billet, une réponse de forum. Il doit donc se tenir seul, sans
+  // renvoyer à ce qui l'entoure.
+  {
+    const intro = APROPOS.intro[0];
+    verifie('la présentation se tient seule',
+      !/ci-dessus|ci-dessous|plus haut|cette page|comme (dit|vu)/i.test(intro), `→ ${intro.slice(0, 80)}`);
+    verifie('… nomme le site, ce qu’il coûte et où il calcule',
+      /Boussole/.test(intro) && /gratuit/i.test(intro) && /navigateur/.test(intro));
+    verifie('… et tient en un paragraphe qu’on peut coller',
+      intro.length > 400 && intro.length < 1100, `→ ${intro.length} caractères`);
+  }
+
+  // Le plan du site et robots.txt sont écrits par le générateur ; ce qui est
+  // vérifié ici est le fichier réellement servi.
+  {
+    const plan = readFileSync('public/sitemap.xml', 'utf8');
+    const adresses = [...plan.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    verifie('le plan du site liste exactement les pages servies',
+      adresses.length === pages.length
+      && pages.every(([u]) => adresses.includes('https://optiboussole.fr' + u)),
+      `→ ${adresses.length} adresses pour ${pages.length} pages`);
+    verifie('… avec une date de modification valide pour chacune',
+      [...plan.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].every((m) => /^\d{4}-\d{2}-\d{2}$/.test(m[1]))
+      && (plan.match(/<lastmod>/g) || []).length === adresses.length);
+    // La 404 ne doit pas y être : une page d'erreur indexée est une page
+    // d'erreur qu'on trouvera dans les résultats.
+    verifie('… et pas la page d’erreur', !plan.includes('404'));
+    const robots = readFileSync('public/robots.txt', 'utf8');
+    verifie('robots.txt ouvre tout et donne le plan',
+      /User-agent: \*/.test(robots) && /Allow: \//.test(robots)
+      && robots.includes('https://optiboussole.fr/sitemap.xml') && !/Disallow: \/\s*$/m.test(robots));
+  }
+
+  // La page d'erreur, elle, se tait : pas d'adresse canonique (elle en sert
+  // mille), et surtout pas d'indexation.
+  {
+    const err = page404(options);
+    verifie('la page d’erreur refuse d’être indexée',
+      /content="noindex/.test(err) && !err.includes('rel="canonical"'));
+  }
+
+  // Le carnet de dates est le seul état du générateur : s'il se perd, toutes
+  // les pages redeviennent « modifiées aujourd'hui » d'un coup.
+  {
+    const carnet = JSON.parse(readFileSync('outils/dates.json', 'utf8'));
+    verifie('le carnet de dates couvre toutes les pages',
+      pages.every(([u]) => carnet[u] && /^\d{4}-\d{2}-\d{2}$/.test(carnet[u].date)),
+      `→ ${Object.keys(carnet).length} entrées`);
+  }
+}
+
 console.log(`\n${ko === 0 ? '\x1b[32m' : '\x1b[31m'}${ok} réussis, ${ko} échoués\x1b[0m\n`);
 process.exit(ko === 0 ? 0 : 1);

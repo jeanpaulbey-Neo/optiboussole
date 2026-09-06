@@ -1148,6 +1148,22 @@ button.detail-nom:hover { color: var(--accent); border-bottom-color: var(--accen
 }
 .reponse code { background: var(--accent-doux); color: inherit; }
 
+/* Les questions du bas d'une page de contenu. Elles sont servies dépliées :
+   ce sont les questions qu'on se pose avant de faire confiance à un calcul, et
+   les replier obligerait à cliquer sept fois pour lire ce que le site déclare
+   par ailleurs aux moteurs de recherche. */
+.faq-item { margin: 0 0 22px; }
+
+.faq-item h3 {
+  font-family: var(--serif);
+  font-size: 17.5px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+
+.faq-item p { margin-bottom: 8px; }
+
 .retour-outil { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--trait); }
 
 @media (max-width: 700px) {

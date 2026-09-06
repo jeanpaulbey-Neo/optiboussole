@@ -8,6 +8,10 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { MODELES, MODELE_PAR_DEFAUT } from '../public/js/modeles.js';
 import { FOND } from '../outils/fond.js';
+import { APROPOS } from '../outils/apropos.js';
+import { SEO_PAGES, titreComplet } from '../outils/seo.js';
+
+const FAQ = APROPOS.faq;
 
 // L'adresse d'un modèle : celui d'accueil vit à la racine, les autres à leur
 // slug. Le modèle d'accueil a changé en session 14 — ne le codez pas en dur.
@@ -1520,8 +1524,12 @@ console.log('\n\x1b[1mLa méthode\x1b[0m');
     droites: /\w'\w/.test(document.body.innerText),
     retour: !!document.querySelector('.retour-outil a'),
   }));
+  // Le titre servi est celui que `seo.js` déclare, pas le `h1` : depuis la
+  // session 21 ce sont deux textes différents, écrits pour deux lecteurs
+  // différents. Le comparer en dur ici, c'était le figer à un troisième.
   verifie('titre et canonique corrects',
-    info.titre === 'La méthode — Boussole' && info.canonique === URL + '/la-methode',
+    info.titre === titreComplet(SEO_PAGES['la-methode'].titre)
+    && info.canonique === URL + '/la-methode',
     `→ ${info.titre} / ${info.canonique}`);
   verifie('les dix chapitres sont là', info.h2.length === 10, `→ ${info.h2.length}`);
   verifie('aller savoir ou décider maintenant a son chapitre',
@@ -1578,7 +1586,7 @@ console.log('\n\x1b[1mAccessibilité\x1b[0m');
   const pa = await navigateur.newPage();
   await pa.setViewport({ width: 1200, height: 900 });
   await pa.setBypassCSP(true);   // pour injecter axe ; le site, lui, garde sa CSP
-  for (const chemin of ['/', '/la-methode', '/prix-du-kilometre',
+  for (const chemin of ['/', '/la-methode', '/a-propos', '/prix-du-kilometre',
     '/repondre-a-un-appel-d-offres', '/une-adresse-qui-n-existe-pas']) {
     await pa.goto(URL + chemin, { waitUntil: 'networkidle0' });
     if (chemin === '/' || chemin.startsWith('/prix') || chemin.startsWith('/repondre')) {
@@ -1708,9 +1716,88 @@ console.log('\n\x1b[1mIndexation\x1b[0m');
   const xml = await plan.text();
   verifie('le plan du site liste toutes les pages',
     MODELES.every((m) => xml.includes(m.cle === MODELE_PAR_DEFAUT ? '<loc>' + URL + '/</loc>' : '/' + m.slug))
-    && xml.includes('/la-methode'),
+    && xml.includes('/la-methode') && xml.includes('/a-propos'),
     `→ ${(xml.match(/<loc>/g) || []).length} adresses`);
+
+  // Ce que le site dit de lui-même, lu sur le site réel et pas sur le
+  // générateur : une balise juste dans `gabarit.js` et un fichier absent de
+  // `public/` donnent exactement la même carte grise dans une conversation.
+  const adresses = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  for (const adresse of adresses) {
+    const rep = await p4.goto(adresse, { waitUntil: 'domcontentloaded' });
+    const meta = await p4.evaluate(() => ({
+      canonique: document.querySelector('link[rel=canonical]')?.href || '',
+      titre: document.title,
+      image: document.querySelector('meta[property="og:image"]')?.content || '',
+      donnees: document.querySelector('script[type="application/ld+json"]')?.textContent || '',
+    }));
+    const chemin = adresse.replace(URL, '') || '/';
+    // 304 vaut 200 ici : le site répond `no-cache` avec un ETag, donc une page
+    // déjà vue dans cette session est revalidée, pas retéléchargée. C'est
+    // exactement ce que la section « Ce que garde un navigateur » exige plus
+    // bas — l'attendre en 200 strict, c'était contredire un autre test.
+    verifie(`${chemin} : servie, canonique, et avec son aperçu`,
+      [200, 304].includes(rep.status()) && meta.canonique === adresse && meta.titre.length > 20
+      && meta.image.startsWith(URL + '/og/'),
+      `→ ${rep.status()}, canonique ${meta.canonique}`);
+    // La CSP du site interdit les scripts en ligne. Un bloc `application/ld+json`
+    // n'est pas exécuté et n'est donc pas concerné — mais c'est le genre de
+    // certitude qui se vérifie dans un vrai navigateur plutôt que dans un
+    // manuel : si Chrome le bloquait, le contenu serait vide ici.
+    let graphe = null;
+    try { graphe = JSON.parse(meta.donnees); } catch (e) { /* signalé juste après */ }
+    verifie(`${chemin} : … et ses données structurées survivent à la CSP`,
+      graphe !== null && Array.isArray(graphe['@graph']) && graphe['@graph'].length >= 2,
+      `→ ${meta.donnees.slice(0, 50) || 'vide'}`);
+    // L'image annoncée doit exister, et être une image.
+    const img = await fetch(meta.image);
+    verifie(`${chemin} : … dont l’image d’aperçu est réellement servie`,
+      img.status === 200 && (img.headers.get('content-type') || '').includes('image/png'),
+      `→ ${img.status} ${img.headers.get('content-type')}`);
+  }
+
+  // L'icône d'écran d'accueil : annoncée sur chaque page, elle doit exister.
+  const icone = await fetch(URL + '/icone-180.png');
+  verifie('l’icône d’écran d’accueil est servie',
+    icone.status === 200 && (icone.headers.get('content-type') || '').includes('image/png'),
+    `→ ${icone.status}`);
   await p4.close();
+}
+
+// --- La page qu'on ouvre avant de faire confiance ------------------------------
+//
+// /a-propos est la page qu'on donnera en citant le site, et celle qu'on ouvre
+// avant de croire un calcul. Ce qu'elle promet à une machine — les questions
+// fréquentes — doit être lisible par quelqu'un, sur la page, sans déplier.
+console.log('\n\x1b[1mLa page de présentation\x1b[0m');
+{
+  const pa = await navigateur.newPage();
+  const soucis = [];
+  pa.on('console', (m) => { if (m.type() === 'error') soucis.push(m.text()); });
+  pa.on('pageerror', (e) => soucis.push(e.message));
+  const rep = await pa.goto(URL + '/a-propos', { waitUntil: 'networkidle0' });
+  verifie('/a-propos répond', [200, 304].includes(rep.status()), `→ ${rep.status()}`);
+  verifie('… sans le moindre incident', soucis.length === 0, `→ ${soucis.join(' | ')}`);
+
+  const { questions, reponses, intro } = await pa.evaluate(() => ({
+    questions: [...document.querySelectorAll('.faq-item h3')].map((n) => n.textContent.trim()),
+    reponses: [...document.querySelectorAll('.faq-item p')].map((n) => n.textContent.trim()),
+    intro: document.querySelector('.article > p')?.textContent.trim() || '',
+  }));
+  const attendues = FAQ.map((q) => q.q.replace(/ ([:;?!])/g, '\u202f$1'));
+  verifie('les questions fréquentes sont visibles, dépliées',
+    questions.length === FAQ.length && attendues.every((q) => questions.includes(q)),
+    `→ ${questions.length} visibles pour ${FAQ.length} déclarées`);
+  verifie('… avec leurs réponses', reponses.length >= FAQ.length);
+  verifie('la présentation est le premier paragraphe de la page',
+    intro.includes('Boussole') && intro.length > 400, `→ ${intro.slice(0, 60)}…`);
+
+  // Le pied de page mène ici depuis n'importe quelle page : c'est ce qui fait
+  // qu'un visiteur arrivé sur un modèle par une recherche peut savoir où il est.
+  await pa.goto(URL + '/isoler-ses-combles', { waitUntil: 'domcontentloaded' });
+  verifie('chaque page mène à la présentation',
+    await pa.$eval('footer', (n) => !!n.querySelector('a[href="/a-propos"]')));
+  await pa.close();
 }
 
 // --- Captures ------------------------------------------------------------------

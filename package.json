@@ -8,7 +8,10 @@
     "test": "node test/run.js",
     "test:navigateur": "node test/navigateur.js",
     "test:tout": "node test/run.js && node test/navigateur.js",
-    "pages": "node outils/pages.js"
+    "pages": "node outils/pages.js",
+    "apercus": "node outils/apercus.js",
+    "site": "node outils/pages.js && node outils/apercus.js",
+    "indexnow": "node outils/indexnow.js"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

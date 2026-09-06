@@ -1,3 +1,5 @@
+# Boussole — https://optiboussole.fr
+# Un site statique, sans compte et sans traceur : tout est indexable.
 User-agent: *
 Allow: /
 

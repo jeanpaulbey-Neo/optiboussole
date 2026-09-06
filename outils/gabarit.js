@@ -8,13 +8,74 @@
 import { FOND } from './fond.js';
 import { METHODE } from './methode.js';
 import { CAS } from './cas.js';
-
-const SITE = 'https://optiboussole.fr';
+import { APROPOS } from './apropos.js';
+import {
+  SITE, SEO_MODELES, SEO_ACCUEIL, SEO_PAGES, titreComplet, apercu, apercuAlt,
+  jsonld, noeudSite, noeudOutil, noeudPage, noeudFil, noeudFAQ,
+} from './seo.js';
 
 const echappe = (t) => String(t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const attr = (t) => echappe(t).replace(/"/g, '&quot;');
+
+// La tête de page, en un seul endroit.
+//
+// Elle était recopiée quatre fois, et les quatre copies avaient déjà divergé :
+// deux avaient un `og:type` différent pour la même sorte de page, aucune
+// n'avait d'image d'aperçu, et la 404 était la seule à savoir dire `noindex`.
+// Une balise ajoutée à une seule des copies est le défaut par défaut de ce
+// fichier : il n'y a plus qu'une copie.
+//
+// Ce que cette tête promet, et qu'il faut tenir :
+//   - `titre` et `description` viennent de `seo.js`, pas du texte de la page :
+//     une ligne de résultat de recherche n'a pas la place d'un `h1`.
+//   - `image` existe vraiment sur le disque — `npm run apercus` les écrit, et
+//     un test vérifie qu'aucune page n'annonce une image absente.
+//   - les données structurées ne décrivent que ce que la page montre.
+function tete({ titre, description, canonique, type = 'website', image, alt, donnees, indexable = true }) {
+  const abs = image ? SITE + image : null;
+  return `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${echappe(titre)}</title>${description ? `
+<meta name="description" content="${attr(description)}">` : ''}${canonique ? `
+<link rel="canonical" href="${attr(canonique)}">` : ''}
+<meta name="robots" content="${indexable ? 'index, follow, max-image-preview:large, max-snippet:-1' : 'noindex, follow'}">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">${canonique ? `
+<meta property="og:site_name" content="Boussole">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:type" content="${type}">
+<meta property="og:title" content="${attr(titre.replace(/ — Boussole$/, ''))}">
+<meta property="og:description" content="${attr(description)}">
+<meta property="og:url" content="${attr(canonique)}">` : ''}${abs ? `
+<meta property="og:image" content="${attr(abs)}">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="${attr(alt)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${attr(abs)}">
+<meta name="twitter:image:alt" content="${attr(alt)}">` : ''}${canonique ? `
+<meta name="twitter:title" content="${attr(titre.replace(/ — Boussole$/, ''))}">
+<meta name="twitter:description" content="${attr(description)}">` : ''}
+<link rel="icon" href="/boussole.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icone-180.png">
+<link rel="stylesheet" href="/app.css">${donnees ? '\n' + donnees : ''}`;
+}
+
+// Ce que l'outil sait faire, dit à une machine. Chaque ligne correspond à une
+// section visible de la réponse : on n'annonce pas une fonction qui n'existe
+// pas, et si l'une d'elles disparaissait du site, elle disparaîtrait d'ici.
+const FONCTIONS = [
+  'Écrire une hypothèse en fourchette plutôt qu’en chiffre inventé',
+  'Comparer plusieurs options sous incertitude (simulation de Monte-Carlo)',
+  'Désigner l’hypothèse qui porte l’essentiel de l’incertitude',
+  'Calculer le seuil à partir duquel la décision change de camp',
+  'Chiffrer en euros ce que vaut d’aller lever un doute avant de choisir',
+  'Éprouver la conclusion en élargissant toutes les fourchettes',
+  'Construire le contre-argument : le jeu d’hypothèses qui renverse le verdict',
+];
 
 // Balisage minimal du texte de fond : `code`, **gras**, et un bloc ```…```.
 function riche(bloc) {
@@ -25,7 +86,11 @@ function riche(bloc) {
   const t = echappe(reponse ? bloc.slice(2) : bloc)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Un lien, écrit [comme ceci](/la-methode). Les adresses acceptées sont
+    // internes : une page de ce site ne pointe pas ailleurs, et le motif ne
+    // peut donc pas fabriquer un `javascript:` ni un domaine tiers.
+    .replace(/\[([^\]]+)\]\((\/[^)\s]*)\)/g, '<a href="$2">$1</a>');
   return reponse ? `<p class="reponse">${typographie(t)}</p>` : `<p>${typographie(t)}</p>`;
 }
 
@@ -151,7 +216,7 @@ const pied = () => `<footer>
     Construit par Claude. Aucun compte, aucun traceur, aucun cookie&nbsp;: le modèle et la simulation
     ne quittent pas votre navigateur, et le lien de partage contient le modèle lui-même.
   </p>
-  <p><a href="/un-cas">Un cas, du début à la fin</a> · <a href="/la-methode">La méthode</a> · <a href="/le-langage">Le langage</a></p>
+  <p><a href="/un-cas">Un cas, du début à la fin</a> · <a href="/la-methode">La méthode</a> · <a href="/le-langage">Le langage</a> · <a href="/a-propos">À propos</a></p>
 </footer>`;
 
 // La page 404 : la même enveloppe, la bande de modèles complète, rien d’autre.
@@ -161,14 +226,7 @@ export function page404({ modeles, defaut }) {
   return `<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Page introuvable — Boussole</title>
-<meta name="robots" content="noindex">
-<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="/boussole.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css">
+${tete({ titre: 'Page introuvable — Boussole', indexable: false })}
 </head>
 <body>
 <a class="saut" href="#contenu">Aller au contenu</a>
@@ -206,28 +264,45 @@ ${pied()}
 // Une page de contenu : /la-methode et /un-cas. Le gabarit était écrit deux
 // fois avant que la seconde n'existe ; c'est la façon la plus sûre de laisser
 // une des deux dériver.
-function pageContenu(c, slug, type = 'article') {
+function pageContenu(c, slug, { type = 'TechArticle', dateModifiee } = {}) {
   const corps = c.sections.map((sec) => `  <section class="chapitre">
     <h2>${typographie(echappe(sec.titre))}</h2>
 ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
   </section>`).join('\n\n');
 
+  // Les questions du bas, quand la page en a. Le même tableau écrit le HTML et
+  // les données structurées : un lecteur et un moteur de recherche lisent la
+  // même chose, et personne n'a à les tenir d'accord à la main.
+  const questions = c.faq ? `\n\n  <section class="chapitre faq">
+    <h2>Questions fréquentes</h2>
+${c.faq.map(({ q, r }) => `    <div class="faq-item">
+      <h3>${typographie(echappe(q))}</h3>
+${r.map((b) => '      ' + riche(b)).join('\n')}
+    </div>`).join('\n')}
+  </section>` : '';
+
+  const seo = SEO_PAGES[slug];
+  const url = `${SITE}/${slug}`;
+  const graphe = [
+    noeudSite(),
+    noeudPage({ url, type, titre: seo.titre, description: seo.description,
+      image: apercu(slug), dateModifiee, fil: true }),
+    noeudFil(url, c.titre),
+  ];
+  if (c.faq) graphe.push(noeudFAQ(url, c.faq));
+
   return `<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${echappe(c.titre)} — Boussole</title>
-<meta name="description" content="${attr(c.question)}">
-<link rel="canonical" href="${SITE}/${slug}">
-<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="${attr(c.titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(c.question)}">
-<meta property="og:type" content="${type}">
-<meta property="og:url" content="${SITE}/${slug}">
-<link rel="icon" href="/boussole.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css">
+${tete({
+    titre: titreComplet(seo.titre),
+    description: seo.description,
+    canonique: url,
+    type: 'article',
+    image: apercu(slug),
+    alt: apercuAlt(slug),
+    donnees: jsonld(graphe),
+  })}
 </head>
 <body>
 <a class="saut" href="#contenu">Aller au contenu</a>
@@ -250,7 +325,7 @@ ${sec.blocs.map((b) => '    ' + riche(b)).join('\n')}
 <article class="panneau article">
 ${c.intro.map((b) => '  ' + riche(b)).join('\n')}
 
-${corps}
+${corps}${questions}
 
   <p class="retour-outil"><a href="/">← Revenir à l’outil</a></p>
 </article>
@@ -264,34 +339,43 @@ ${pied()}
 `;
 }
 
-export const pageMethode = () => pageContenu(METHODE, 'la-methode');
-export const pageCas = () => pageContenu(CAS, 'un-cas');
+export const pageMethode = (dateModifiee) => pageContenu(METHODE, 'la-methode', { dateModifiee });
+export const pageCas = (dateModifiee) => pageContenu(CAS, 'un-cas', { dateModifiee });
+// La page qu'on ouvre avant de faire confiance à un calcul, et celle qu'on
+// donne quand on cite le site : « qu'est-ce que c'est, et qui l'a fait ».
+export const pageApropos = (dateModifiee) =>
+  pageContenu(APROPOS, 'a-propos', { type: 'AboutPage', dateModifiee });
 
-export function page({ modele, modeles, defaut, accueil }) {
-  const titre = accueil
-    ? 'Boussole — ce qu’il faut aller vérifier avant de décider'
-    : `${modele.titre} — Boussole`;
-  const description = accueil
-    ? 'Vous hésitez, et il vous manque un chiffre. Donnez une fourchette plutôt qu’une valeur inventée : Boussole vous dit à partir de quel montant votre choix bascule, à quelle fréquence cela arrive, et lequel de vos chiffres mérite l’heure que vous allez y passer. Le calcul se fait sur votre appareil.'
-    : modele.question;
+export function page({ modele, modeles, defaut, accueil, dateModifiee }) {
+  // Le titre d'un résultat de recherche n'est pas le `h1` : voir `seo.js`.
+  // L'accueil sert le modèle « voiture », mais ce qu'on y cherche est l'outil ;
+  // son titre parle donc de l'outil, et son `h1` de la décision qui tourne
+  // dessous.
+  const seo = accueil ? SEO_ACCUEIL : SEO_MODELES[modele.cle];
+  const titre = accueil ? seo.titre : titreComplet(seo.titre);
   const canonique = SITE + (accueil ? '/' : '/' + modele.slug);
+  const image = apercu(accueil ? '' : modele.slug);
+
+  const graphe = accueil
+    ? [noeudSite(), noeudOutil(FONCTIONS),
+       noeudPage({ url: canonique, titre, description: seo.description, image, dateModifiee })]
+    : [noeudSite(), noeudOutil(FONCTIONS),
+       noeudPage({ url: canonique, titre: seo.titre, description: seo.description,
+         image, dateModifiee, fil: true }),
+       noeudFil(canonique, modele.titre)];
 
   return `<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${echappe(titre)}</title>
-<meta name="description" content="${attr(description)}">
-<link rel="canonical" href="${attr(canonique)}">
-<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="${attr(accueil ? 'Boussole' : modele.titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(accueil ? 'Vos fourchettes plutôt que des chiffres inventés. Boussole dit lequel de vos chiffres décide, à partir de quel montant votre choix bascule, et ce que ça vaut d’aller le chercher.' : modele.question)}">
-<meta property="og:type" content="website">
-<meta property="og:url" content="${attr(canonique)}">
-<link rel="icon" href="/boussole.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css">
+${tete({
+    titre,
+    description: seo.description,
+    canonique,
+    type: 'website',
+    image,
+    alt: apercuAlt(accueil ? '' : modele.slug),
+    donnees: jsonld(graphe),
+  })}
 </head>
 <body data-modele="${attr(modele.cle)}"${accueil ? ' data-accueil="1"' : ''}>
 <a class="saut" href="#contenu">Aller au contenu</a>
@@ -432,7 +516,7 @@ ${pied()}
 // dépliant de chacune des quatorze pages : lue par personne, comptée par tout
 // le monde. Une page indexable est aussi le seul endroit où quelqu'un qui
 // cherche « comment écrire une fourchette » peut tomber.
-export function pageLangage() {
+export function pageLangage(dateModifiee) {
   const titre = 'Le langage';
   const question = 'Dix lignes de syntaxe pour décrire une décision incertaine : une fourchette, '
     + 'des options, une unité. Tout ce que Boussole accepte de votre écriture, et la loi de '
@@ -440,19 +524,21 @@ export function pageLangage() {
   return `<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${titre} — Boussole</title>
-<meta name="description" content="${attr(question)}">
-<link rel="canonical" href="${SITE}/le-langage">
-<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="${attr(titre + ' — Boussole')}">
-<meta property="og:description" content="${attr(question)}">
-<meta property="og:type" content="article">
-<meta property="og:url" content="${SITE}/le-langage">
-<link rel="icon" href="/boussole.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css">
+${tete({
+    titre: titreComplet(SEO_PAGES['le-langage'].titre),
+    description: SEO_PAGES['le-langage'].description,
+    canonique: `${SITE}/le-langage`,
+    type: 'article',
+    image: apercu('le-langage'),
+    alt: apercuAlt('le-langage'),
+    donnees: jsonld([
+      noeudSite(),
+      noeudPage({ url: `${SITE}/le-langage`, type: 'TechArticle',
+        titre: SEO_PAGES['le-langage'].titre, description: SEO_PAGES['le-langage'].description,
+        image: apercu('le-langage'), dateModifiee, fil: true }),
+      noeudFil(`${SITE}/le-langage`, titre),
+    ]),
+  })}
 </head>
 <body>
 <a class="saut" href="#contenu">Aller au contenu</a>
