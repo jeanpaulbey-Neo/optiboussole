@@ -7,10 +7,17 @@ import puppeteer from 'puppeteer';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { MODELES, MODELE_PAR_DEFAUT } from '../public/js/modeles.js';
+import { FOND } from '../outils/fond.js';
 
 // L'adresse d'un modèle : celui d'accueil vit à la racine, les autres à leur
 // slug. Le modèle d'accueil a changé en session 14 — ne le codez pas en dur.
 const cheminDe = (m) => (m.cle === MODELE_PAR_DEFAUT ? '/' : '/' + m.slug);
+
+// Une phrase propre à chaque modèle dans les trois colonnes de l'étape 3
+// (« ce que ce modèle compte / ce qu'il ignore / où trouver vos chiffres »).
+// Elles sont écrites par le serveur : rien ne les met à jour côté client, donc
+// une pastille doit recharger la page.
+const FOND_ATTENDU = (cle) => FOND[cle].compte[0].slice(0, 40);
 
 const URL = process.argv[2] || 'https://optiboussole.fr';
 const SORTIE = process.argv[3] || '/tmp/boussole-captures';
@@ -190,22 +197,23 @@ console.log('\n\x1b[1mBibliothèque\x1b[0m');
 const boutons = await page.$$('#exemples a[data-cle]');
 verifie('un bouton par modèle', boutons.length === MODELES.length, `→ ${boutons.length}/${MODELES.length}`);
 
-for (let i = 0; i < boutons.length; i++) {
+// Depuis la session 20, une pastille est un lien ordinaire : elle recharge la
+// page. On visite donc chaque adresse, ce qui teste aussi le HTML servi.
+for (const m of MODELES) {
   const avant = incidents.length;
-  const nom = await boutons[i].evaluate((n) => n.textContent);
-  await boutons[i].click();
+  await page.goto(URL + cheminDe(m), { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => document.querySelector('.verdict-titre') !== null, { timeout: 8000 });
   const t = await page.$eval('.verdict-titre', (n) => n.textContent.trim());
   const h = await page.$$eval('.hypothese', (n) => n.length);
   const err = await page.$eval('#erreur', (n) => (n.hidden ? '' : n.textContent));
-  verifie(`« ${nom} » s'affiche`, t.length > 0 && h > 0 && !err && incidents.length === avant,
+  verifie(`« ${m.titre} » s'affiche`, t.length > 0 && h > 0 && !err && incidents.length === avant,
     `→ verdict « ${t} », ${h} hypothèses${err ? ', erreur: ' + err : ''}${incidents.length > avant ? ', ' + incidents.slice(avant).join(' | ') : ''}`);
 }
 
 // --- Mode estimation : la courbe ---------------------------------------------
 console.log('\n\x1b[1mMode estimation\x1b[0m');
 const iKm = MODELES.findIndex((m) => m.cle === 'kilometre');
-await boutons[iKm].click();
+await page.goto(URL + cheminDe(MODELES[iKm]), { waitUntil: 'networkidle0' });
 await page.waitForFunction(() => document.querySelector('.distribution:not(.pari) svg') !== null, { timeout: 8000 });
 const infoSvg = await page.evaluate(() => {
   const s = document.querySelector('.distribution:not(.pari) svg');
@@ -214,6 +222,40 @@ const infoSvg = await page.evaluate(() => {
 verifie('la courbe est un vrai SVG', infoSvg.ns === 'http://www.w3.org/2000/svg', `→ ${infoSvg.ns}`);
 verifie('la courbe a une hauteur visible', infoSvg.h > 40, `→ ${infoSvg.h}px`);
 verifie('la courbe est tracée', infoSvg.chemins >= 2, `→ ${infoSvg.chemins} chemins`);
+
+// Le grand chiffre de ce mode est une médiane, et c'est là qu'un lecteur qui
+// veut décider rencontrait le mot. Septième passage : « la notion de médiane
+// doit devenir compréhensible pour le plus grand nombre ». Elle est dite en
+// fréquence, comme les 9 chances sur 10 et les 3 fois sur 10 du reste du site.
+{
+  const v = await page.$eval('.verdict', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('le grand chiffre dit ce qu’il est, en fréquence',
+    /Une fois sur deux, c’est moins que ce chiffre ; une fois sur deux, c’est plus\./.test(v),
+    `→ ${v.slice(0, 200)}`);
+  const axe = await page.$$eval('.distribution:not(.pari) .axe span', (n) => n.map((e) => e.textContent));
+  verifie('… et le repère de la courbe aussi', /^1 fois sur 2 sous /.test(axe[1] || ''),
+    `→ ${axe.join(' | ')}`);
+
+  // Le repère a gagné neuf caractères en cessant de dire « médiane » : sur un
+  // téléphone, les trois étiquettes de l'axe partagent 330 px.
+  const etroit = await navigateur.newPage();
+  await etroit.setViewport({ width: 390, height: 844 });
+  await etroit.goto(URL + cheminDe(MODELES[iKm]), { waitUntil: 'networkidle0' });
+  await etroit.waitForSelector('.distribution:not(.pari) .axe');
+  const large = await etroit.evaluate(() => {
+    const a = document.querySelector('.distribution:not(.pari) .axe');
+    const sp = [...a.querySelectorAll('span')];
+    return {
+      place: sp.reduce((t, e) => t + e.getBoundingClientRect().width, 0),
+      dispo: a.clientWidth,
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  verifie('… et les trois étiquettes de l’axe tiennent à 390 px',
+    large.place <= large.dispo && large.page <= 1,
+    `→ ${Math.round(large.place)} px pour ${Math.round(large.dispo)}, débordement ${large.page}px`);
+  await etroit.close();
+}
 
 // --- Édition en direct --------------------------------------------------------
 console.log('\n\x1b[1mÉdition\x1b[0m');
@@ -359,7 +401,8 @@ console.log('\n\x1b[1mCe que vous jouez\x1b[0m');
   verifie('la phrase « ce que vous jouez » est au verdict', /Ce que vous jouez\./.test(accueil),
     '→ ' + accueil.slice(0, 90));
   verifie('… elle donne le gain et la perte',
-    /de mieux en médiane/.test(accueil) && /de moins/.test(accueil), '→ ' + accueil.slice(0, 200));
+    /de mieux une fois sur deux/.test(accueil) && /de moins une fois sur deux/.test(accueil),
+    '→ ' + accueil.slice(0, 200));
   verifie('… et la queue des pertes', /pire vingtième/.test(accueil));
 
   // Une branche qui gagne rarement et gros : les deux règles divergent.
@@ -512,12 +555,15 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
   await pa.waitForSelector('.verdict-titre');
 
-  // L'ouverture : un exemple travaillé, lisible sans JavaScript, avant le code.
+  // L'ouverture dit le pourquoi ; l'exemple chiffré est descendu à l'étape 3,
+  // « l'explication du modèle sous-jacent doit rester optionnelle ».
   const ouv = await pa.$eval('.exemple-ouverture', (n) => n.innerText.replace(/\s+/g, ' '));
-  verifie('l’accueil s’ouvre sur un exemple travaillé', ouv.length > 120, `→ ${ouv.slice(0, 60)}`);
-  verifie('… avec la fourchette qu’on écrit', /400 et 1 800/.test(ouv), `→ ${ouv}`);
-  verifie('… le seuil, dans son unité', /1 109 € par an/.test(ouv), `→ ${ouv}`);
-  verifie('… et ce que vaut d’aller chercher le chiffre', /631 €/.test(ouv), `→ ${ouv}`);
+  const lu = await pa.$eval('.exemple-lu', (n) => n.innerText.replace(/\s+/g, ' '));
+  verifie('l’accueil s’ouvre sur ce que le site cherche', ouv.length > 120, `→ ${ouv.slice(0, 60)}`);
+  verifie('… et l’exemple chiffré est à l’étape 3, avec la fourchette qu’on écrit',
+    /400 et 1 800/.test(lu), `→ ${lu}`);
+  verifie('… le seuil, dans son unité', /1 109 € par an/.test(lu), `→ ${lu}`);
+  verifie('… et ce que vaut d’aller chercher le chiffre', /631 €/.test(lu), `→ ${lu}`);
 
   // Elle vient avant l'éditeur : c'est tout l'objet du correctif.
   const ordre = await pa.evaluate(() => {
@@ -545,14 +591,52 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   });
   verifie('l’accueil se nomme par sa question, comme une page de modèle',
     page1.titre === 'Garder ou changer de voiture', `→ « ${page1.titre} »`);
-  verifie('… la réponse occupe la moitié gauche, pas le code',
-    page1.largeur > 940 && page1.resultatsX < page1.editeurX,
-    `→ résultats ${Math.round(page1.resultatsX)} vs éditeur ${Math.round(page1.editeurX)}`);
+  // Septième passage, et le premier d'une lectrice qui ne connaissait ni le site
+  // ni le projet : « il faudrait commencer par la saisie des paramètres du
+  // modèle, et ensuite expliquer ». L'ordre est donc inverse de celui que
+  // tenaient les sessions 6 à 19 — voir ARCHITECTURE.md, *La porte d'entrée* :
+  // ce qui occupe la colonne de gauche n'est plus un éditeur de code.
+  verifie('… la saisie occupe la moitié gauche, la réponse la droite',
+    page1.largeur > 940 && page1.editeurX < page1.resultatsX,
+    `→ éditeur ${Math.round(page1.editeurX)} vs résultats ${Math.round(page1.resultatsX)}`);
   const ordreDom = await pa.evaluate(() => {
-    const a = document.querySelector('.resultats'), b = document.querySelector('.editeur');
+    const a = document.querySelector('.editeur'), b = document.querySelector('.resultats');
     return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
-  verifie('… et elle vient avant lui dans l’ordre du document', ordreDom);
+  verifie('… et elle vient avant elle dans l’ordre du document, comme à l’écran', ordreDom);
+
+  // « Dans l'ergonomie, cette cinématique doit être explicite. » Les trois temps
+  // sont écrits une fois en haut, et repris en pastille sur chaque panneau.
+  const cine = await pa.evaluate(() => {
+    const strip = [...document.querySelectorAll('.cinematique li')].map((n) => n.innerText.replace(/\s+/g, ' ').trim());
+    const etapes = [...document.querySelectorAll('.etape-titre')].map((n) => ({
+      n: n.querySelector('.etape-n').textContent.trim(),
+      texte: n.innerText.replace(/\s+/g, ' ').trim(),
+      y: n.getBoundingClientRect().top + scrollY,
+      balise: n.tagName,
+    }));
+    return { strip, etapes };
+  });
+  verifie('la cinématique est écrite en trois temps', cine.strip.length === 3,
+    `→ ${cine.strip.join(' / ')}`);
+  verifie('… dont le troisième est donné pour facultatif',
+    /facultatif/i.test(cine.strip[2]), `→ ${cine.strip[2]}`);
+  verifie('… et les trois panneaux les portent, numérotés dans l’ordre',
+    cine.etapes.map((e) => e.n).join('') === '123', `→ ${cine.etapes.map((e) => e.n).join('')}`);
+  verifie('… du haut vers le bas de la page',
+    cine.etapes.every((e, i) => i === 0 || e.y >= cine.etapes[i - 1].y),
+    `→ ${cine.etapes.map((e) => Math.round(e.y)).join(', ')}`);
+  verifie('… et ce sont de vrais titres, pas des étiquettes',
+    cine.etapes.every((e) => e.balise === 'H2'), `→ ${cine.etapes.map((e) => e.balise).join(', ')}`);
+
+  // Le pourquoi avant les mathématiques : l'ouverture explique ce qu'on cherche
+  // — le montant où la réponse change de camp — avant d'écrire un seul chiffre,
+  // et sans nommer une seule fois la simulation ni la loi de probabilité.
+  verifie('l’ouverture dit pourquoi une fourchette sans citer un seul résultat',
+    /fourchette/.test(ouv) && !/1 109|631/.test(ouv), `→ ${ouv.slice(0, 80)}`);
+  verifie('… nomme le comportement cherché', /change de camp/.test(ouv), `→ ${ouv}`);
+  verifie('… et ne fait aucune mathématique',
+    !/simulation|lognormale|tirage|quantile|médiane/i.test(ouv), `→ ${ouv}`);
   verifie('les pastilles viennent après la réponse',
     page1.pastillesY > page1.resultatsY,
     `→ pastilles ${Math.round(page1.pastillesY)} vs réponse ${Math.round(page1.resultatsY)}`);
@@ -562,20 +646,50 @@ console.log('\n\x1b[1mArriver sans contexte\x1b[0m');
   // L'incohérence rapportée : un encadré qui parle de voiture au-dessus d'un
   // modèle d'immobilier. Elle ne doit plus pouvoir exister, quel que soit le
   // texte à l'écran et quel que soit le chemin par lequel il y est arrivé.
-  const coherence = [];
-  for (const cle of ['logement', 'combles', '']) {
-    const etat = await pa.evaluate(async (c) => {
-      const t = document.querySelector('#modele');
-      const m = c ? [...document.querySelectorAll('.puce')].find((a) => a.dataset.cle === c) : null;
-      if (m) m.click(); else { t.value = 'a = 1 à 2\nb = a * 3'; t.dispatchEvent(new Event('input', { bubbles: true })); }
-      await new Promise((r) => setTimeout(r, 800));
-      return { ouverture: !document.querySelector('.exemple-ouverture').hidden,
-               premiere: document.querySelector('#modele').value.split('\n')[1] || '' };
-    }, cle);
-    coherence.push(etat);
+  //
+  // Elle avait deux formes, et la session 14 n'en avait vu qu'une. La première
+  // est celle-ci : le visiteur réécrit le modèle sur place, l'encadré reste.
+  const surPlace = await pa.evaluate(async () => {
+    const t = document.querySelector('#modele');
+    t.value = 'a = 1 à 2\nb = a * 3';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 800));
+    return [...document.querySelectorAll('.exemple-ouverture, .exemple-lu')].some((n) => !n.hidden);
+  });
+  verifie('l’ouverture ne survit pas à un modèle réécrit sur place', !surPlace);
+
+  // La seconde est celle du septième passage : « quand je passe sur un autre
+  // modèle, l'ouverture continue de décrire la décision de la voiture ». Le
+  // `<h1>`, la phrase qui le suit, le `<title>` et les trois colonnes de
+  // l'étape 3 sont écrits par le serveur — une pastille doit donc changer la
+  // page, et non son seul `<textarea>`. Rien de tout cela n'était vérifié.
+  for (const cle of ['logement', 'combles']) {
+    const m = MODELES.find((x) => x.cle === cle);
+    await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
+    await pa.waitForSelector('.verdict-titre');
+    await Promise.all([
+      pa.waitForNavigation({ waitUntil: 'networkidle0' }),
+      pa.click(`#exemples a[data-cle="${cle}"]`),
+    ]);
+    await pa.waitForSelector('.verdict-titre');
+    const vu = await pa.evaluate(() => ({
+      h1: document.querySelector('h1').textContent.trim(),
+      sous: document.querySelector('.sous-baseline').textContent.trim(),
+      titre: document.title,
+      fond: document.querySelector('.fond').innerText.replace(/\s+/g, ' '),
+      canonique: document.querySelector('link[rel=canonical]').href,
+      encadres: [...document.querySelectorAll('.exemple-ouverture, .exemple-lu')].length,
+      chemin: location.pathname,
+    }));
+    verifie(`la pastille « ${m.titre} » change toute la page, pas le seul modèle`,
+      vu.h1 === m.titre && vu.sous === m.question && vu.titre.startsWith(m.titre)
+      && vu.chemin === cheminDe(m) && vu.canonique.endsWith(cheminDe(m)),
+      `→ h1 « ${vu.h1} », titre « ${vu.titre} », ${vu.chemin}`);
+    verifie('… y compris ce que l’étape 3 raconte',
+      vu.fond.includes(FOND_ATTENDU(cle)), `→ ${vu.fond.slice(0, 120)}`);
+    verifie('… et l’encadré de l’accueil n’y est plus du tout', vu.encadres === 0,
+      `→ ${vu.encadres} encadré(s)`);
   }
-  verifie('l’ouverture ne survit jamais à un autre modèle que celui qu’elle décrit',
-    coherence.every((e) => !e.ouverture), `→ ${JSON.stringify(coherence)}`);
   await pa.goto(URL + '/', { waitUntil: 'networkidle0' });
   await pa.waitForSelector('.verdict-titre');
   await pa.evaluate(() => localStorage.clear());
@@ -694,7 +808,11 @@ console.log('\n\x1b[1mDéplacement du modèle d’accueil\x1b[0m');
 {
   const pd = await navigateur.newPage();
   const r1 = await pd.goto(URL + '/louer-ou-acheter', { waitUntil: 'networkidle0' });
-  verifie('« louer ou acheter » a gagné son adresse', r1.status() === 200, `→ ${r1.status()}`);
+  // 304 « non modifié » compte : depuis la session 20, une pastille recharge la
+  // page, et cette adresse a déjà été visitée plus haut dans la même session de
+  // navigateur — le cache la revalide au lieu de la retélécharger.
+  verifie('« louer ou acheter » a gagné son adresse',
+    r1.status() === 200 || r1.status() === 304, `→ ${r1.status()}`);
   await pd.waitForSelector('.verdict-titre');
   const h1 = await pd.$eval('h1', (n) => n.textContent.trim());
   verifie('… et c’est bien lui', h1 === 'Louer ou acheter', `→ ${h1}`);
@@ -729,8 +847,55 @@ console.log('\n\x1b[1mÉcran étroit\x1b[0m');
   verifie('aucun débordement horizontal, aide ouverte', (await mesure()) <= 1, `→ ${await mesure()}px`);
   await p6.evaluate(() => { document.querySelector('.aide').open = false; });
 
-  const haut = await p6.$eval('.verdict-titre', (n) => n.getBoundingClientRect().top);
-  verifie('le verdict est visible sans faire défiler', haut < 700, `→ y = ${Math.round(haut)}px`);
+  // C'était « le verdict est visible sans faire défiler », et ce n'est plus vrai
+  // depuis que la saisie passe devant : quatorze champs séparent le haut de la
+  // page de la réponse. Ce qu'on tient à la place, c'est que le premier chiffre
+  // à remplir soit sous les yeux — et que la réponse suive celui qui le remplit.
+  const premier = await p6.$eval('.reglage input', (n) => n.getBoundingClientRect().top);
+  verifie('le premier champ est visible sans faire défiler', premier < 700,
+    `→ y = ${Math.round(premier)}px`);
+
+  // L'accueil porte en plus l'encadré qui dit pourquoi une fourchette, et c'est
+  // la page où l'on arrive : le premier champ y descend forcément. Ce qui doit
+  // rester au-dessus de la ligne de flottaison, c'est **le titre de l'étape 1**,
+  // qui dit par où commencer — le reste, la barre de réponse le rattrape.
+  {
+    const pAcc = await navigateur.newPage();
+    await pAcc.setViewport({ width: 390, height: 844 });
+    await pAcc.goto(URL + '/', { waitUntil: 'networkidle0' });
+    await pAcc.evaluate(() => localStorage.clear());
+    await pAcc.goto(URL + '/', { waitUntil: 'networkidle0' });
+    await pAcc.waitForSelector('.reglage input');
+    const acc = await pAcc.evaluate(() => {
+      const y = (s) => Math.round(document.querySelector(s).getBoundingClientRect().top);
+      return { cine: y('.cinematique'), etape1: y('.etape-titre'), champ: y('.reglage input') };
+    });
+    verifie('sur l’accueil, la cinématique et l’étape 1 restent au-dessus de la ligne',
+      acc.cine < 560 && acc.etape1 < 620,
+      `→ cinématique ${acc.cine}px, étape 1 ${acc.etape1}px`);
+    verifie('… et le premier champ n’est pas plus bas qu’un écran',
+      acc.champ < 800, `→ y = ${acc.champ}px`);
+    await pAcc.close();
+  }
+
+  const barre = await p6.evaluate(() => {
+    const b = document.querySelector('#barre-reponse');
+    return {
+      montree: b.classList.contains('montre'),
+      visible: getComputedStyle(b).display !== 'none',
+      texte: b.innerText.replace(/\s+/g, ' ').trim(),
+      dedans: b.getBoundingClientRect().right <= innerWidth + 1,
+    };
+  });
+  verifie('… et la barre de réponse porte le verdict courant',
+    barre.montree && barre.visible && /Réparer|Remplacer/.test(barre.texte), `→ ${barre.texte}`);
+  verifie('… sans déborder de l’écran', barre.dedans);
+
+  // Une fois la réponse à l'écran, la barre n'a plus d'objet.
+  await p6.evaluate(() => document.querySelector('#resultats').scrollIntoView());
+  await new Promise((r) => setTimeout(r, 400));
+  verifie('… et disparaît quand la réponse est à l’écran',
+    !(await p6.$eval('#barre-reponse', (n) => n.classList.contains('montre'))));
 
   const bande = await p6.evaluate(() => {
     const l = document.querySelector('#exemples');
@@ -763,7 +928,11 @@ console.log('\n\x1b[1mRobustesse à l\'excès de confiance\x1b[0m');
     await p5.evaluate(() => localStorage.clear());
     await p5.goto(URL + chemin, { waitUntil: 'networkidle0' });
     await p5.waitForSelector('#robustesse:not([hidden])', { timeout: 12000 });
-    const texte = await p5.$eval('#robustesse', (n) => n.innerText);
+    // Repliée depuis la session 20 : « l'explication du modèle sous-jacent doit
+    // rester optionnelle ». L'ouvrir fait donc partie du test.
+    const replie = await p5.$eval('#robustesse', (n) => n.tagName === 'DETAILS' && !n.open);
+    verifie(`${chemin} : l’épreuve des fourchettes est repliée`, replie, `→ ${replie}`);
+    const texte = await p5.$eval('#robustesse', (n) => { n.open = true; return n.innerText; });
     verifie(`${chemin} : ${titre}`, motif.test(texte), `→ « ${texte.slice(0, 90)}… »`);
     verifie(`${chemin} : aucun [object Object] dans le texte`,
       !/\[object /.test(texte), `→ « ${texte.slice(0, 90)}… »`);
@@ -1253,19 +1422,22 @@ console.log('\n\x1b[1mAdresses\x1b[0m');
     `→ « ${sansJs.slice(0, 30)}… »`);
   await page3.setJavaScriptEnabled(true);
 
-  // Navigation client sans rechargement, puis retour arrière.
+  // Une pastille est un lien ordinaire : elle recharge la page (session 20).
   await page3.goto(URL + '/', { waitUntil: 'networkidle0' });
   await page3.evaluate(() => localStorage.clear());
   await page3.goto(URL + '/', { waitUntil: 'networkidle0' });
   await page3.waitForSelector('.verdict-titre');
-  await page3.click('#exemples a[data-cle="kilometre"]');
-  await new Promise((r) => setTimeout(r, 900));
-  verifie('cliquer une pastille change l’adresse sans recharger',
+  await Promise.all([
+    page3.waitForNavigation({ waitUntil: 'networkidle0' }),
+    page3.click('#exemples a[data-cle="kilometre"]'),
+  ]);
+  await page3.waitForSelector('.verdict-titre');
+  verifie('cliquer une pastille mène à l’adresse du modèle',
     (await page3.url()) === URL + '/prix-du-kilometre',
     `→ ${await page3.url()}`);
   verifie('… et charge le bon modèle',
     (await page3.$eval('#modele', (n) => n.value)).includes('cout_km'));
-  await page3.goBack();
+  await page3.goBack({ waitUntil: 'networkidle0' });
   await new Promise((r) => setTimeout(r, 900));
   {
     // On était sur l'accueil avant de cliquer : le retour arrière y ramène,
@@ -1496,8 +1668,11 @@ console.log('\n\x1b[1mBrouillon\x1b[0m');
     t.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await attendre(500);
-  await pb.click('#exemples a[data-cle="combles"]');
-  await attendre(500);
+  await Promise.all([
+    pb.waitForNavigation({ waitUntil: 'networkidle0' }),
+    pb.click('#exemples a[data-cle="combles"]'),
+  ]);
+  await pb.waitForSelector('.verdict-titre');
   verifie('la pastille a bien chargé l’autre modèle', (await lireModele()).includes('combles'));
   await pb.goto(URL + '/', { waitUntil: 'networkidle0' });
   await attendre(400);
@@ -1551,9 +1726,9 @@ async function capture(nom, { largeur, hauteur, sombre, modele }) {
   await p.goto(URL, { waitUntil: 'networkidle0' });
   await p.waitForSelector('.verdict-titre', { timeout: 10000 });
   if (modele !== undefined) {
-    const b = await p.$$('#exemples a[data-cle]');
-    await b[modele].click();
-    await new Promise((r) => setTimeout(r, 700));
+    await p.goto(URL + cheminDe(MODELES[modele]), { waitUntil: 'networkidle0' });
+    await p.waitForSelector('.verdict-titre', { timeout: 10000 });
+    await new Promise((r) => setTimeout(r, 400));
   }
   const chemin = `${SORTIE}/${nom}.png`;
   await p.screenshot({ path: chemin, fullPage: false });

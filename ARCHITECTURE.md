@@ -1,6 +1,6 @@
 # Architecture — optiboussole.fr
 
-État au 4 septembre 2026 (fin de session 18).
+État au 6 septembre 2026 (fin de session 20).
 
 ## En une phrase
 
@@ -585,6 +585,37 @@ réponse, pas une tâche — et **seulement si la tête elle-même compte**, sin
 placée des secondaires à la tête, **jamais leur total** : la valeur d'une
 information ne s'additionne pas.
 
+### La médiane, dite en fréquence
+
+*« La notion de médiane doit devenir compréhensible pour le plus grand nombre ;
+en l'état elle reste une notion de statisticien posée devant quelqu'un qui veut
+décider. »* Le site parle en fréquences partout — « 9 chances sur 10 », « 3 fois
+sur 10 », « l'emporte 67 % du temps » — et gardait un seul mot de technicien,
+au milieu de la réponse.
+
+**Le mot ne paraît plus qu'à l'étape 3**, sur `/la-methode` et `/le-langage`, et
+il y est défini avant de servir : *le chiffre que la vraie valeur dépasse une
+fois sur deux*. Partout ailleurs la notion se dit dans l'échelle du reste :
+
+| où | ce qui s'affiche |
+| --- | --- |
+| le grand chiffre d'une estimation | « Une fois sur deux, c'est moins que ce chiffre ; une fois sur deux, c'est plus. » |
+| le repère de la courbe | `1 fois sur 2 sous 0,42 €/km` |
+| ce que vous jouez | « c'est **au moins** 2 776 € de mieux **une fois sur deux** » |
+| ce qui vous ferait changer d'avis | « le chiffre qu'elle dépasse une fois sur deux » |
+| une fourchette d'hypothèse | « La moitié du temps sous 845 €/an » (session 19) |
+
+Deux tests le tiennent : `run.js` vérifie qu'aucune page hors des deux pages
+d'explication ne contient le mot, et que sur celles-là il est défini là où il
+paraît d'abord ; `navigateur.js` vérifie les deux phrases de la réponse et que
+les trois étiquettes de l'axe tiennent encore dans 390 px — le repère a gagné
+neuf caractères en cessant de dire « médiane ».
+
+**« En médiane » est aussi devenu « au moins … une fois sur deux ».** Ce n'est
+pas qu'une paraphrase : « 2 776 € de mieux en médiane » se lit comme une
+moyenne, alors que le chiffre est un plancher tenu une fois sur deux. La forme
+longue dit la même chose et ne se laisse pas confondre.
+
 ## La bande de modèles
 
 **Elle est passée sous la réponse (session 15)**, à la fin de l'atelier, sous
@@ -659,13 +690,58 @@ tourne en dessous. Elle ne le peut d'ailleurs plus : `ajusterOuverture()` est
 appelée à **chaque** calcul et compare le texte affiché à la source servie.
 C'était auparavant une suite d'appels bien placés, et il en manquait un.
 
-**La réponse occupe la colonne de gauche, l'éditeur celle de droite** (54/46), et
-c'est l'ordre du DOM qui le porte : la tabulation et les lecteurs d'écran
-suivent la même route que l'œil. Le principe — « la réponse passe avant l'outil
-qui la produit » — était écrit dans `app.css` depuis la session 6, mais dans une
-règle `@media (max-width: 940px)` : au-delà, le code occupait la moitié gauche,
-c'est-à-dire la place qu'on lit en premier. Il n'y avait aucune raison à cette
-frontière, seulement l'ordre dans lequel le HTML avait été écrit.
+**La saisie occupe la colonne de gauche, la réponse celle de droite** (46/54),
+et c'est l'ordre du DOM qui le porte : la tabulation et les lecteurs d'écran
+suivent la même route que l'œil.
+
+⚠️ **C'est l'inverse de ce qui a tenu des sessions 6 à 19**, et l'inversion se
+justifie, sinon elle se rejouera. Le principe d'alors — « la réponse passe avant
+l'outil qui la produit », avec son corollaire « personne n'a demandé à programmer
+en arrivant » — décrivait un objet qui n'occupe plus cette place : l'outil était
+un `<textarea>` de quarante lignes de langage. Depuis la session 18 c'est un
+formulaire en français dont le premier champ se remplit sans rien apprendre. Le
+septième passage du lecteur extérieur — le premier d'une personne qui ne
+connaissait ni le site ni le projet — l'a dit ainsi : « on ne comprend pas la
+démarche ; il faudrait commencer par la saisie des paramètres du modèle, et
+ensuite expliquer ». Une prochaine session qui voudrait revenir en arrière doit
+d'abord dire ce qui a changé de nature dans la colonne de gauche.
+
+**Les trois temps sont numérotés à l'écran** (`<ol class="cinematique">` en tête
+de `<main>`, puis une pastille `.etape-n` sur chaque panneau) : ① vos chiffres,
+② la réponse, ③ pourquoi — facultatif. « Dans l'ergonomie, cette cinématique
+doit être explicite » : le site enchaînait ces trois choses sans jamais nommer
+l'ordre dans lequel on s'en sert. Trois tests tiennent l'ordre servi (`test/run.js`)
+et l'ordre à l'écran (`test/navigateur.js`).
+
+**Le prix de cet ordre se paie sur un téléphone, et il se paie explicitement.**
+En colonne unique, quatorze champs séparent le haut de la page de la réponse :
+le test « le verdict est visible sans faire défiler » n'avait plus de sens et a
+été remplacé par « le premier champ est visible sans faire défiler ». Ce qui
+rattrape le reste est la **barre de réponse** (`#barre-reponse`) : le verdict
+courant en une ligne, en bas de l'écran, affichée par un `IntersectionObserver`
+tant que `#resultats` n'est pas visible, et inexistante au-delà de 940 px où les
+deux colonnes sont côte à côte.
+
+Les hauteurs mesurées à 390 px, après l'inversion (elles remplacent celles de la
+section précédente, prises quand la réponse venait en tête) : sur une page de
+modèle, étape 1 à 350 px et premier champ à 642 px ; **sur l'accueil**, qui
+porte en plus l'encadré du pourquoi, cinématique à 422 px, étape 1 à 507 px,
+premier champ à 777 px (il était à 823 px avant que l'encadré soit raccourci). La règle tenue par un test : sur l'accueil, la
+cinématique et le titre de l'étape 1 restent au-dessus de la ligne de
+flottaison — c'est ce qui dit par où commencer — et le premier champ ne descend
+pas au-delà d'un écran. C'est ce budget qui a fait raccourcir l'encadré
+d'ouverture de deux lignes.
+
+**Ce qui est mathématique est dépliable.** Second point du même passage :
+« l'explication du modèle sous-jacent doit rester optionnelle ; on doit
+commencer par expliquer le pourquoi du modèle, son avantage, et le comportement
+qu'on tente d'appréhender ». L'ouverture de l'accueil dit donc, dans cet ordre :
+il manque toujours un chiffre et on finit par en inventer un (*le pourquoi*) ;
+une fourchette, vous la savez (*l'avantage*) ; on cherche le montant où la
+réponse change de camp (*le comportement*) — et seulement ensuite un chiffre.
+Côté réponse, l'épreuve des fourchettes élargies (`#robustesse`) est passée d'un
+panneau ouvert à un `<details>`, pour la même raison que le détail des calculs :
+c'est une vérification, pas le verdict.
 
 **Le texte de l'accueil a un budget, et c'est un test.** Le troisième passage
 du lecteur extérieur (session 16) a compté ce que la page lui mettait sous les
@@ -735,11 +811,30 @@ vit à la racine et n'a **pas** de seconde adresse : ce serait la même page à
 deux endroits.
 
 Côté client, `ui.js` lit `document.body.dataset.modele` pour savoir quel modèle
-afficher. Les pastilles sont de vrais `<a href>` interceptés pour naviguer sans
-rechargement (`pushState` + `popstate`) ; elles fonctionnent sans JavaScript.
-Priorité au démarrage : fragment d'URL partagé > modèle de la page > défaut.
-Le `localStorage` n'y figure plus : il alimente la barre de reprise, pas le
-contenu servi.
+afficher. Priorité au démarrage : fragment d'URL partagé > modèle de la page >
+défaut. Le `localStorage` n'y figure plus : il alimente la barre de reprise, pas
+le contenu servi.
+
+⚠️ **Les pastilles sont des liens ordinaires, que rien n'intercepte.** Elles ont
+été interceptées de la session 1 à la session 20 : un clic remplaçait le texte
+du `<textarea>` et poussait l'adresse dans l'historique, sans recharger. Le
+septième passage l'a fait apparaître d'un mot — *« quand je passe sur un autre
+modèle, l'ouverture continue de décrire la décision de la voiture »*. L'encadré
+d'ouverture n'était que la partie visible : le `<h1>`, la phrase qui le suit, le
+`<title>`, la description, le canonique, l'aperçu de lien et **les trois
+colonnes de l'étape 3** — ce que ce modèle compte, ce qu'il ignore, où trouver
+vos chiffres — sont écrits par `gabarit.js` et restaient ceux de la page
+quittée. Le site affichait un modèle et en racontait un autre, et la session 14
+n'avait bouché que le trou qu'elle avait vu.
+
+Les faire suivre côté client demanderait d'embarquer `outils/fond.js`, trente
+kilo-octets de prose, dans le navigateur de chaque visiteur — pour rattraper ce
+qu'une navigation donne gratuitement. Une page de modèle pèse quinze
+kilo-octets ; le CSS et le JavaScript, eux, sont déjà en cache. **La règle : ce
+qui est écrit par le serveur ne se rattrape pas au clavier. Un lien qui change
+le sujet de la page change la page.** Un test visite deux modèles à la pastille
+et compare `h1`, phrase de sous-titre, `<title>`, canonique et texte de fond à
+ce que `modeles.js` et `fond.js` disent de ce modèle-là.
 
 ## Ce que le site sait d'un modèle qu'il n'a pas écrit
 

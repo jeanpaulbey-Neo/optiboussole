@@ -146,7 +146,7 @@ option "Passer freelance" = freelance_an * (horizon - creuses * perte_creuse)`,
     cle: 'voiture',
     slug: 'garder-ou-changer-de-voiture',
     question:
-      "Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu’on ne croit, et un seul chiffre les sépare vraiment : ce que l’ancienne vous coûtera en réparations. Le modèle dit à partir de quel montant annuel la décision change de camp.",
+      "Garder une voiture qui coûte cher en réparations, ou en acheter une plus récente qui décote ? Les deux branches sont plus proches qu’on ne croit, et un seul chiffre les sépare vraiment : ce que l’ancienne vous coûtera en réparations.",
     titre: 'Garder ou changer de voiture',
     resume: 'La vieille voiture coûte cher. La neuve aussi.',
     // Ce que le nombre totalise, dit à l'endroit où il s'affiche.

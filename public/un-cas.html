@@ -55,8 +55,8 @@ conso_actuelle = 7 à 9          # L/100 km</code></pre>
     <p>Le commentaire après le <code>#</code> n’est pas décoratif : le site s’en sert pour vous reparler de <code>reparations</code> en français plutôt qu’en identifiant.</p>
     <p><b>Une chose surprend tout le monde ici, et il vaut mieux la savoir tout de suite.</b> Une fourchette dont les deux bornes sont positives n’est pas centrée sur son milieu :</p>
     <pre class="exemple"><code>x = 100 à 400</code></pre>
-    <p class="reponse">médiane 200, et non 250.</p>
-    <p>La valeur centrale est la moyenne <em>géométrique</em> des bornes. C’est voulu : sur un prix, une durée, un nombre de pannes, se tromper d’un facteur deux vers le haut est aussi plausible que vers le bas — pas de 150 € dans les deux sens. Sur <code>400 à 1800</code>, la médiane vaut donc 845 €, pas 1 100. Le repère pointillé au milieu de chaque fourchette affichée le montre : il tombe visiblement à gauche du centre.</p>
+    <p class="reponse">le chiffre du milieu est 200, et non 250 : une fois sur deux en dessous, une fois sur deux au-dessus.</p>
+    <p>Ce chiffre du milieu est la moyenne <em>géométrique</em> des deux bornes, et non leur demi-somme. C’est voulu : sur un prix, une durée, un nombre de pannes, se tromper d’un facteur deux vers le haut est aussi plausible que vers le bas — pas de 150 € dans les deux sens. Sur <code>400 à 1800</code>, il tombe donc à 845 €, et non à 1 100. Le repère pointillé de chaque fourchette affichée le montre : il est visiblement à gauche du centre.</p>
   </section>
 
   <section class="chapitre">
@@ -64,7 +64,7 @@ conso_actuelle = 7 à 9          # L/100 km</code></pre>
     <p>Quatre phrases, dans cet ordre. La première est la moins intéressante.</p>
     <p class="reponse"><b>Garder l’actuelle.</b> L’emporte 67 % du temps : 3 fois sur 10, l’autre branche aurait été meilleure.</p>
     <p>Un verdict à 67 % n’est pas un verdict, c’est une préférence. Retenez-en surtout la seconde moitié : <b>une fois sur trois, ce conseil est mauvais.</b> Aucun simulateur ne vous dit ça, et c’est pourtant ce qu’il faut savoir avant de s’y fier.</p>
-    <p class="reponse"><b>Ce que vous jouez.</b> Quand « Garder l’actuelle » l’emporte — 7 fois sur 10 —, c’est 2 776 € de mieux en médiane. Quand l’autre branche aurait été meilleure — 3 fois sur 10 —, c’est 1 920 € de moins, et jusqu’à 7 650 € dans le pire vingtième de ces cas-là.</p>
+    <p class="reponse"><b>Ce que vous jouez.</b> Quand « Garder l’actuelle » l’emporte — 7 fois sur 10 —, c’est au moins 2 776 € de mieux une fois sur deux. Quand l’autre branche aurait été meilleure — 3 fois sur 10 —, c’est au moins 1 920 € de moins une fois sur deux, et jusqu’à 7 650 € dans le pire vingtième de ces cas-là.</p>
     <p>Deux branches peuvent se valoir en fréquence sans être le même pari. Ici vous gagnez souvent et modérément, vous perdez rarement et parfois beaucoup : la courbe sous cette phrase montre les deux versants, et l’aire de chaque côté du trait <b>est</b> la fréquence annoncée.</p>
     <p class="reponse">L’hypothèse qui pèse le plus sur ce choix est <code>reparations</code>, ce que l’ancienne vous coûtera en pannes et en entretien. Le verdict passe à « Changer » au-dessus de <b>1 109 €/an</b>, ce qui arrive 3 fois sur 10.</p>
     <p>Voilà la phrase utile. Sur huit hypothèses, <b>une seule décide</b> : elle porte 55 % de l’écart entre les branches. Et le site ne dit pas seulement laquelle, il dit <b>où est la frontière</b> — 1 109 € par an. Au-dessus, changez ; en dessous, gardez.</p>

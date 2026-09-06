@@ -116,13 +116,13 @@ const LANGAGE_FONCTIONS = `  <h3>Fonctions disponibles</h3>
     <tr><td>si … alors … sinon …</td><td>Condition. Avec <code>et</code>, <code>ou</code>, <code>non</code> et les comparaisons.</td></tr>
     <tr><td>cumul(taux, années)</td><td><code>1 + (1+t) + … + (1+t)^(a-1)</code>. Pour capitaliser un versement annuel constant.</td></tr>
     <tr><td>serie(placement, croissance, années)</td><td>Un versement qui croît de <code>g</code> chaque année et se place à <code>r</code>. Pour comparer un loyer qui monte à un capital qui rapporte.</td></tr>
-    <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
+    <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. La médiane d’une <code>lognormale</code> est le chiffre qu’elle dépasse une fois sur deux. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
     <tr><td>proba(condition)<br>esperance(x) · mediane(x) · ecart_type(x)</td><td>Résument toute la simulation en un seul nombre.</td></tr>
   </table>`;
 const LANGAGE_LOIS = `  <h3>La fourchette et la loi</h3>
   <p>
-    <code>100 à 400</code>, deux bornes positives, donne une <b>lognormale</b> : la médiane est la
-    moyenne géométrique (200, pas 250) et le résultat ne devient jamais négatif — le bon réflexe
+    <code>100 à 400</code>, deux bornes positives, donne une <b>lognormale</b> : sa médiane — le
+    chiffre dépassé une fois sur deux — est la moyenne géométrique (200, pas 250) et le résultat ne devient jamais négatif — le bon réflexe
     pour un prix, une durée, une quantité. <code>−2 % à 5 %</code>, dont les bornes changent de
     signe, donne une <b>normale</b>. <code>0 à 100</code> donne une normale repliée : écrire zéro
     comme borne basse, c’est dire qu’on exclut le négatif.
@@ -312,72 +312,107 @@ export function page({ modele, modeles, defaut, accueil }) {
   ${accueil
     ? `<div class="exemple-ouverture">
     <p>
-      Vous ne savez pas ce que l’ancienne coûtera en pannes : écrivez la fourchette —
-      <b>entre 400 et 1 800 € par an</b> — plutôt qu’un chiffre inventé. Réponse :
-      <b>au-dessus de 1 109 € par an, changez</b>, ce qui arrive 3 fois sur 10 ; et
-      <b>ressortir vos factures de garage vaut 631 €</b>, c’est le seul travail qui
-      change quelque chose ici.
-    </p>
-    <p class="exemple-suite">
-      Ce sont les chiffres du modèle ci-contre&nbsp;: <b>pour vous en servir, remplacez-les
-      dans le formulaire</b> — une borne basse, une borne haute, et la réponse se refait à
-      chaque frappe. Le texte du modèle est dessous, dépliable, pour qui préfère l’écrire.
-      Le calcul se fait sur votre appareil.
-      <a href="/un-cas">Voir plutôt ce cas raconté du début à la fin →</a>
+      Devant un choix, il manque toujours un chiffre, et on finit par en inventer
+      un&nbsp;: c’est alors l’invention qui décide, pas vous. <b>Ici, une fourchette
+      suffit.</b> Boussole en tire <b>le montant où la réponse change de camp</b>,
+      et lequel de vos chiffres l’y emmène.
     </p>
   </div>`
     : ''}
 </header>
 
 <main id="contenu" tabindex="-1">
+
+<!-- La cinématique, écrite. Septième passage, et le premier d'une lectrice qui
+     ne connaissait ni le site ni le projet : « on ne comprend pas la démarche ».
+     Le site enchaînait trois choses — une prose, une réponse déjà calculée, un
+     formulaire — sans jamais nommer l'ordre dans lequel on s'en sert. Les trois
+     étapes sont maintenant numérotées à l'écran, dans l'ordre où on les fait. -->
+<ol class="cinematique">
+  <li><span class="etape-n">1</span> Vos chiffres</li>
+  <li><span class="etape-n">2</span> La réponse, refaite à chaque frappe</li>
+  <li><span class="etape-n">3</span> Pourquoi <em>— facultatif</em></li>
+</ol>
+
 <div class="atelier">
 
-  <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
-       le verdict. La zone entière en aria-live aurait relu toute la page à
-       chaque frappe. -->
-  <p class="annonce" id="annonce" aria-live="polite"></p>
-  <section class="resultats" id="resultats" role="region" aria-label="Résultats"></section>
+  <!-- ① La saisie d'abord, la réponse ensuite : c'est l'ordre demandé, et c'est
+       aussi l'ordre du DOM, donc celui de la tabulation et des lecteurs d'écran.
+       Il inverse celui des sessions 6 à 19, « la réponse passe avant l'outil qui
+       la produit » — voir ARCHITECTURE.md : l'outil était alors un éditeur de
+       code, il ne l'est plus depuis la session 18. -->
+  <div class="colonne">
+    <h2 class="etape-titre"><span class="etape-n">1</span> Vos chiffres</h2>
+    <section class="panneau editeur" aria-label="Vos chiffres">
+      <div class="editeur-entete">
+        <span class="editeur-actions">
+          <button type="button" id="partager">Copier le lien</button>
+          <button type="button" id="copier-verdict" title="Le verdict en texte, à coller dans une discussion">Copier le verdict</button>
+          <button type="button" id="reinit">Réinitialiser</button>
+        </span>
+      </div>
+      <p class="reprise" id="reprise" hidden>
+        <span id="reprise-texte"></span>
+        <button type="button" id="reprise-oui">Le reprendre</button>
+        <button type="button" id="reprise-non">L’oublier</button>
+      </p>
+      <div class="reglages" id="reglages" hidden></div>
+      <!-- Le formulaire (#reglages) est écrit par ui.js à partir du texte
+           ci-dessous, et le replie quand il a de quoi le remplacer. Sans
+           JavaScript, il n'y a pas de formulaire : le <details> est donc servi
+           ouvert, et le modèle reste lisible tel quel. -->
+      <details class="texte-modele" id="texte-modele" open>
+        <summary>Le texte du modèle</summary>
+        <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+          aria-label="Description du modèle">${echappe(modele.source)}</textarea>
+      </details>
+      <p class="erreur" id="erreur" hidden role="status"></p>
+      <ul class="avertissements" id="avertissements" hidden></ul>
+    </section>
+  </div>
 
-  <!-- L'éditeur vient après la réponse, dans l'ordre du DOM comme à l'écran :
-       personne n'a demandé à programmer en arrivant.
-
-       Le formulaire (#reglages) est écrit par ui.js à partir du texte
-       ci-dessous, et le replie quand il a de quoi le remplacer. Sans
-       JavaScript, il n'y a pas de formulaire : le <details> est donc servi
-       ouvert, et le modèle reste lisible tel quel. -->
-  <section class="panneau editeur" aria-label="Le modèle">
-    <div class="editeur-entete">
-      <span>Le modèle</span>
-      <span class="editeur-actions">
-        <button type="button" id="partager">Copier le lien</button>
-        <button type="button" id="copier-verdict" title="Le verdict en texte, à coller dans une discussion">Copier le verdict</button>
-        <button type="button" id="reinit">Réinitialiser</button>
-      </span>
-    </div>
-    <p class="reprise" id="reprise" hidden>
-      <span id="reprise-texte"></span>
-      <button type="button" id="reprise-oui">Le reprendre</button>
-      <button type="button" id="reprise-non">L’oublier</button>
-    </p>
-    <div class="reglages" id="reglages" hidden></div>
-    <details class="texte-modele" id="texte-modele" open>
-      <summary>Le texte du modèle</summary>
-      <textarea id="modele" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
-        aria-label="Description du modèle">${echappe(modele.source)}</textarea>
-    </details>
-    <p class="erreur" id="erreur" hidden role="status"></p>
-    <ul class="avertissements" id="avertissements" hidden></ul>
-  </section>
+  <div class="colonne">
+    <h2 class="etape-titre"><span class="etape-n">2</span> La réponse</h2>
+    <!-- Une seule phrase est annoncée aux lecteurs d’écran à chaque recalcul :
+         le verdict. La zone entière en aria-live aurait relu toute la page à
+         chaque frappe. -->
+    <p class="annonce" id="annonce" aria-live="polite"></p>
+    <section class="resultats" id="resultats" role="region" aria-label="La réponse"></section>
+  </div>
 
 </div>
+
+<!-- Le prix de l'ordre demandé : sur un téléphone, la réponse est sous un
+     formulaire de quatorze champs, donc invisible pendant qu'on le remplit.
+     Cette barre la suit — le verdict courant, en une ligne, tant que la réponse
+     n'est pas à l'écran. Elle n'existe qu'en dessous de 940 px : au-delà, les
+     deux colonnes sont côte à côte et il n'y a rien à rattraper. -->
+<a class="barre-reponse" id="barre-reponse" href="#resultats" hidden>
+  <span class="barre-etiquette"><span class="etape-n">2</span> La réponse</span>
+  <span class="barre-texte"></span>
+</a>
+
+<h2 class="etape-titre etape-trois"><span class="etape-n">3</span> Pourquoi ce modèle, et ce qu’il ignore <em>— facultatif</em></h2>
+
+${accueil
+  ? `<div class="panneau exemple-lu">
+  <p>
+    <b>Sur cet exemple.</b> Vous ne savez pas ce que l’ancienne coûtera en pannes&nbsp;:
+    la fourchette «&nbsp;entre 400 et 1 800 € par an&nbsp;» suffit à répondre. Au-dessus de
+    <b>1 109 € par an, changez</b> — ce qui arrive 3 fois sur 10 ; et <b>ressortir vos factures
+    de garage vaut 631 €</b>, c’est le seul travail qui change quelque chose ici.
+    <a href="/un-cas">Voir ce cas raconté du début à la fin →</a>
+  </p>
+</div>`
+  : ''}
 
 ${fond(modele)}
 
 ${AIDE}
 
 <nav class="autres" aria-label="Modèles">
-  <p class="autres-intro">La même méthode sur ${modeles.length - 1} autres décisions déjà écrites
-    — ou sur la vôtre, à écrire dans le cadre ci-dessus.</p>
+  <p class="autres-intro">La même méthode sur ${modeles.length - 1} autres décisions déjà
+    écrites — ou sur la vôtre, à l’étape 1.</p>
   <ul class="exemples" id="exemples">
 ${chips(modeles, modele.cle, defaut)}
   </ul>

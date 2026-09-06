@@ -39,10 +39,11 @@ try { modeQuestions = localStorage.getItem(CLE_MODE) === 'questions'; } catch { 
 // C'est maintenant une question posée à chaque calcul, à laquelle il n'y a
 // qu'une réponse possible : le texte affiché est-il celui que la page sert ?
 function ajusterOuverture() {
-  const n = document.querySelector('.exemple-ouverture');
-  if (!n) return;
+  const noeuds = document.querySelectorAll('.exemple-ouverture, .exemple-lu');
+  if (noeuds.length === 0) return;
   const servi = MODELES.find((m) => m.cle === (document.body.dataset.modele || MODELE_PAR_DEFAUT));
-  n.hidden = !servi || zoneModele.value.trim() !== servi.source.trim();
+  const dehors = !servi || zoneModele.value.trim() !== servi.source.trim();
+  for (const n of noeuds) n.hidden = dehors;
 }
 let cleCourante = document.body.dataset.modele || MODELE_PAR_DEFAUT;
 
@@ -195,7 +196,7 @@ function courbe(stats, unite, seuil = null) {
     svg,
     el('div', { class: 'axe' }, [
       el('span', { text: valeur(stats.p05, unite) }),
-      el('span', { text: 'médiane ' + valeur(stats.p50, unite) }),
+      el('span', { text: '1 fois sur 2 sous ' + valeur(stats.p50, unite) }),
       el('span', { text: valeur(stats.p95, unite) }),
     ]),
   ]);
@@ -690,12 +691,16 @@ function phrasePari(r) {
     ? [', et jusqu’à ', el('b', { text: valeur(P.pertePire, unite) }),
        ' dans le pire vingtième de ces cas-là']
     : [];
+  // « en médiane » disait le calcul, pas ce qu'on en fait. Les deux chiffres se
+  // lisent maintenant dans la seule échelle que le site emploie ailleurs — une
+  // fréquence : c'est le montant qu'on dépasse une fois sur deux.
   return phrase(
     el('b', { text: 'Ce que vous jouez. ' }),
     'Quand \u00ab\u202f', rec.nom, '\u202f\u00bb l’emporte — ', frequence(P.pGain),
-    ' —, c’est ', el('b', { text: valeur(P.gainMedian, unite) }), ' de mieux en médiane. Quand ',
-    autre, ' aurait été meilleure — ', frequence(P.pPerte), ' —, c’est ',
-    el('b', { text: valeur(P.perteMediane, unite) }), ' de moins',
+    ' —, c’est au moins ', el('b', { text: valeur(P.gainMedian, unite) }),
+    ' de mieux une fois sur deux. Quand ',
+    autre, ' aurait été meilleure — ', frequence(P.pPerte), ' —, c’est au moins ',
+    el('b', { text: valeur(P.perteMediane, unite) }), ' de moins une fois sur deux',
     ...pire, '.');
 }
 
@@ -999,9 +1004,13 @@ function blocEstimation(r) {
   verdict.appendChild(el('h2', { class: 'verdict-titre' }, valeur(st.p50, unite)));
   const totalise = resultatDuModele();
   if (totalise) verdict.appendChild(el('p', { class: 'option-intro', text: totalise }));
+  // Le grand chiffre au-dessus est la médiane, et c'est l'endroit du site où
+  // quelqu'un qui veut décider rencontre cette notion pour la première fois.
+  // Elle n'y est plus nommée : elle y est dite en fréquence, comme tout le reste.
   verdict.appendChild(phrase(
+    'Une fois sur deux, c’est moins que ce chiffre ; une fois sur deux, c’est plus. ',
     'Neuf fois sur dix, entre ', valeur(st.p05, unite), ' et ', valeur(st.p95, unite),
-    '. La valeur médiane seule ne vous apprend presque rien : c’est la largeur qui compte.'));
+    ' — et c’est cette largeur qui compte, pas le chiffre du milieu.'));
 
   if (r.seuil !== null && r.pAtteint !== undefined) {
     const max = r.seuilSens === 'max';
@@ -1088,8 +1097,8 @@ function rendreContre(c, r) {
 
   if (c.medianeContredit) {
     bloc.appendChild(phrase(
-      el('b', { text: 'Vos valeurs médianes disent déjà l\u2019inverse. ' }),
-      'Si chaque hypothèse tombait exactement sur sa valeur centrale, le résultat serait ',
+      el('b', { text: 'Vos valeurs centrales disent déjà l\u2019inverse. ' }),
+      'Si chaque hypothèse tombait sur le chiffre qu’elle dépasse une fois sur deux, le résultat serait ',
       c.modeDecision ? `\u00ab\u202f${c.cible}\u202f\u00bb` : 'de l\u2019autre côté du seuil',
       '. Ce verdict ne tient donc pas au centre de vos fourchettes mais à leur forme : ',
       'c\u2019est une hésitation, pas une réponse.'));
@@ -1100,7 +1109,7 @@ function rendreContre(c, r) {
   if (c.surLaFrontiere) {
     bloc.appendChild(phrase(
       el('b', { text: 'Vous êtes exactement sur la ligne. ' }),
-      'Avec chaque hypothèse à sa valeur centrale, le résultat tombe pile sur ',
+      'Avec chaque hypothèse au chiffre qu’elle dépasse une fois sur deux, le résultat tombe pile sur ',
       c.modeDecision ? 'l\u2019égalité entre les deux branches' : valeur(r.seuil, r.unite),
       '. Il n\u2019y a aucun chiffre à corriger pour ', but,
       ' : le moindre écart, dans n\u2019importe quel sens, suffit. ',
@@ -1294,7 +1303,7 @@ function rendreRobustesse(rob, r) {
   bloc.replaceChildren();
   if (!rob || !rob.applicable) { bloc.hidden = true; return; }
   bloc.hidden = false;
-  bloc.appendChild(el('h2', { text: 'Et si vos fourchettes étaient trop étroites ?' }));
+  bloc.appendChild(el('summary', { text: 'Et si vos fourchettes étaient trop étroites ?' }));
 
   if (rob.modeDecision) {
     const gagnante = r.options.liste[r.options.recommande].nom;
@@ -1387,8 +1396,29 @@ function annoncer() {
   zoneAnnonce.textContent = texte;
 }
 
+// La barre de réponse : le verdict courant, en une ligne, tant que la réponse
+// n'est pas à l'écran. Elle n'a d'objet que sur un téléphone — la saisie passe
+// devant depuis la session 20, et quatorze champs séparent alors le premier
+// chiffre qu'on tape de ce qu'il change. Le CSS la cache au-delà de 940 px.
+const barreReponse = $('#barre-reponse');
+
+function majBarre() {
+  if (!barreReponse) return;
+  const titre = zoneResultats.querySelector('.verdict-titre');
+  const texte = titre ? titre.textContent.trim() : '';
+  barreReponse.querySelector('.barre-texte').textContent = texte;
+  barreReponse.hidden = texte === '';
+}
+
+if (barreReponse && typeof IntersectionObserver === 'function') {
+  new IntersectionObserver((entrees) => {
+    for (const e of entrees) barreReponse.classList.toggle('montre', !e.isIntersecting);
+  }).observe(zoneResultats);
+}
+
 function rendre(r) {
   rendreContenu(r);
+  majBarre();
   annoncer();
 }
 
@@ -1482,7 +1512,10 @@ function rendreContenu(r) {
     if (contre) zoneResultats.appendChild(contre);
   } catch { /* une frontière introuvable ne doit pas emporter la page */ }
 
-  zoneResultats.appendChild(el('section', { class: 'panneau bloc', id: 'robustesse', hidden: true }));
+  // Une épreuve du résultat, pas le résultat : elle se replie. « L'explication
+  // du modèle sous-jacent doit rester optionnelle » (septième passage) — et
+  // « 1,25× 63 % · 1,5× 61 % » est ce que la réponse a de plus mathématique.
+  zoneResultats.appendChild(el('details', { class: 'panneau bloc', id: 'robustesse', hidden: true }));
 
   const detail = rendreDetail(r);
   if (detail) zoneResultats.appendChild(detail);
@@ -1690,10 +1723,12 @@ function modifierQuestions(entree, e) {
 
 // Le rappel de ce qu'est une fourchette, à l'endroit où on la saisit. Il était
 // sur trois pages de fond ; c'est ici qu'il sert.
-const INTRO_BORNES = 'Vos chiffres. Pour ce que vous ne savez pas, donnez deux bornes '
+const INTRO_BORNES = 'Ce sont les chiffres de l\u2019exemple : remplacez-les par les v\u00f4tres. '
+  + 'Pour ce que vous ne savez pas, donnez deux bornes '
   + 'plutôt qu’une valeur inventée : celles entre lesquelles vous mettriez 9 chances sur 10.';
 
-const INTRO_QUESTIONS = 'Vos chiffres. Pour ce que vous ne savez pas, répondez à deux '
+const INTRO_QUESTIONS = 'Ce sont les chiffres de l\u2019exemple : remplacez-les par les v\u00f4tres. '
+  + 'Pour ce que vous ne savez pas, r\u00e9pondez \u00e0 deux '
   + 'questions : la valeur que vous donneriez si on vous en demandait une seule, puis '
   + 'celle que vous n’atteindriez qu’une fois sur dix — au-dessus ou en dessous, celle '
   + 'qui vous inquiète. Le site en fait votre fourchette.';
@@ -1890,10 +1925,23 @@ function decoder(b64) {
 // --- Bibliothèque -------------------------------------------------------------
 //
 // Chaque modèle a sa propre adresse (/prix-du-kilometre…) : les pastilles sont
-// de vrais liens, présents dans le HTML servi. On les intercepte pour changer
-// de modèle sans recharger, mais elles fonctionnent sans JavaScript.
-
-const adresse = (m) => (m.cle === MODELE_PAR_DEFAUT ? '/' : '/' + m.slug);
+// de vrais liens, présents dans le HTML servi, et **ce sont des liens ordinaires
+// que rien n'intercepte**.
+//
+// Elles l'étaient jusqu'à la session 20 : un clic remplaçait le texte du modèle
+// et poussait la nouvelle adresse dans l'historique, sans recharger. Le
+// septième passage l'a fait apparaître d'un mot — « quand je passe sur un autre
+// modèle, l'ouverture continue de décrire la décision de la voiture ». Elle
+// n'était pas seule : le `<h1>`, la phrase qui le suit, le `<title>`, le
+// canonique, et surtout les trois colonnes de l'étape 3 — ce que ce modèle
+// compte, ce qu'il ignore, où trouver vos chiffres — sont écrits par le serveur
+// et restaient ceux de la page quittée. Le site affichait un modèle et en
+// racontait un autre.
+//
+// Les faire suivre côté client demandait d'embarquer `outils/fond.js`, trente
+// kilo-octets de prose, pour rattraper ce qu'une navigation donne gratuitement.
+// Une page de modèle pèse quinze kilo-octets, l'essentiel de son coût est le CSS
+// et le JavaScript, déjà en cache. Le lien redevient donc un lien.
 
 function marquerPastille(cle) {
   let actif = null;
@@ -1924,21 +1972,6 @@ function chargerModele(cle, { remplacerTexte = true } = {}) {
   positionnerTexte();
 }
 
-listeExemples.addEventListener('click', (e) => {
-  const a = e.target.closest('a[data-cle]');
-  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-  e.preventDefault();
-  history.pushState({ cle: a.dataset.cle }, '', a.getAttribute('href'));
-  chargerModele(a.dataset.cle);
-  proposerBrouillon();
-  zoneResultats.scrollIntoView({ block: 'nearest' });
-});
-
-window.addEventListener('popstate', () => {
-  const chemin = location.pathname.replace(/\/$/, '');
-  const m = MODELES.find((x) => adresse(x).replace(/\/$/, '') === chemin);
-  if (m) { chargerModele(m.cle); proposerBrouillon(); }
-});
 
 // --- Le brouillon d'un visiteur qui revient ------------------------------------
 //

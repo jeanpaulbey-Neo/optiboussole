@@ -8,6 +8,214 @@ donc à lire comme signées Opus 5. Chaque entrée indique le modèle qui l'a é
 
 ---
 
+## 6 septembre 2026 — Session 20 : le site ne disait pas dans quel ordre s’en servir
+
+*Modèle : Claude Opus 5 (fenêtre 1 M).*
+
+### Donnée externe — septième passage, et le premier qui ne vienne pas de Jean-Paul
+
+Les six premiers passages venaient du même lecteur. Celui-ci vient de la
+compagne de Jean-Paul, **qui ne connaissait ni le site ni le projet**. C’est la
+première fois qu’une personne arrive ici sans savoir ce qu’elle regarde, et ce
+qu’elle rapporte n’est d’aucune des six catégories précédentes. Ses mots :
+
+> « On ne comprend pas la démarche. Il faudrait commencer par la saisie des
+> paramètres du modèle, et ensuite expliquer. Dans l’ergonomie, cette
+> cinématique doit être explicite. »
+>
+> « L’explication du modèle sous-jacent doit rester optionnelle. On doit
+> commencer par expliquer le pourquoi du modèle, son avantage, et le
+> comportement qu’on tente d’appréhender, avant de rentrer dans l’explication
+> mathématique. »
+
+Les six passages précédents disaient « le site ne sait pas faire ceci » ou
+« le site affiche mal cela ». Celui-ci dit **« je ne vois pas quoi faire de ce
+qui est devant moi »**, ce qui est une critique d’un cran au-dessus : la page
+enchaînait une prose, une réponse déjà calculée et un formulaire, sans jamais
+nommer l’ordre dans lequel on s’en sert. Chacun des trois était défendable. Leur
+suite ne l’était pas, et personne ne l’avait écrite.
+
+Jean-Paul a ajouté deux points de son côté :
+
+> « Le haut du site parle de changer de voiture quel que soit le cas qu’on
+> regarde — quand je passe sur un autre modèle, l’ouverture continue de décrire
+> la décision de la voiture. »
+>
+> « La notion de médiane doit devenir compréhensible pour le plus grand nombre ;
+> en l’état elle reste une notion de statisticien posée devant quelqu’un qui
+> veut décider. »
+
+### 1. Trois temps, numérotés
+
+`① vos chiffres → ② la réponse, refaite à chaque frappe → ③ pourquoi — facultatif`
+
+La bande est écrite en tête de `<main>`, et chacun des trois panneaux porte sa
+pastille dans un vrai `<h2>`. C’est la réponse littérale à « cette cinématique
+doit être explicite » : le site *avait* trois temps, il ne les *disait* pas.
+
+**Et la saisie est passée à gauche, la réponse à droite.** C’est l’inverse de ce
+qui tenait des sessions 6 à 19 — « la réponse passe avant l’outil qui la
+produit », avec son corollaire « personne n’a demandé à programmer en
+arrivant ». J’ai hésité, parce qu’une règle qu’on retourne à la première
+remarque n’est pas une règle. Ce qui l’emporte : **la règle décrivait un objet
+qui n’existe plus.** La colonne de gauche était un `<textarea>` de quarante
+lignes de langage ; depuis la session 18 c’est un formulaire en français dont le
+premier champ se remplit sans rien apprendre. On ne met plus la même chose
+devant. C’est écrit dans `ARCHITECTURE.md` avec un ⚠️ : une session qui voudrait
+revenir en arrière doit d’abord dire ce qui a changé de nature dans cette
+colonne.
+
+L’ordre du DOM suit l’ordre à l’écran, donc la tabulation et les lecteurs
+d’écran aussi.
+
+### 2. Le pourquoi avant les mathématiques
+
+L’ouverture de l’accueil citait un seuil, une fréquence et une valeur
+d’information en quatre lignes — c’est-à-dire la sortie du site avant son
+entrée. Elle dit maintenant, dans l’ordre demandé : il manque toujours un
+chiffre et on finit par en inventer un (*le pourquoi*) ; une fourchette, elle,
+vous la savez (*l’avantage*) ; ce qu’on cherche est le montant où la réponse
+change de camp (*le comportement*). Aucun résultat, aucune loi, aucun tirage.
+L’exemple chiffré n’a pas disparu : il est descendu à l’étape 3, où il illustre
+la réponse au lieu de la précéder. Un test vérifie qu’il n’en remonte pas.
+
+Côté réponse, **l’épreuve des fourchettes élargies se replie**. C’est ce que la
+page a de plus mathématique — « 1,25× 63 % · 1,5× 61 % » — et elle occupait un
+panneau ouvert entre le verdict et le détail des calculs. Elle est devenue un
+`<details>`, pour la raison qui vaut déjà pour le détail des calculs : c’est une
+vérification, pas le verdict.
+
+### 3. Le prix de l’ordre demandé
+
+Mettre la saisie devant a un coût, et il fallait le payer plutôt que le nier :
+sur un téléphone, quatorze champs séparent le haut de la page de la réponse. Le
+test « le verdict est visible sans faire défiler » est donc tombé — je l’ai
+remplacé par « le premier champ est visible sans faire défiler », qui est ce
+qu’on veut désormais, et par une **barre de réponse** : le verdict courant, en
+une ligne, en bas de l’écran, tant que la réponse n’est pas visible. Elle
+n’existe pas au-delà de 940 px, où les deux colonnes sont côte à côte.
+
+En mesurant, j’ai vu que **l’accueil ne tenait pas ce budget** : son encadré du
+pourquoi le repoussait au point que le premier champ tombait à 823 px, sous la
+ligne de flottaison d’un téléphone. Le test que je venais d’écrire ne le voyait
+pas — il tournait sur une page de modèle, qui n’a pas cet encadré. J’ai
+raccourci l’encadré de deux lignes et ajouté le test qui manquait : sur
+l’accueil, la cinématique et le titre de l’étape 1 restent visibles sans
+défiler. C’est ce qui dit par où commencer ; le reste, la barre le rattrape.
+
+### 4. Une pastille est un lien : elle change la page
+
+C’est le vrai défaut de la session, et il vivait là depuis la session 1.
+
+Les pastilles étaient de vrais `<a href>` **interceptés** : un clic remplaçait le
+texte du `<textarea>` et poussait l’adresse dans l’historique, sans recharger.
+Ce que Jean-Paul a vu — l’encadré d’ouverture qui continue de parler de voiture
+— n’était que la partie visible. Le `<h1>`, la phrase qui le suit, le `<title>`,
+la description, le canonique, l’aperçu de lien, et **les trois colonnes de
+l’étape 3** — ce que ce modèle compte, ce qu’il ignore, où trouver vos chiffres —
+sont écrits par `gabarit.js` et restaient ceux de la page quittée. *Le site
+affichait un modèle et en racontait un autre.* La session 14 avait bouché le seul
+trou qu’elle avait vu, l’encadré, et avait écrit un test qui ne vérifiait que
+celui-là.
+
+Faire suivre tout cela côté client demandait d’embarquer `outils/fond.js` —
+trente kilo-octets de prose — dans le navigateur de chaque visiteur, pour
+rattraper ce qu’une navigation donne gratuitement. Une page de modèle pèse
+quinze kilo-octets, et son CSS comme son JavaScript sont déjà en cache. J’ai
+donc **supprimé l’interception** : `pushState`, `popstate`, et le petit
+`scrollIntoView` qui allait avec. Le lien redevient un lien.
+
+La règle qui en sort, écrite dans `ARCHITECTURE.md` : **ce qui est écrit par le
+serveur ne se rattrape pas au clavier.** Et le test qui la tient ne compare plus
+un encadré : il visite deux modèles à la pastille et compare `h1`, sous-titre,
+`<title>`, canonique et texte de fond à ce que `modeles.js` et `fond.js` disent
+de ce modèle-là.
+
+### 5. La médiane, dite en fréquence
+
+Le site parle en fréquences partout — « 9 chances sur 10 », « 3 fois sur 10 »,
+« l’emporte 67 % du temps ». Il gardait **un seul mot de technicien**, et au
+milieu de la réponse. La correction n’est pas de cacher le mot : c’est de dire la
+chose dans l’échelle où le reste du site est déjà écrit.
+
+| où | avant | maintenant |
+| --- | --- | --- |
+| le grand chiffre d’une estimation | « La valeur médiane seule ne vous apprend presque rien » | « Une fois sur deux, c’est moins que ce chiffre ; une fois sur deux, c’est plus. » |
+| le repère de la courbe | `médiane 0,42 €/km` | `1 fois sur 2 sous 0,42 €/km` |
+| ce que vous jouez | « c’est 2 776 € de mieux **en médiane** » | « c’est **au moins** 2 776 € de mieux **une fois sur deux** » |
+| ce qui vous ferait changer d’avis | « sur sa valeur centrale » | « sur le chiffre qu’elle dépasse une fois sur deux » |
+
+La deuxième ligne du tableau n’est pas une paraphrase : « 2 776 € de mieux en
+médiane » **se lit comme une moyenne**, alors que le chiffre est un plancher
+tenu une fois sur deux. La forme longue dit la même chose et ne se laisse pas
+confondre.
+
+Le mot lui-même ne paraît plus qu’à l’étape 3, sur `/la-methode` et
+`/le-langage`, et il y est défini avant de servir. Un test le tient : aucune
+autre page ne contient le mot, et sur ces deux-là la définition est là où il
+paraît d’abord. Un second vérifie que les trois étiquettes de l’axe tiennent
+encore dans 390 px — le repère a gagné neuf caractères en cessant de dire
+« médiane ».
+
+### Ce que j’ai écarté
+
+- **Faire suivre l’en-tête et le texte de fond côté client.** Trente kilo-octets
+  de prose embarqués pour éviter un rechargement de quinze. Voir ci-dessus.
+- **Unifier de force « la moitié du temps sous 845 € » et « une fois sur
+  deux ».** J’ai failli réécrire la phrase de la session 19 pour n’avoir qu’une
+  seule formule. Ce sont deux synonymes de français ordinaire ; les aligner au
+  mot près est une idée de machine, et la phrase existante avait été validée par
+  un lecteur.
+- **Retirer le mot « médiane » aussi de `/la-methode`.** C’est la page qui
+  explique la méthode ; elle a le droit de nommer ce qu’elle explique, à
+  condition de le définir. Le cacher partout aurait été de la pudeur, pas de la
+  pédagogie.
+
+### Ce que je retire de la liste, comme promis
+
+**Écrire un modèle entier de zéro, comme quelqu’un qui découvre.** Reporté
+depuis la session 17, quatre fois. La session 19 avait posé la règle : *« si un
+septième passage arrive, il passe encore avant, et alors je dois admettre que ce
+point ne se fera jamais et le retirer »*. Le septième passage est arrivé. Je le
+retire. Ce n’était pas un travail utile à un visiteur, c’était un exercice que je
+m’inventais pour avoir l’air rigoureux, et six passages de lecteurs réels ont
+produit plus que ce qu’il aurait produit.
+
+### État à la fin de la session
+
+- **763** assertions sur le moteur et les pages servies (contre 750),
+  **384** dans un vrai navigateur (contre 359). Toutes vertes.
+- Douze modèles, seize pages, trois temps numérotés, une pastille qui recharge.
+- `https://optiboussole.fr` répond ; `npm test` et `npm run test:navigateur`
+  sont verts.
+- Mandat respecté : aucune dépense, aucun envoi, aucune donnée personnelle.
+
+### Ce que je ferais ensuite
+
+1. **Un huitième passage, par la même lectrice.** C’est la seule personne à
+   avoir vu le site sans savoir ce que c’était, et tout ce que j’ai fait cette
+   session répond à ce qu’elle a dit sans qu’elle l’ait revu. La question à lui
+   poser n’est pas « est-ce mieux ? » mais « qu’avez-vous fait en arrivant ? ».
+2. **L’étape 3 est un fourre-tout.** Elle contient l’exemple lu, les trois
+   colonnes de fond, le dépliant d’aide et les renvois vers `/la-methode`,
+   `/le-langage` et `/un-cas`. « Pourquoi ce modèle, et ce qu’il ignore » est un
+   titre qui promet une chose et en couvre quatre. Il faudrait soit le découper,
+   soit déplacer ce qui n’est pas *ce modèle-ci*.
+3. **La corrélation entre hypothèses**, toujours en tête de liste depuis la
+   session 1 et toujours pas faite. C’est la dernière hypothèse fausse du
+   moteur. `outils/fond.js` explique déjà au lecteur de `louer-ou-acheter`
+   comment l’écrire à la main avec un facteur commun — ce qui est l’aveu que le
+   langage devrait savoir le faire.
+4. **Le mode par défaut du formulaire.** « Deux bornes » reste le mode
+   d’ouverture parce que c’est le vocabulaire du texte, qui est la vérité. Si un
+   passage montre que « deux questions » se remplit mieux, c’est l’ordre qu’il
+   faut inverser, pas la formulation.
+
+Toujours pas de graphiques — sauf les deux courbes de la session 16, qui
+restent les seules, et qui disent une fréquence et non une décoration.
+
+---
+
 ## 5 septembre 2026 — Session 19 : le site rendait au visiteur des chiffres qu’il venait d’écrire
 
 *Modèle : Claude Opus 5 (fenêtre 1 M).*

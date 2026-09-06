@@ -213,24 +213,142 @@ nav .exemples { margin-bottom: 0; }
 
 /* ---------- Disposition ---------- */
 
-/* La réponse passe avant l'outil qui la produit — un visiteur qui arrive veut
-   voir le verdict, pas un éditeur de texte. Le principe valait en colonne
-   unique depuis la session 6 ; il ne valait pas au-delà de 940 px, où le code
-   occupait la moitié gauche, c'est-à-dire la place qu'on lit en premier.
-   Il vaut maintenant partout, et c'est l'ordre du DOM qui le porte : les
-   lecteurs d'écran et la tabulation suivent la même route que l'œil. */
+/* La saisie d'abord, la réponse ensuite. C'est l'inverse de ce que cette
+   feuille a porté des sessions 6 à 19 — « la réponse passe avant l'outil qui la
+   produit » — et l'inversion a une raison, pas un nouveau lecteur : l'outil
+   était un éditeur de code, et « personne n'a demandé à programmer en
+   arrivant ». Depuis la session 18 c'est un formulaire en français, dont le
+   premier champ se remplit sans rien apprendre. Ce n'est plus la même chose
+   qu'on met devant.
+
+   Septième passage, première lectrice qui ne connaissait pas le projet : « il
+   faudrait commencer par la saisie des paramètres du modèle, et ensuite
+   expliquer ». C'est l'ordre du DOM qui le porte : tabulation et lecteurs
+   d'écran suivent la même route que l'œil. */
 .atelier {
   display: grid;
-  grid-template-columns: minmax(0, 54fr) minmax(0, 46fr);
+  grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
   gap: 28px;
   align-items: start;
 }
+
+.colonne { display: flex; flex-direction: column; min-width: 0; }
 
 @media (max-width: 940px) {
   /* minmax(0, 1fr) et non 1fr : le minimum d'une piste « 1fr » est la largeur
      min-content de son contenu, si bien qu'une seule ligne non sécable
      (l'échelle d'élargissement) élargissait la grille et donc la page. */
   .atelier { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
+
+/* ---------- La cinématique ---------- */
+
+/* « Dans l'ergonomie, cette cinématique doit être explicite. » Les trois temps
+   du site, écrits une fois en haut, et repris en pastille sur chaque panneau
+   pour qu'on retrouve où l'on en est en scrollant. */
+.cinematique {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--attenue);
+}
+.cinematique li { display: flex; align-items: center; gap: 7px; }
+.cinematique li + li::before {
+  content: "→";
+  margin-right: 4px;
+  color: var(--trait-fort);
+}
+.cinematique em { font-style: normal; }
+
+.etape-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.etape-titre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--attenue);
+}
+.etape-titre em {
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.etape-trois { margin: 30px 0 10px; }
+
+/* La réponse suit la saisie sur un téléphone. Le verdict courant en une ligne,
+   tant que la réponse n'est pas à l'écran ; au-delà de 940 px les deux colonnes
+   sont côte à côte et la barre n'existe pas. */
+.barre-reponse { display: none; }
+
+/* Sur un téléphone, la bande se casse en trois lignes et les flèches se
+   retrouvent en début de ligne, où elles ne relient plus rien. Elle s'empile. */
+@media (max-width: 560px) {
+  .cinematique { display: grid; gap: 4px; }
+  .cinematique li + li::before { content: none; }
+}
+
+@media (max-width: 940px) {
+  .barre-reponse {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 20;
+    display: none;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--trait-fort);
+    background: var(--surface);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+    text-decoration: none;
+    color: var(--encre);
+  }
+  .barre-reponse.montre { display: flex; }
+  .barre-etiquette {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--attenue);
+  }
+  .barre-texte {
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .panneau {
@@ -257,8 +375,7 @@ nav .exemples { margin-bottom: 0; }
   text-transform: uppercase;
 }
 
-.editeur-entete > span:first-child { white-space: nowrap; }
-.editeur-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; text-transform: none; letter-spacing: 0; }
+.editeur-actions { display: flex; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; text-transform: none; letter-spacing: 0; }
 
 .editeur-actions button {
   font: inherit;
@@ -700,6 +817,15 @@ nav .exemples { margin-bottom: 0; }
 .exemple-ouverture b { color: var(--encre); font-weight: 600; }
 .exemple-ouverture .exemple-suite { font-size: 13.5px; margin-top: 10px; }
 
+/* L'exemple lu, à l'étape 3 : les chiffres du modèle servi, une fois qu'on a vu
+   le formulaire et la réponse. Il était au-dessus des deux jusqu'à la session
+   20 — « il faudrait commencer par la saisie des paramètres du modèle, et
+   ensuite expliquer ». Comme l'ouverture, il disparaît dès que le texte à
+   l'écran n'est plus celui que la page sert (`ajusterOuverture`). */
+.exemple-lu { padding: 16px 20px; margin-bottom: 18px; }
+.exemple-lu p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--attenue); max-width: 78ch; }
+.exemple-lu b { color: var(--encre); font-weight: 600; }
+
 /* Aller savoir, ou décider maintenant. Une entrée par ligne « savoir ».
    Même trait de séparation que la liste des hypothèses : c'est la même
    matière, lue sous l'angle de la dépense. */
@@ -767,6 +893,25 @@ nav .exemples { margin-bottom: 0; }
   .contre-liste li { grid-template-columns: minmax(0, 1fr) auto; }
   .contre-nom { grid-column: 1 / -1; }
 }
+
+/* La robustesse : même forme dépliante que le détail des calculs, et pour la
+   même raison — c'est une épreuve du résultat, pas le résultat. Elle occupait
+   un panneau ouvert entre la réponse et le détail, avec ce que la page a de
+   plus mathématique dedans (« 1,25× 63 % · 1,5× 61 % »). */
+#robustesse > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--attenue);
+  font-weight: 600;
+}
+#robustesse > summary::-webkit-details-marker { display: none; }
+#robustesse > summary::before { content: "+ "; }
+#robustesse[open] > summary::before { content: "\2212  "; }
+#robustesse > summary:hover { color: var(--encre); }
+#robustesse[open] > summary { margin-bottom: 14px; }
 
 /* Le détail des calculs : un panneau dépliant, parce que c'est une lecture de
    vérification, pas le verdict. Trois colonnes — nom, médiane, fourchette —

@@ -72,14 +72,14 @@
     <tr><td>si … alors … sinon …</td><td>Condition. Avec <code>et</code>, <code>ou</code>, <code>non</code> et les comparaisons.</td></tr>
     <tr><td>cumul(taux, années)</td><td><code>1 + (1+t) + … + (1+t)^(a-1)</code>. Pour capitaliser un versement annuel constant.</td></tr>
     <tr><td>serie(placement, croissance, années)</td><td>Un versement qui croît de <code>g</code> chaque année et se place à <code>r</code>. Pour comparer un loyer qui monte à un capital qui rapporte.</td></tr>
-    <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
+    <tr><td>unif(a, b)<br>normale(moyenne, écart-type)<br>lognormale(médiane, facteur)<br>triangulaire(min, mode, max)<br>bernoulli(p) · poisson(λ) · beta(a, b)</td><td>Si la fourchette <code>a à b</code> ne suffit pas. La médiane d’une <code>lognormale</code> est le chiffre qu’elle dépasse une fois sur deux. <code>bernoulli</code> sert aux événements : <code>panne = bernoulli(8 %)</code>.</td></tr>
     <tr><td>proba(condition)<br>esperance(x) · mediane(x) · ecart_type(x)</td><td>Résument toute la simulation en un seul nombre.</td></tr>
   </table>
 
   <h2>La fourchette et la loi</h2>
     <p>
-    <code>100 à 400</code>, deux bornes positives, donne une <b>lognormale</b> : la médiane est la
-    moyenne géométrique (200, pas 250) et le résultat ne devient jamais négatif — le bon réflexe
+    <code>100 à 400</code>, deux bornes positives, donne une <b>lognormale</b> : sa médiane — le
+    chiffre dépassé une fois sur deux — est la moyenne géométrique (200, pas 250) et le résultat ne devient jamais négatif — le bon réflexe
     pour un prix, une durée, une quantité. <code>−2 % à 5 %</code>, dont les bornes changent de
     signe, donne une <b>normale</b>. <code>0 à 100</code> donne une normale repliée : écrire zéro
     comme borne basse, c’est dire qu’on exclut le négatif.

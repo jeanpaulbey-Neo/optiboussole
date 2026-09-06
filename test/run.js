@@ -2177,6 +2177,55 @@ groupe('Le texte servi par les pages');
   const n = brut(accueil).length;
   verifie('l’accueil tient sous 7 500 caractères de texte', n < 7500, `→ ${n}`);
 
+  // La cinématique, servie dans l'ordre où on la fait. Septième passage du
+  // lecteur extérieur — le premier d'une personne qui ne connaissait ni le site
+  // ni le projet : « on ne comprend pas la démarche ; il faudrait commencer par
+  // la saisie des paramètres du modèle, et ensuite expliquer ». Ces quatre
+  // vérifications tiennent l'ordre du document, donc celui de la tabulation et
+  // des lecteurs d'écran, et pas seulement celui de la grille CSS.
+  const iCine = accueil.indexOf('class="cinematique"');
+  const iSaisie = accueil.indexOf('<textarea');
+  const iReponse = accueil.indexOf('id="resultats"');
+  const iTrois = accueil.indexOf('etape-trois');
+  verifie('la cinématique est écrite avant l’atelier',
+    iCine > 0 && iCine < iSaisie, `→ ${iCine} / ${iSaisie}`);
+  verifie('… la saisie vient avant la réponse',
+    iSaisie > 0 && iSaisie < iReponse, `→ ${iSaisie} / ${iReponse}`);
+  verifie('… et l’explication après les deux',
+    iTrois > iReponse, `→ ${iTrois} / ${iReponse}`);
+  const numeros = (motif) => [...accueil.matchAll(motif)].map((m) => m[1]).join('');
+  verifie('… la bande d’en-tête les annonce 1, 2, 3',
+    numeros(/<li><span class="etape-n">(\d)</g) === '123',
+    `→ ${numeros(/<li><span class="etape-n">(\d)</g)}`);
+  verifie('… et les trois panneaux les portent dans le même ordre',
+    numeros(/class="etape-titre[^"]*"><span class="etape-n">(\d)</g) === '123',
+    `→ ${numeros(/class="etape-titre[^"]*"><span class="etape-n">(\d)</g)}`);
+
+  // « L'explication du modèle sous-jacent doit rester optionnelle. On doit
+  // commencer par expliquer le pourquoi du modèle, son avantage, et le
+  // comportement qu'on tente d'appréhender, avant de rentrer dans l'explication
+  // mathématique. » L'ouverture dit donc pourquoi avant de citer un chiffre, et
+  // ne nomme ni la simulation, ni la loi, ni un quantile.
+  const ouverture = brut(accueil.slice(accueil.indexOf('exemple-ouverture'),
+    accueil.indexOf('class="cinematique"')));
+  verifie('l’ouverture dit pourquoi une fourchette',
+    /fourchette/.test(ouverture), `→ ${ouverture.slice(0, 90)}`);
+  verifie('… nomme le comportement qu’on cherche',
+    /change de camp/.test(ouverture), `→ ${ouverture.slice(0, 90)}`);
+  verifie('… n’y fait aucune mathématique',
+    !/simulation|lognormale|tirage|quantile|médiane|probabilité/i.test(ouverture),
+    `→ ${ouverture.slice(0, 90)}`);
+  verifie('… et n’y cite aucun résultat : l’exemple lu est à l’étape 3',
+    !/1 109|631/.test(ouverture) && accueil.indexOf('exemple-lu') > iReponse,
+    `→ ${ouverture.slice(0, 90)}`);
+
+  // Les chiffres de l'exemple travaillé n'ont pas disparu, ils ont changé de
+  // place : ils illustrent la réponse au lieu de la précéder.
+  const lu = brut(accueil.slice(accueil.indexOf('exemple-lu'), accueil.indexOf('panneau fond')));
+  verifie('l’exemple lu garde le seuil, la fourchette et ce que vaut l’enquête',
+    /400 et 1 800/.test(lu) && /1 109 € par an/.test(lu) && /631 €/.test(lu),
+    `→ ${lu.slice(0, 120)}`);
+
   // Le nom du site ne dit rien ; la phrase qui dit à quoi il sert doit être
   // lisible avant le modèle, pas après quarante lignes de code.
   const iQuoi = accueil.indexOf('marque-quoi');
@@ -2197,8 +2246,11 @@ groupe('Le texte servi par les pages');
   const cas = pageCas();
   verifie('le cas raconté est une page à lui seul',
     cas.includes('Un cas, du début à la fin') && cas.includes('canonical" href="https://optiboussole.fr/un-cas'));
-  verifie('… vers laquelle l’accueil renvoie dès son ouverture',
-    accueil.indexOf('href="/un-cas"') > 0 && accueil.indexOf('href="/un-cas"') < accueil.indexOf('<textarea'));
+  // Le renvoi vers le cas raconté suit l'exemple lu : il est à l'étape 3, avec
+  // le reste de ce qui explique, et non plus avant le formulaire.
+  verifie('… vers laquelle l’accueil renvoie depuis son exemple lu',
+    accueil.indexOf('href="/un-cas"') > accueil.indexOf('exemple-lu')
+    && accueil.indexOf('href="/un-cas"') < accueil.indexOf('panneau fond'));
 
   const langage = pageLangage();
   verifie('la référence du langage vit sur /le-langage',
@@ -2219,6 +2271,28 @@ groupe('Le texte servi par les pages');
     if (t > pire) { pire = t; pireNom = m.titre; }
   }
   verifie('une page de modèle tient sous 9 000 caractères', pire < 9000, `→ ${pire} (${pireNom})`);
+
+  // « La notion de médiane doit devenir compréhensible pour le plus grand
+  // nombre ; en l'état elle reste une notion de statisticien posée devant
+  // quelqu'un qui veut décider. » (Septième passage.)
+  //
+  // Le mot ne survit que sur les deux pages qui sont **faites** pour expliquer,
+  // c'est-à-dire l'étape 3 — et sur celles-là il se définit avant de servir.
+  // Partout ailleurs, la notion se dit en fréquence, comme les « 9 chances sur
+  // 10 » et les « 3 fois sur 10 » du reste du site.
+  const { pageMethode } = await import('../outils/gabarit.js');
+  const ailleurs = [['l’accueil', accueil], ['le cas raconté', cas]];
+  for (const m of MODELES) ailleurs.push([m.titre, page({ modele: m, accueil: false, ...options })]);
+  const fautifs = ailleurs.filter(([, html]) => /médiane/i.test(brut(html))).map(([nom]) => nom);
+  verifie('le mot « médiane » ne paraît nulle part hors des pages d’explication',
+    fautifs.length === 0, `→ ${fautifs.join(', ')}`);
+  for (const [nom, html] of [['/la-methode', pageMethode()], ['/le-langage', langage]]) {
+    const t = brut(html);
+    const i = t.search(/médiane/i);
+    verifie(`${nom} : le mot y est défini là où il paraît d’abord`,
+      i >= 0 && /(dépasse|dépassé) une fois sur deux/.test(t.slice(i - 40, i + 240)),
+      `→ « ${t.slice(Math.max(0, i - 40), i + 160)} »`);
+  }
 }
 
 // --- Deux questions plutôt que deux bornes -----------------------------------
