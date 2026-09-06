@@ -11,7 +11,8 @@
     "pages": "node outils/pages.js",
     "apercus": "node outils/apercus.js",
     "site": "node outils/pages.js && node outils/apercus.js",
-    "indexnow": "node outils/indexnow.js"
+    "indexnow": "node outils/indexnow.js",
+    "robots": "node outils/robots.js"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

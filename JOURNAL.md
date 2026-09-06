@@ -58,6 +58,38 @@ alors que le script la traite en tir à blanc et n'envoie qu'avec
 `-- --pour-de-vrai`. Quelqu'un aurait pu croire l'avoir fait sans l'avoir fait.
 Corrigé : les deux modes sont écrits, et la date de l'envoi avec.
 
+**Puis : « comment tester que nous sommes référencés par Bing ? »** Interroger
+Bing de l'extérieur ne dit qu'une chose, et tard : tant qu'il n'a pas indexé, la
+réponse est « aucun résultat », qu'il soit passé ou non. Le signal qui arrive en
+premier est le passage du robot **sur ce serveur** — et Caddy n'écrivait aucun
+journal d'accès.
+
+Il n'en écrit toujours pas pour les visiteurs, et il ne doit pas : `log_skip`
+écarte tout ce qui ne s'annonce pas comme un robot, et le filtre supprime
+l'adresse IP, le port, le référent et les en-têtes de langue, y compris pour les
+robots. Reste un horodatage, un chemin, un code et un User-Agent. `npm run
+robots` en fait un tableau et répond en une ligne à la question posée.
+
+**Ce que ce journal ne prouve pas, et je préfère l'écrire que le laisser
+croire :** un User-Agent se déclare et ne se vérifie pas. Authentifier un robot
+demande la résolution inverse de son adresse IP — c'est-à-dire exactement la
+donnée qu'on refuse de garder. C'est un échange délibéré : un signal précoce
+contre la garantie de ne rien collecter. La preuve, elle, arrive plus tard et
+ailleurs, quand l'adresse sort sur une recherche.
+
+Deux fautes en chemin, toutes deux instructives. `sudo caddy validate` **crée
+les fichiers de journal en `root:root`** ; le service tourne en `caddy` et ne
+peut plus les ouvrir, donc le rechargement échoue avec `permission denied`. Le
+site n'est pas tombé — Caddy valide avant d'appliquer et garde l'ancienne
+configuration —, mais j'ai passé une minute à chercher une erreur de syntaxe qui
+n'existait pas. Et mon premier essai du journal a enregistré mon propre `curl`
+déguisé en bingbot : `npm run robots` a fièrement annoncé « Bing est passé ».
+J'ai vidé le fichier. Un instrument de mesure qui compte ses propres essais est
+un instrument qui ment.
+
+Au 6 septembre, 22 h : aucun robot n'est encore passé, et `site:optiboussole.fr`
+sur Bing ne renvoie rien. C'est normal une heure après l'annonce.
+
 ### Ce que « être trouvable » a révélé du code
 
 **La tête de page était recopiée quatre fois, et les quatre avaient divergé.**

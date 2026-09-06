@@ -274,6 +274,52 @@ déjà lesquelles ont changé (`outils/dates.json`), mais IndexNow, lui, ne le
 saura que si on le lui dit. Google n'y participe pas : pour lui, c'est la
 Search Console, qui demande un compte (voir plus haut).
 
+### Comment savoir si ça marche
+
+Trois instruments, du plus précoce au plus tardif. **L'ordre compte** : le robot
+passe d'abord, l'adresse est indexée ensuite, elle sort sur une recherche en
+dernier. Chercher dans Bing le lendemain d'une annonce ne prouve rien.
+
+**1. Le robot est-il passé sur le serveur ? (immédiat, sur la machine)**
+
+```bash
+npm run robots
+```
+
+Caddy journalise depuis la session 21 les seules requêtes qui s'annoncent comme
+des robots, sans adresse IP — il n'y a toujours aucun journal des visiteurs.
+La commande dit qui est venu, combien de pages il a lues et quand.
+
+C'est un signal, pas une preuve : un User-Agent se déclare et ne se vérifie
+pas sans l'adresse IP, qu'on refuse justement de garder.
+
+**2. L'adresse est-elle indexée ? (quelques heures à quelques jours)**
+
+Dans un **navigateur** — depuis le serveur, `curl` ne reçoit que des pages
+anti-robot :
+
+- `site:optiboussole.fr` sur bing.com — liste tout ce que Bing connaît du
+  domaine. Tant que la réponse est « aucun résultat », rien n'est indexé.
+- `url:https://optiboussole.fr/` sur bing.com — vérifie une adresse précise.
+- DuckDuckGo utilise l'index de Bing : `site:optiboussole.fr` y est un bon
+  second avis.
+- Pour Google, la même requête sur google.com. Google n'ayant pas reçu
+  d'annonce IndexNow, il viendra de lui-même — plus lentement.
+
+**3. Bing Webmaster Tools (compte gratuit, la seule vue complète)**
+
+C'est le seul endroit qui montre l'historique des soumissions IndexNow, la date
+du dernier passage du robot, les pages retenues et celles écartées avec le
+motif. Si une seule inscription doit être faite, c'est celle-là.
+
+**Combien de temps attendre avant de s'inquiéter :** une semaine sans aucun
+passage de robot alors que `robots.txt` et le plan du site sont servis
+correctement (ils le sont, des tests le vérifient) est anormal. Avant cela,
+c'est le rythme habituel d'un domaine que personne ne référence encore — et
+c'est précisément ce que les publications du § 3 changent : **un lien entrant
+depuis un site déjà indexé fait venir les robots bien plus vite qu'une
+annonce.**
+
 ---
 
 ## 6. Le dépôt de code : à vous de décider

@@ -51,6 +51,7 @@ supprime toute dépense (n° 1), et fait qu'un déploiement ne peut pas « tombe
 │   │                       texte des vignettes d'aperçu
 │   ├── apercus.js          `npm run apercus` → écrit public/og/*.png (Chrome sans écran)
 │   ├── indexnow.js         `npm run indexnow` → prévient Bing & co. JAMAIS lancé seul.
+│   ├── robots.js           `npm run robots` → qui est venu lire le site
 │   ├── dates.json          le carnet des dates de dernière modification (versionné)
 │   └── pages.js            `npm run pages` → écrit les fichiers ci-dessus
 ├── test/
@@ -1007,6 +1008,40 @@ retéléchargerait 250 ko de JavaScript.
 Si un jour le trafic justifie un vrai cache, la condition est de versionner les
 URL (`/js/ui.js?v=<empreinte>`), pas de rallonger `max-age` : c'est exactement
 la manœuvre qui a produit le défaut ci-dessus.
+
+### Le journal des robots — et l'absence de journal des visiteurs
+
+Ajouté en session 21. Caddy n'écrivait aucun journal d'accès, ce qui était le
+bon réglage par défaut et laissait une question sans réponse : *est-ce que
+Bing est seulement passé ?*
+
+```
+@humain not header_regexp User-Agent (?i)(bot|crawl|spider|slurp|…)
+log_skip @humain
+log { output file /var/log/caddy/robots.log … format filter { … } }
+```
+
+⚠️ **Ce qui est écrit, et ce qui ne l'est pas.** `log_skip` écarte toute
+requête qui ne s'annonce pas comme un robot : il n'existe **aucun** journal des
+visiteurs, et il ne doit pas en exister (interdit n° 3). Le filtre supprime en
+plus, y compris pour les robots, l'adresse IP, le port, le référent et les
+en-têtes de langue. Il reste un horodatage, une méthode, un chemin, un code et
+un User-Agent. Rien qui désigne quelqu'un.
+
+`npm run robots` en fait un tableau par famille de robot, et répond en une
+ligne à « Bing est-il passé ». **Ce n'est pas une preuve** : un User-Agent se
+déclare et ne se vérifie pas ; l'authentification normale d'un robot passe par
+la résolution inverse de son IP, c'est-à-dire par la donnée qu'on refuse de
+garder. C'est un signal précoce, échangé volontairement contre la garantie de
+ne rien collecter.
+
+⚠️ **`sudo caddy validate` crée les fichiers de journal en `root:root`**, et le
+service, qui tourne en `caddy`, ne peut alors plus les ouvrir : le rechargement
+échoue avec `permission denied`. C'est ainsi que le premier `systemctl reload`
+de la session 21 a échoué. `chown caddy:caddy` sur le fichier, et c'est réglé.
+Le site, lui, n'est jamais tombé : Caddy valide avant d'appliquer et garde
+l'ancienne configuration. La sauvegarde d'avant cette modification est dans
+`/etc/caddy/Caddyfile.avant-journal-robots`.
 
 `/la-methode` est une page de contenu (pas d'atelier), générée par
 `pageMethode()` depuis `outils/methode.js`. Le pied de page de toutes les pages
