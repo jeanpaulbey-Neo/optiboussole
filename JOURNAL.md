@@ -50,6 +50,14 @@ l'extérieur. J'ai posé la clé, écrit `npm run indexnow`, vérifié qu'il com
 la bonne charge, et **je ne l'ai pas lancé** : sans `--pour-de-vrai`, il annonce
 ce qu'il enverrait et s'arrête. C'était à Jean-Paul de décider, pas à moi.
 
+**Suite, le même jour :** Jean-Paul a répondu en collant la ligne
+`npm run indexnow`. Les 17 adresses ont été annoncées — `202 Accepted`. Au
+passage, sa réponse a montré une inexactitude de ma propre documentation :
+`PROMOTION.md` présentait cette ligne comme celle qui prévient les moteurs,
+alors que le script la traite en tir à blanc et n'envoie qu'avec
+`-- --pour-de-vrai`. Quelqu'un aurait pu croire l'avoir fait sans l'avoir fait.
+Corrigé : les deux modes sont écrits, et la date de l'envoi avec.
+
 ### Ce que « être trouvable » a révélé du code
 
 **La tête de page était recopiée quatre fois, et les quatre avaient divergé.**

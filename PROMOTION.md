@@ -257,16 +257,22 @@ titres et descriptions calibrés. Un moteur qui passe trouvera tout.
   Console. Bing alimente aussi les réponses de plusieurs assistants.
 
 **Ce qui ne demande aucun compte : IndexNow.** Une clé posée à la racine du site
-et une requête HTTP suffisent à prévenir Bing, Yandex et Seznam. La clé est déjà
-en place (`public/<clé>.txt`), la commande est écrite :
+et une requête HTTP suffisent à prévenir Bing, Yandex et Seznam. La clé est en
+place (`public/<clé>.txt`, servie en `text/plain`), et la commande a deux modes :
 
 ```bash
-npm run indexnow      # prévient Bing & co. que les 17 pages existent
+npm run indexnow                      # tir à blanc : dit ce qu'il enverrait
+npm run indexnow -- --pour-de-vrai    # envoie vraiment
 ```
 
-Je ne l'ai pas lancée : c'est le seul envoi vers l'extérieur de tout ce projet,
-et il n'était pas à moi de le décider. Une ligne suffit à le faire, ou à me dire
-de le faire.
+**Fait le 6 septembre 2026**, sur instruction explicite de Jean-Paul : les 17
+adresses ont été annoncées, réponse `202 Accepted`. C'est le seul envoi vers
+l'extérieur de tout le projet, et il n'était pas à moi de le déclencher.
+
+À relancer après toute session qui modifie des pages — le plan du site sait
+déjà lesquelles ont changé (`outils/dates.json`), mais IndexNow, lui, ne le
+saura que si on le lui dit. Google n'y participe pas : pour lui, c'est la
+Search Console, qui demande un compte (voir plus haut).
 
 ---
 
